@@ -1,0 +1,34 @@
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+pytest-cache-files-*/
+.venv/
+venv/
+
+# Backend runtime artifacts
+backend/database.db
+backend/*.log
+backend/*.pid
+backend/pytest-cache-files-*/
+
+# Frontend dependencies and build output
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+frontend/*.log
+frontend/*.pid
+
+# Local environment
+.env
+.env.*
+!.env.example
+
+# Local agent/tooling artifacts
+.agent/
+
+# OS/editor files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
