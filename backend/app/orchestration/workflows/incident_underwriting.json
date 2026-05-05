@@ -1,0 +1,9 @@
+{
+  "name": "incident_underwriting_workflow",
+  "version": 1,
+  "tasks": [
+    { "name": "retrieval_agent", "taskReferenceName": "retrieval" },
+    { "name": "risk_evaluator_agent", "taskReferenceName": "risk_eval" },
+    { "name": "underwriter_memo_agent", "taskReferenceName": "memo_drafting" }
+  ]
+}
