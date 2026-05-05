@@ -1,97 +1,188 @@
 "use client";
 
-export default function VenuePortal() {
+import { useEffect, useState } from "react";
+import { Upload, AlertTriangle, Wifi, WifiOff, ArrowRight } from "lucide-react";
+
+const API_URL = "http://127.0.0.1:8002";
+
+const fallbackLiveState = {
+  venue_id: "elsewhere-brooklyn",
+  current_capacity: 482,
+  max_capacity: 500,
+  premium_impact: 0,
+  infrastructure: [
+    { name: "DOOR_ID_SCANNER", status: "ACTIVE", detail: "[482/HR]", is_degraded: false },
+    { name: "GUESTLIST_SYNC", status: "ACTIVE", detail: "[REALTIME]", is_degraded: false },
+    { name: "CAMERA_REAR", status: "DEGRADED", detail: "[12% LOSS]", is_degraded: true },
+  ],
+  compliance_queue: [
+    {
+      id: "INCIDENT_99A8B1",
+      title: "Upload rear-bar security footage",
+      description: "Upload verified security footage (23:10-23:18) to preserve claims defensibility for the rear-bar brawl.",
+      severity: "URGENT",
+    },
+  ],
+};
+
+export default function HomePage() {
+  const [liveState, setLiveState] = useState(fallbackLiveState);
+  const [uploadingId, setUploadingId] = useState<string | null>(null);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+
+  const handleUpload = async (itemId: string, event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setUploadingId(itemId);
+    setUploadError(null);
+
+    const formData = new FormData();
+    formData.append("file", file);
+
+    try {
+      const res = await fetch(`${API_URL}/api/venues/elsewhere-brooklyn/compliance/${itemId}/upload`, {
+        method: "POST",
+        body: formData,
+      });
+      if (!res.ok) throw new Error(`Upload failed with status ${res.status}`);
+    } catch (err) {
+      setUploadError(err instanceof Error ? err.message : "Upload failed");
+    } finally {
+      setUploadingId(null);
+    }
+  };
+
+  useEffect(() => {
+    const fetchState = async () => {
+      try {
+        const res = await fetch(`${API_URL}/api/venues/elsewhere-brooklyn/live`);
+        const data = await res.json();
+        setLiveState(data);
+      } catch (err) {
+        console.error(err);
+      }
+    };
+    fetchState();
+    const interval = setInterval(fetchState, 5000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const capacityPercent = (liveState.current_capacity / liveState.max_capacity) * 100;
+  const capacityColor = capacityPercent >= 95 ? "var(--state-error)" : capacityPercent >= 80 ? "var(--state-warning)" : "var(--brand-primary)";
+
   return (
-    <div className="theme-venue" style={{ minHeight: "100vh", backgroundColor: "var(--bg-dark)", color: "var(--text-main)", overflowX: "hidden" }}>
-      <main className="industrial-grid">
-        
-        {/* SIDE PANEL (Mixing Board Controls) */}
-        <aside className="industrial-panel surface" style={{ borderRight: "1px solid var(--border-subtle)", zIndex: 10 }}>
-          <div style={{ marginBottom: "64px" }}>
-            <div style={{ fontFamily: "var(--font-mono)", fontSize: "0.75rem", color: "var(--text-muted)", letterSpacing: "0.1em", marginBottom: "8px" }}>SYS.INIT // VEN_01H9X</div>
-            <h1 style={{ fontFamily: "var(--font-sans)", fontSize: "2.5rem", fontWeight: 700, margin: 0, textTransform: "uppercase", lineHeight: 1 }}>ELSEWHERE<br/>BROOKLYN</h1>
-          </div>
+    <div className="min-h-screen bg-dark">
+      <div className="grid" style={{ gridTemplateColumns: "320px 1fr", minHeight: "100vh" }}>
+        {/* Sidebar */}
+        <aside className="bg-base border" style={{ borderRight: "1px solid var(--border-subtle)", padding: "var(--space-xl)" }}>
+          <div className="flex flex-col gap-xl" style={{ height: "100%" }}>
+            <div>
+              <div className="text-sm font-mono text-muted tracking-wide mb-sm">SYS.INIT // VEN_01H9X</div>
+              <h1 className="text-3xl font-bold uppercase" style={{ fontFamily: "var(--font-display)" }}>Elsewhere Brooklyn</h1>
+            </div>
 
-          <div style={{ flex: 1 }}>
-            <h2 style={{ fontFamily: "var(--font-sans)", fontSize: "1rem", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.2em", marginBottom: "24px" }}>Active Coverage</h2>
-            <div className="neon-flicker" style={{ fontSize: "3rem", fontFamily: "var(--font-sans)", fontWeight: 700, color: "var(--brand-primary)", lineHeight: 1, marginBottom: "8px", textShadow: "0 0 20px rgba(212, 255, 0, 0.3)" }}>LIVE</div>
-            <div style={{ fontFamily: "var(--font-mono)", fontSize: "0.85rem", color: "var(--text-subtle)", marginBottom: "32px" }}>RENEWAL: OCT_2026</div>
+            <div className="flex-1">
+              <h2 className="text-sm uppercase tracking-wide text-muted mb-lg">Active Coverage</h2>
+              <div className="text-4xl font-bold text-accent mb-sm">LIVE</div>
+              <div className="text-sm font-mono text-muted mb-xl">Renewal: Oct 2026</div>
 
-            <div style={{ backgroundColor: "rgba(255, 255, 255, 0.03)", padding: "16px", border: "1px solid var(--border-subtle)", marginBottom: "16px" }}>
-              <div style={{ fontFamily: "var(--font-mono)", fontSize: "0.75rem", color: "var(--text-muted)", marginBottom: "8px" }}>DOOR_CAPACITY // MAIN_ROOM</div>
-              <div style={{ fontFamily: "var(--font-sans)", fontSize: "2rem", color: "#FFF", fontWeight: 700 }}>482 <span style={{ fontSize: "1rem", color: "var(--text-subtle)" }}>/ 500</span></div>
-              <div style={{ height: "4px", backgroundColor: "var(--border-subtle)", marginTop: "8px", width: "100%" }}>
-                <div style={{ height: "100%", backgroundColor: "var(--brand-primary)", width: "96%" }}></div>
+              <div className="bg-surface border p-md mb-md">
+                <div className="text-xs font-mono text-muted mb-sm">DOOR_CAPACITY // MAIN_ROOM</div>
+                <div className="text-2xl font-bold">
+                  {liveState.current_capacity}
+                  <span className="text-lg font-normal text-muted"> / {liveState.max_capacity}</span>
+                </div>
+                <div className="capacity-bar mt-sm">
+                  <div className="capacity-fill" style={{ width: `${capacityPercent}%`, backgroundColor: capacityColor }} />
+                </div>
               </div>
             </div>
-          </div>
 
-          <button className="acid-btn" style={{ width: "100%" }}>
-            PING BROKER
-          </button>
+            <button className="btn btn-primary w-full">Ping Broker</button>
+            <a href="/dashboard" className="btn btn-ghost w-full flex items-center justify-center gap-sm">
+              Dashboard <ArrowRight size={16} />
+            </a>
+          </div>
         </aside>
 
-        {/* MAIN PANEL (LCD Readout) */}
-        <section className="industrial-panel">
-          
-          <div className="animate-enter delay-1" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginBottom: "64px" }}>
+        {/* Main */}
+        <main className="p-3xl">
+          <div className="flex justify-between items-end mb-3xl">
             <div>
-              <div style={{ fontFamily: "var(--font-mono)", fontSize: "0.85rem", color: "var(--brand-secondary)", letterSpacing: "0.1em", marginBottom: "16px" }}>&gt; PREMIUM_IMPACT_ANALYSIS</div>
-              <div className="hero-display">0.00%</div>
+              <div className="text-sm font-mono text-accent mb-md">&gt; PREMIUM_IMPACT_ANALYSIS</div>
+              <div className="text-4xl font-bold">{(liveState.premium_impact ?? 0).toFixed(2)}%</div>
             </div>
-            <div style={{ textAlign: "right" }}>
-              <div style={{ fontFamily: "var(--font-sans)", fontSize: "3.5rem", fontWeight: 700, color: "var(--brand-primary)", lineHeight: 1 }}>01</div>
-              <div style={{ fontFamily: "var(--font-mono)", fontSize: "0.85rem", color: "var(--text-muted)" }}>PENDING_ACTION</div>
+            <div className="text-right">
+              <div className="text-4xl font-bold text-accent">{String(liveState.compliance_queue?.length ?? 0).padStart(2, "0")}</div>
+              <div className="text-sm font-mono text-muted">PENDING_ACTION</div>
             </div>
           </div>
 
-          <div className="animate-enter delay-2" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "64px" }}>
-            
-            {/* ACTION QUEUE */}
-            <div>
-              <div style={{ borderBottom: "2px solid var(--border-subtle)", paddingBottom: "16px", marginBottom: "24px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <span style={{ fontFamily: "var(--font-sans)", fontSize: "1.25rem", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.1em" }}>COMPLIANCE_QUEUE</span>
-                <span style={{ backgroundColor: "var(--brand-primary)", color: "#000", padding: "2px 8px", fontFamily: "var(--font-mono)", fontSize: "0.7rem", fontWeight: 700 }}>URGENT</span>
-              </div>
-              
-              <div style={{ background: "var(--bg-surface)", border: "1px solid var(--border-subtle)", padding: "32px", position: "relative" }}>
-                <div style={{ position: "absolute", top: "-1px", left: "-1px", width: "20px", height: "20px", borderTop: "2px solid var(--brand-secondary)", borderLeft: "2px solid var(--brand-secondary)" }}></div>
-                <div style={{ position: "absolute", bottom: "-1px", right: "-1px", width: "20px", height: "20px", borderBottom: "2px solid var(--brand-secondary)", borderRight: "2px solid var(--brand-secondary)" }}></div>
-                
-                <h3 style={{ fontFamily: "var(--font-sans)", fontSize: "1.75rem", fontWeight: 600, margin: "0 0 16px 0", color: "#FFF", textTransform: "uppercase" }}>INCIDENT_99A8B1</h3>
-                <p style={{ fontFamily: "var(--font-mono)", fontSize: "0.95rem", color: "var(--text-muted)", lineHeight: 1.6, marginBottom: "32px" }}>
-                  Upload verified security footage (23:10-23:18) to preserve claims defensibility for Rear-bar brawl.
-                </p>
-                <button className="cyan-btn">EXECUTE UPLOAD</button>
-              </div>
-            </div>
-
-            {/* INTEGRATIONS */}
-            <div>
-              <div style={{ borderBottom: "2px solid var(--border-subtle)", paddingBottom: "16px", marginBottom: "24px" }}>
-                <span style={{ fontFamily: "var(--font-sans)", fontSize: "1.25rem", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.1em" }}>INFRASTRUCTURE_SYNC</span>
+          <div className="grid grid-cols-2 gap-2xl">
+            {/* Compliance Queue */}
+            <section>
+              <div className="flex justify-between items-center border pb-md mb-lg">
+                <h3 className="text-lg font-semibold uppercase">Compliance Queue</h3>
+                {(liveState.compliance_queue?.length ?? 0) > 0 && (
+                  <span className="badge badge-error">URGENT</span>
+                )}
               </div>
 
-              <div className="data-list">
-                <div className="data-item">
-                  <span>DOOR_ID_SCANNER [FRONT]</span>
-                  <span className="cyan-text">ACTIVE [742/HR]</span>
-                </div>
-                <div className="data-item">
-                  <span>GUESTLIST_SYNC [DICE.FM]</span>
-                  <span className="cyan-text">ACTIVE [REALTIME]</span>
-                </div>
-                <div className="data-item" style={{ borderColor: "#FF0055", backgroundColor: "rgba(255, 0, 85, 0.05)" }}>
-                  <span>CAMERA_FEED_REAR</span>
-                  <span style={{ color: "#FF0055", textShadow: "0 0 10px rgba(255, 0, 85, 0.3)" }}>DEGRADED [12% LOSS]</span>
-                </div>
+              <div className="flex flex-col gap-lg">
+                {(liveState.compliance_queue?.length ?? 0) === 0 ? (
+                  <div className="p-xl border border-dashed text-center text-muted font-mono">NO PENDING ACTIONS</div>
+                ) : (
+                  liveState.compliance_queue?.map((item: any) => (
+                    <div key={item.id} className="card bento-card">
+                      <h4 className="text-xl font-bold uppercase mb-md">{item.id}</h4>
+                      <p className="text-sm mb-xl">{item.description}</p>
+                      <div className="relative">
+                        <input
+                          type="file"
+                          accept="video/*,image/*"
+                          onChange={(e) => handleUpload(item.id, e)}
+                          className="visually-hidden"
+                          id={`upload-${item.id}`}
+                        />
+                        <label htmlFor={`upload-${item.id}`} className="btn btn-secondary">
+                          {uploadingId === item.id ? "Uploading..." : "Execute Upload"}
+                        </label>
+                      </div>
+                      {uploadError && uploadingId !== item.id && (
+                        <p className="text-sm text-error mt-sm">{uploadError}</p>
+                      )}
+                    </div>
+                  ))
+                )}
               </div>
-            </div>
+            </section>
 
+            {/* Infrastructure */}
+            <section>
+              <div className="border pb-md mb-lg">
+                <h3 className="text-lg font-semibold uppercase">Infrastructure Sync</h3>
+              </div>
+
+              <div className="flex flex-col gap-sm">
+                {liveState.infrastructure?.map((item: any, i: number) => (
+                  <div
+                    key={i}
+                    className={`flex justify-between items-center p-md border ${
+                      item.is_degraded ? "border-error bg-error/5" : "border-subtle"
+                    }`}
+                  >
+                    <span className="font-mono text-sm">{item.name}</span>
+                    <span className={`font-mono text-sm ${item.is_degraded ? "text-error" : "text-accent"}`}>
+                      {item.status} {item.detail}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </section>
           </div>
-        </section>
-
-      </main>
+        </main>
+      </div>
     </div>
   );
 }

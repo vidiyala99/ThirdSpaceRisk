@@ -103,3 +103,59 @@ def register_user(email: str, password: str, name: str, role: str = "venue_opera
     USERS_DB[user_id] = new_user
     
     return new_user
+
+from fastapi import APIRouter, HTTPException, Depends, Header
+from pydantic import BaseModel
+
+router = APIRouter()
+
+class LoginRequest(BaseModel):
+    email: str
+    password: str
+
+class RegisterRequest(BaseModel):
+    email: str
+    password: str
+    name: str
+    role: str = "venue_operator"
+
+@router.post("/login")
+def login(request: LoginRequest):
+    user = authenticate_user(request.email, request.password)
+    if not user:
+        raise HTTPException(status_code=401, detail="Invalid email or password")
+    token = create_token(user["id"], user["email"], user["role"], user["tenant_id"])
+    
+    # Format the user data correctly to remove password_hash before returning
+    safe_user = {k: v for k, v in user.items() if k != "password_hash"}
+    
+    return {"access_token": token, "user": safe_user}
+
+@router.post("/register")
+def register(request: RegisterRequest):
+    user = register_user(request.email, request.password, request.name, request.role)
+    if not user:
+        raise HTTPException(status_code=400, detail="User with this email already exists")
+    token = create_token(user["id"], user["email"], user["role"], user["tenant_id"])
+    
+    safe_user = {k: v for k, v in user.items() if k != "password_hash"}
+    
+    return {"access_token": token, "user": safe_user}
+
+@router.get("/me")
+def get_me(authorization: str = Header(None)):
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Missing or invalid token")
+    
+    token = authorization.split(" ")[1]
+    decoded = verify_token(token)
+    
+    if not decoded:
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
+        
+    user = get_user_by_id(decoded["sub"])
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+        
+    safe_user = {k: v for k, v in user.items() if k != "password_hash"}
+    return safe_user

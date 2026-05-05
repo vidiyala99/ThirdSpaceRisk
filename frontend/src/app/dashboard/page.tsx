@@ -3,9 +3,9 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useRole, useTenantId, useAuth } from "@/contexts/AuthContext";
-import { Building2, AlertTriangle, CheckSquare, TrendingUp, LogOut, Shield, DollarSign } from "lucide-react";
+import { Building2, AlertTriangle, CheckSquare, TrendingUp, LogOut, DollarSign } from "lucide-react";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8002";
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
 
 interface LiveState {
   current_capacity: number;
@@ -49,19 +49,12 @@ export default function DashboardPage() {
   const [liveState, setLiveState] = useState<LiveState | null>(null);
   const [riskScore, setRiskScore] = useState<RiskScore | null>(null);
   const [quote, setQuote] = useState<PremiumQuote | null>(null);
-  const [stats, setStats] = useState<Stats>({
-    venues: 0,
-    incidents: 0,
-    compliance: 0,
-    premiumImpact: 0,
-  });
+  const [stats, setStats] = useState<Stats>({ venues: 0, incidents: 0, compliance: 0, premiumImpact: 0 });
 
   const isBroker = role === "broker" || role === "admin";
 
   useEffect(() => {
-    if (!isSignedIn) {
-      router.push("/login");
-    }
+    if (!isSignedIn) router.push("/login");
   }, [isSignedIn, router]);
 
   useEffect(() => {
@@ -70,14 +63,12 @@ export default function DashboardPage() {
         setLoading(false);
         return;
       }
-
       try {
         const [liveRes, riskRes, quoteRes] = await Promise.all([
           fetch(`${API_URL}/api/venues/${tenantId}/live`),
           fetch(`${API_URL}/api/venues/${tenantId}/risk-score`),
           fetch(`${API_URL}/api/venues/${tenantId}/quote`),
         ]);
-
         if (liveRes.ok) {
           const state = await liveRes.json();
           setLiveState(state);
@@ -88,23 +79,14 @@ export default function DashboardPage() {
             premiumImpact: state.premium_impact || 0,
           });
         }
-
-        if (riskRes.ok) {
-          const risk = await riskRes.json();
-          setRiskScore(risk);
-        }
-
-        if (quoteRes.ok) {
-          const q = await quoteRes.json();
-          setQuote(q);
-        }
+        if (riskRes.ok) setRiskScore(await riskRes.json());
+        if (quoteRes.ok) setQuote(await quoteRes.json());
       } catch (error) {
         console.error("Failed to fetch dashboard:", error);
       } finally {
         setLoading(false);
       }
     }
-
     fetchDashboard();
   }, [tenantId, isBroker]);
 
@@ -114,187 +96,153 @@ export default function DashboardPage() {
   };
 
   const getTierColor = (tier: string) => {
-    const colors: Record<string, string> = {
-      A: "#22C55E",
-      B: "#8B5CF6", 
-      C: "#F59E0B",
-      D: "#EF4444",
-    };
-    return colors[tier] || "#94A3B8";
+    const colors: Record<string, string> = { A: "var(--brand-primary)", B: "var(--brand-secondary)", C: "var(--state-warning)", D: "var(--brand-tertiary)" };
+    return colors[tier] || "var(--text-secondary)";
   };
 
   if (!isSignedIn || loading) {
-    return (
-      <div className="dashboard-loading">
-        <div className="loading-spinner" />
-      </div>
-    );
+    return <div className="theme-venue min-h-screen page-loading"><div className="loading-spinner" /></div>;
   }
 
   if (!tenantId) {
     return (
-      <div className="dashboard">
-        <div className="dashboard-empty">
-          <Building2 size={48} />
-          <h2>No Venue Assigned</h2>
-          <p>Contact your administrator to get venue access</p>
-          <button onClick={handleSignOut} className="btn btn-secondary">
-            <LogOut size={18} />
-            Sign Out
-          </button>
+      <div className="theme-venue min-h-screen p-xl">
+        <div className="flex flex-col items-center justify-center" style={{ minHeight: "60vh" }}>
+          <Building2 size={48} className="text-muted mb-lg" />
+          <h2 className="text-xl mb-sm glow-text">No Venue Assigned</h2>
+          <p className="text-muted mb-lg">Contact your administrator to get venue access</p>
+          <button onClick={handleSignOut} className="btn btn-secondary"><LogOut size={18} /> Sign Out</button>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="dashboard">
-      <header className="dashboard-header">
+    <div className="theme-venue min-h-screen p-xl">
+      <header className="page-header border-b border-subtle mb-xl pb-lg flex justify-between items-start">
         <div>
-          <h1>Dashboard</h1>
-          <p className="dashboard-subtitle">
-            {isBroker
-              ? "Overview of all venues and risk metrics"
-              : "Your venue performance and compliance status"}
+          <h1 className="text-4xl font-bold glow-text mb-xs">VENUE <span className="text-accent">OS</span></h1>
+          <p className="text-secondary mt-sm">
+            {isBroker ? "Overview of all venues and risk metrics" : "Live Operational Health"}
           </p>
         </div>
-        <button onClick={handleSignOut} className="btn btn-ghost">
-          <LogOut size={18} />
-          Sign Out
-        </button>
+        <button onClick={handleSignOut} className="btn btn-ghost"><LogOut size={18} /> Sign Out</button>
       </header>
 
-      <div className="stats-grid stagger-children">
-        <StatCard
-          icon={<Building2 size={20} />}
-          label={isBroker ? "Total Venues" : "Your Venue"}
-          value={stats.venues}
-        />
-        <StatCard
-          icon={<AlertTriangle size={20} />}
-          label="Active Incidents"
-          value={stats.incidents}
-          detail="This month"
-        />
-        <StatCard
-          icon={<CheckSquare size={20} />}
-          label="Compliance Actions"
-          value={stats.compliance}
-          detail="Pending"
-          warning
-        />
-        <StatCard
-          icon={<TrendingUp size={20} />}
-          label="Premium Impact"
-          value={`${stats.premiumImpact.toFixed(1)}%`}
-          detail="Current term"
-        />
+      <div className="bento-grid mb-xl">
+        <div className="card bento-card">
+           <div className="flex gap-md items-center">
+             <div className="stat-icon" style={{ background: 'rgba(212, 255, 0, 0.1)', color: 'var(--brand-primary)' }}>
+               <Building2 size={24} />
+             </div>
+             <div className="flex flex-col gap-xs">
+               <span className="text-xs uppercase tracking-wide text-muted">{isBroker ? "Total Venues" : "Your Venue"}</span>
+               <span className="text-2xl font-bold">{stats.venues}</span>
+             </div>
+           </div>
+        </div>
+        <div className="card bento-card">
+           <div className="flex gap-md items-center">
+             <div className="stat-icon" style={{ background: 'rgba(255, 0, 85, 0.1)', color: 'var(--brand-tertiary)' }}>
+               <AlertTriangle size={24} />
+             </div>
+             <div className="flex flex-col gap-xs">
+               <span className="text-xs uppercase tracking-wide text-muted">Active Incidents</span>
+               <span className="text-2xl font-bold text-error">{stats.incidents}</span>
+               <span className="text-xs text-muted">This month</span>
+             </div>
+           </div>
+        </div>
+        <div className="card bento-card">
+           <div className="flex gap-md items-center">
+             <div className="stat-icon" style={{ background: 'rgba(0, 240, 255, 0.1)', color: 'var(--brand-secondary)' }}>
+               <CheckSquare size={24} />
+             </div>
+             <div className="flex flex-col gap-xs">
+               <span className="text-xs uppercase tracking-wide text-muted">Compliance Actions</span>
+               <span className="text-2xl font-bold text-info">{stats.compliance}</span>
+               <span className="text-xs text-muted">Pending</span>
+             </div>
+           </div>
+        </div>
       </div>
 
-      {riskScore && quote && (
-        <div className="dashboard-section animate-fade-in">
-          <h3>Risk Assessment</h3>
-          <div className="risk-card">
-            <div className="risk-header">
-              <div className="risk-tier" style={{ borderColor: getTierColor(riskScore.tier), color: getTierColor(riskScore.tier) }}>
-                Tier {riskScore.tier}
+      <div className="grid grid-cols-2 gap-lg mb-xl">
+        {riskScore && quote && (
+          <div className="flex flex-col gap-lg">
+            <div className="card highlight">
+              <h2 className="text-xl mb-sm font-display uppercase">Risk Profile</h2>
+              <div className="flex justify-between items-center mb-md pb-md border-b border-subtle">
+                <div className="text-xl font-bold font-mono px-3 py-1 rounded" style={{ border: `1px solid ${getTierColor(riskScore.tier)}`, color: getTierColor(riskScore.tier) }}>
+                  TIER {riskScore.tier}
+                </div>
+                <div className="flex items-baseline gap-sm glow-text">
+                  <span className="text-5xl font-bold text-primary">{riskScore.total_score}</span>
+                  <span className="text-secondary font-mono">/ 100</span>
+                </div>
               </div>
-              <div className="risk-score">
-                <span className="score-number">{riskScore.total_score}</span>
-                <span className="score-label">/ 100</span>
-              </div>
-            </div>
-            <div className="risk-factors">
-              {Object.entries(riskScore.factors).map(([key, data]) => (
-                <div key={key} className="factor-row">
-                  <span className="factor-name">{key.replace("_", " ")}</span>
-                  <div className="factor-bar">
-                    <div 
-                      className="factor-fill"
-                      style={{ width: `${data.score}%`, background: getTierColor(key === "incident_history" ? quote.tier : "B") }}
-                    />
+              <div className="flex flex-col gap-md">
+                {Object.entries(riskScore.factors).map(([key, data]) => (
+                  <div key={key} className="flex items-center gap-md">
+                    <span className="text-xs uppercase tracking-wide" style={{ width: "160px" }}>{key.replace("_", " ")}</span>
+                    <div className="flex-1 capacity-bar bg-dark">
+                      <div className="capacity-fill" style={{ width: `${data.score}%`, background: getTierColor(key === "incident_history" ? quote.tier : "B") }} />
+                    </div>
+                    <span className="text-sm font-mono text-secondary" style={{ width: "40px", textAlign: "right" }}>{data.score}</span>
                   </div>
-                  <span className="factor-score">{data.score}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <h3>Premium Quote</h3>
-          <div className="quote-card">
-            <div className="quote-header">
-              <span className="quote-type">{quote.venue_type.replace("_", " ")}</span>
-              <span className="quote-tier" style={{ color: getTierColor(quote.tier) }}>
-                {quote.tier} Tier
-              </span>
-            </div>
-            <div className="quote-amounts">
-              <div className="quote-annual">
-                <DollarSign size={24} />
-                <span className="amount-value">${quote.annual_premium.toLocaleString()}</span>
-                <span className="amount-label">/year</span>
+                ))}
               </div>
-              <div className="quote-monthly">
-                <span className="amount-value">${quote.monthly_premium.toLocaleString()}</span>
-                <span className="amount-label">/month</span>
+            </div>
+
+            <div className="card border-accent">
+              <h2 className="text-xl mb-sm font-display uppercase text-accent">Premium Quote</h2>
+              <div className="flex justify-between items-center mb-md">
+                <span className="text-md uppercase tracking-wide text-secondary">{quote.venue_type.replace("_", " ")}</span>
+                <span className="text-sm font-bold font-mono px-2 py-1 bg-surface-elevated rounded" style={{ color: getTierColor(quote.tier) }}>{quote.tier} TIER</span>
+              </div>
+              <div className="flex flex-col gap-md border-t border-subtle pt-md">
+                <div className="flex items-baseline gap-sm">
+                  <DollarSign size={28} className="text-accent" />
+                  <span className="text-4xl font-bold text-primary glow-text">{quote.annual_premium.toLocaleString()}</span>
+                  <span className="text-secondary font-mono uppercase text-xs">/ Year</span>
+                </div>
+                <div className="flex items-baseline gap-xs">
+                  <span className="text-xl font-semibold text-secondary font-mono">${quote.monthly_premium.toLocaleString()}</span>
+                  <span className="text-xs text-muted uppercase tracking-wide">/ Month</span>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {liveState && (
-        <div className="dashboard-section animate-fade-in">
-          <h3>Live Venue Status</h3>
-          <div className="live-card">
-            <div className="live-grid">
-              <div className="live-item">
-                <span className="live-label">Capacity</span>
-                <span className="live-value">
-                  {liveState.current_capacity} / {liveState.max_capacity}
-                </span>
-                <div className="capacity-bar">
-                  <div 
-                    className="capacity-fill"
-                    style={{ width: `${(liveState.current_capacity / liveState.max_capacity) * 100}%` }}
-                  />
+        {liveState && (
+          <div className="card flex flex-col h-full">
+            <h2 className="text-xl mb-md font-display uppercase">Live Status</h2>
+            <div className="flex flex-col gap-xl flex-1">
+              <div className="p-md rounded-lg bg-base border border-subtle">
+                <div className="flex justify-between mb-sm">
+                  <span className="text-xs uppercase tracking-wide text-muted">Current Capacity</span>
+                  <span className="text-xl font-mono text-primary glow-text">{liveState.current_capacity} <span className="text-secondary text-sm">/ {liveState.max_capacity}</span></span>
+                </div>
+                <div className="capacity-bar bg-dark h-[12px] rounded-full">
+                  <div className="capacity-fill rounded-full" style={{ width: `${(liveState.current_capacity / liveState.max_capacity) * 100}%`, background: 'var(--gradient-primary)' }} />
                 </div>
               </div>
-              <div className="live-item">
-                <span className="live-label">Infrastructure</span>
-                <div className="infra-list">
+              
+              <div>
+                <span className="text-xs uppercase tracking-wide text-muted block mb-md">Active Infrastructure</span>
+                <div className="grid grid-cols-2 gap-sm">
                   {liveState.infrastructure?.map((item, i) => (
-                    <span
-                      key={i}
-                      className={`infra-tag ${item.is_degraded ? "degraded" : "operational"}`}
-                    >
-                      {item.name}
-                    </span>
+                    <div key={i} className={`p-sm rounded border ${item.is_degraded ? "border-warning bg-[rgba(255,153,0,0.05)] text-warning" : "border-success bg-[rgba(212,255,0,0.05)] text-success"} flex items-center justify-between`}>
+                      <span className="text-sm font-semibold uppercase tracking-wide">{item.name}</span>
+                      <div className={`w-[8px] h-[8px] rounded-full ${item.is_degraded ? "bg-warning" : "bg-success"}`} style={{ boxShadow: item.is_degraded ? '0 0 8px var(--state-warning)' : '0 0 8px var(--state-success)' }}></div>
+                    </div>
                   ))}
                 </div>
               </div>
             </div>
           </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function StatCard({ icon, label, value, detail, warning }: {
-  icon: React.ReactNode;
-  label: string;
-  value: string | number;
-  detail?: string;
-  warning?: boolean;
-}) {
-  return (
-    <div className="stat-card">
-      <div className="stat-icon">{icon}</div>
-      <div className="stat-content">
-        <span className="stat-label">{label}</span>
-        <span className={`stat-value ${warning ? "warning" : ""}`}>{value}</span>
-        {detail && <span className="stat-detail">{detail}</span>}
+        )}
       </div>
     </div>
   );

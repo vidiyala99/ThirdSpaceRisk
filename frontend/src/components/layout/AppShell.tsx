@@ -8,6 +8,7 @@ import {
   Building2, 
   AlertTriangle, 
   CheckSquare, 
+  FileSearch,
   Settings,
   LogOut
 } from "lucide-react";
@@ -18,8 +19,9 @@ interface AppShellProps {
 }
 
 const navItems = [
-  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/", label: "Venue Portal", icon: Building2 },
+  { href: "/dashboard", label: "Portfolio", icon: LayoutDashboard },
+  { href: "/underwriter", label: "Packet Review", icon: FileSearch, roles: ["broker", "admin"] },
+  { href: "/", label: "Venue Risk", icon: Building2 },
   { href: "/venues", label: "Venues", icon: Building2, roles: ["broker", "admin"] },
   { href: "/incidents", label: "Incidents", icon: AlertTriangle },
   { href: "/compliance", label: "Compliance", icon: CheckSquare },

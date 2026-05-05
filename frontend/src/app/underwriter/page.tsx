@@ -1,50 +1,21 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { summarizeEvidence } from "../../lib/incidentView.mjs";
+import { AlertTriangle, CheckCircle2, ClipboardCheck, FileSearch, LockKeyhole, RefreshCw, ShieldCheck } from "lucide-react";
+import { buildEvidenceGroups, classifyPacketLifecycle, summarizeEvidence } from "../../lib/incidentView.mjs";
 
-type Citation = {
-  source_id: string;
-  source_type: string;
-  excerpt: string;
-};
+type Citation = { source_id: string; source_type: string; excerpt: string; usedBy?: string };
+type Lifecycle = "draft" | "processing" | "needs_review" | "approved" | "blocked";
 
 type IncidentPacket = {
-  incident: {
-    id: string;
-    venue_id: string;
-    occurred_at: string;
-    location: string;
-    summary: string;
-  };
-  risk_signal: {
-    type: string;
-    severity: string;
-    confidence: number;
-    explanation: string;
-    review_status: string;
-    citations: Citation[];
-  };
-  action_plan: Array<{
-    title: string;
-    rationale: string;
-    evidence_needed: string[];
-  }>;
-  claims_timeline: Array<{
-    at: string;
-    label: string;
-    source: string;
-  }>;
-  underwriting_memo: {
-    summary: string;
-    open_questions: string[];
-    review_status: string;
-    citations: Citation[];
-  };
+  incident: { id: string; venue_id: string; occurred_at: string; location: string; summary: string };
+  risk_signal: { type: string; severity: string; confidence: number; explanation: string; review_status: string; citations: Citation[] };
+  action_plan: Array<{ title: string; rationale: string; evidence_needed: string[] }>;
+  claims_timeline: Array<{ at: string; label: string; source: string }>;
+  underwriting_memo: { summary: string; open_questions: string[]; review_status: string; citations: Citation[] };
 };
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
-const venueName = "Elsewhere Brooklyn";
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8000";
 
 const demoIncident = {
   occurred_at: "2026-05-02T23:13:00Z",
@@ -56,13 +27,24 @@ const demoIncident = {
   ems_called: false,
 };
 
-export default function Home() {
+const lifecycleLabels: Record<Lifecycle, string> = {
+  draft: "Draft",
+  processing: "Processing",
+  needs_review: "Needs review",
+  approved: "Approved",
+  blocked: "Blocked",
+};
+
+export default function UnderwriterPage() {
   const [packet, setPacket] = useState<IncidentPacket | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<Lifecycle>("needs_review");
 
-  const evidence = useMemo(() => (packet ? summarizeEvidence(packet) : null), [packet]);
-  const activePacket = packet ?? fallbackPacket();
+  const activePacket = packet ?? getMockDataForTab(activeTab);
+  const lifecycle = activeTab; // Force lifecycle to match tab for demo purposes
+  const evidenceSummary = useMemo(() => summarizeEvidence(activePacket), [activePacket]);
+  const evidenceGroups = useMemo(() => buildEvidenceGroups(activePacket), [activePacket]);
 
   async function runIncidentFlow() {
     setLoading(true);
@@ -73,265 +55,310 @@ export default function Home() {
         headers: { "content-type": "application/json" },
         body: JSON.stringify(demoIncident),
       });
-      if (!response.ok) {
-        throw new Error(`API returned ${response.status}`);
-      }
+      if (!response.ok) throw new Error(`API returned ${response.status}`);
       setPacket(await response.json());
+      setActiveTab("needs_review"); // Reset tab on new real data
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to run incident flow");
+      setError(err instanceof Error ? err.message : "Backend unavailable. Showing deterministic demo packet.");
     } finally {
       setLoading(false);
     }
   }
 
   return (
-    <div className="theme-editorial">
-      <main className="editorial-grid">
-        
-        {/* SIDEBAR: Archival Information */}
-        <aside className="editorial-sidebar">
-          <div style={{ marginBottom: "48px" }}>
-            <div style={{ fontFamily: "var(--font-sans)", fontSize: "0.8rem", textTransform: "uppercase", letterSpacing: "0.1em", borderBottom: "1px solid var(--border-strong)", paddingBottom: "8px", marginBottom: "16px" }}>
-              Archive / 2026.05
+    <div className="theme-underwriter min-h-screen p-xl">
+      <header className="flex justify-between items-end mb-xl border-b border-[#333] pb-sm">
+        <div>
+          <div className="data-label mb-xs text-secondary">SYSTEM.ID // UNDERWRITER TERMINAL V1</div>
+          <h1 className="text-3xl font-mono critical-data">UW_TERMINAL_V1</h1>
+          <p className="text-sm font-mono mt-xs text-secondary max-w-[800px]">EVIDENCE-FIRST CARRIER REVIEW FOR LIQUOR-LIABILITY EXPOSURE, CLAIMS DEFENSIBILITY, AND RENEWAL ACTION.</p>
+        </div>
+        <div className="flex items-center gap-md">
+          <div className="text-right border-r border-[#333] pr-md">
+            <div className="data-label">STATUS</div>
+            <div className="data-value text-accent font-bold">ONLINE // DEMO_DATA</div>
+          </div>
+          <button className="btn btn-primary rounded-none border border-accent bg-transparent text-accent hover:bg-[rgba(212,255,0,0.1)]" onClick={runIncidentFlow} disabled={loading}>
+            {loading ? <RefreshCw size={16} className="spin-icon" /> : <FileSearch size={16} />}
+            <span className="font-mono uppercase ml-xs">{loading ? "PROCESSING" : "REFRESH"}</span>
+          </button>
+        </div>
+      </header>
+
+      {error && (
+        <div className="workbench-panel p-md mb-lg border-warning flex items-start gap-md" role="status">
+          <AlertTriangle size={24} className="text-warning mt-xs" />
+          <div>
+            <strong className="font-mono text-warning uppercase block mb-xs">BACKEND OFFLINE FALLBACK</strong>
+            <span className="font-mono text-secondary text-sm">{error}</span>
+          </div>
+        </div>
+      )}
+
+      <section className="mb-lg border-b border-[#333]" aria-label="Packet lifecycle navigation">
+        <div className="flex">
+          {(Object.keys(lifecycleLabels) as Lifecycle[]).map((stage) => {
+             const isActive = stage === activeTab;
+             return (
+               <button 
+                 key={stage} 
+                 className={`px-lg py-md text-center font-mono text-sm uppercase whitespace-nowrap transition-all border-b-2 outline-none cursor-pointer ${
+                   isActive 
+                     ? "border-primary text-primary bg-[rgba(212,255,0,0.05)] shadow-[inset_0_-2px_10px_rgba(212,255,0,0.1)]" 
+                     : "border-transparent text-secondary hover:text-primary hover:bg-[rgba(255,255,255,0.02)]"
+                 }`}
+                 onClick={() => {
+                   setPacket(null); // Clear live packet when switching demo tabs
+                   setActiveTab(stage);
+                 }}
+               >
+                 {isActive ? `[ ${lifecycleLabels[stage]} ]` : lifecycleLabels[stage]}
+               </button>
+             );
+          })}
+        </div>
+      </section>
+
+      <main className="grid grid-cols-12 gap-lg items-start">
+        <aside className="col-span-3 flex flex-col gap-lg">
+          <Panel title="CONTEXT_RAIL">
+            <div className="flex flex-col gap-sm">
+              <DataRow label="VENUE" value="ELSEWHERE BROOKLYN" />
+              <DataRow label="ROLE" value="CARRIER UNDERWRITER" />
+              <DataRow label="POLICY" value="TSR-LIQ-2026-0442" />
+              <DataRow label="CAPACITY" value="742 / 800" critical />
+              <DataRow label="OWNER" value="M. RAO" />
+              <DataRow label="LAST_UPDATED" value="MAY 5, 2026 02:12 ET" />
             </div>
-            <h1 style={{ fontFamily: "var(--font-serif)", fontSize: "2rem", margin: "0 0 8px 0" }}>Third Space Risk</h1>
-            <p className="editorial-p" style={{ fontSize: "0.85rem", color: "var(--text-muted)" }}>
-              Underwriting Intelligence & Claims Defensibility Protocol.
-            </p>
-          </div>
+          </Panel>
 
-          <div style={{ borderTop: "2px solid var(--border-strong)", paddingTop: "24px", marginBottom: "48px" }}>
-            <div style={{ fontFamily: "var(--font-serif)", fontSize: "1.25rem", fontWeight: 700, marginBottom: "16px" }}>Venue Profile</div>
-            <div className="editorial-p" style={{ fontWeight: 600 }}>{venueName}</div>
-            <p className="editorial-p" style={{ fontSize: "0.85rem", color: "var(--text-muted)" }}>
-              Synthetic onboarding venue with streaming context and litigation-defense instrumentation.
-            </p>
-          </div>
-
-          <div style={{ borderTop: "2px solid var(--border-strong)", paddingTop: "24px" }}>
-            <div style={{ fontFamily: "var(--font-serif)", fontSize: "1.25rem", fontWeight: 700, marginBottom: "16px" }}>Risk Status</div>
-            <div className="editorial-metric">Medium</div>
-            <span className="editorial-tag red">REQUIRES REVIEW</span>
-          </div>
+          <Panel title="INCIDENT_FACTS">
+            <div className="flex flex-col gap-md">
+              <Fact label="OBSERVED_FACT" value={activePacket.incident.summary} />
+              <Fact label="LOCATION" value={activePacket.incident.location} />
+              <Fact label="SOURCE" value="VENUE:INCIDENT-REPORT" />
+              <Fact label="HUMAN_REVIEW" value={activePacket.underwriting_memo.review_status.replace("_", " ")} />
+            </div>
+          </Panel>
         </aside>
 
-        {/* MAIN PANEL: The Dossier */}
-        <section className="editorial-main">
-          
-          <header className="editorial-header">
-            <div>
-              <div style={{ fontFamily: "var(--font-sans)", fontSize: "0.85rem", textTransform: "uppercase", letterSpacing: "0.1em", color: "var(--text-muted)", marginBottom: "12px" }}>
-                Incident Report Dossier
+        <section className="col-span-6 flex flex-col gap-lg">
+          <Panel title="RISK_SIGNAL">
+            <div className="flex gap-lg items-center">
+              <div className="flex-1">
+                <span className="inline-block px-2 py-1 mb-md font-mono text-xs font-bold uppercase bg-[rgba(255,0,85,0.15)] text-error border border-error">
+                  {activePacket.risk_signal.severity} EXPOSURE
+                </span>
+                <p className="font-mono text-sm text-primary leading-relaxed">{activePacket.risk_signal.explanation}</p>
               </div>
-              <h2 className="editorial-title">Command Center for the Night the Bar Went Sideways.</h2>
-            </div>
-            <div style={{ marginLeft: "48px", minWidth: "150px" }}>
-              <button 
-                onClick={runIncidentFlow} 
-                disabled={loading}
-                style={{
-                  width: "100%",
-                  padding: "16px",
-                  background: "var(--border-strong)",
-                  color: "var(--bg-base)",
-                  fontFamily: "var(--font-sans)",
-                  fontSize: "0.9rem",
-                  fontWeight: 600,
-                  textTransform: "uppercase",
-                  letterSpacing: "0.1em",
-                  border: "none",
-                  cursor: loading ? "not-allowed" : "pointer"
-                }}
-              >
-                {loading ? "PROCESSING..." : "RUN BRAWL FLOW"}
-              </button>
-            </div>
-          </header>
-
-          {error && (
-            <div style={{ border: "1px solid var(--brand-primary)", padding: "16px", marginBottom: "32px", color: "var(--brand-primary)", fontFamily: "var(--font-sans)", fontWeight: 600 }}>
-              SYSTEM ERROR: {error}
-            </div>
-          )}
-
-          {/* THREE COLUMN NEWSPAPER LAYOUT */}
-          <div className="editorial-column-grid">
-            
-            {/* COLUMN 1: The Incident */}
-            <div className="editorial-block">
-              <h2 className="editorial-h2">The Incident</h2>
-              
-              <h3 className="editorial-h3">Rear-Bar Brawl</h3>
-              <p className="editorial-p"><strong>Time:</strong> {activePacket.incident.occurred_at}</p>
-              <p className="editorial-p"><strong>Location:</strong> {activePacket.incident.location}</p>
-              
-              <div style={{ borderTop: "1px dotted var(--border-strong)", margin: "16px 0", paddingTop: "16px" }}>
-                <p className="editorial-p" style={{ fontStyle: "italic" }}>
-                  "{activePacket.incident.summary}"
-                </p>
+              <div className="flex flex-col items-center justify-center p-md border border-[#333] min-w-[120px]">
+                <span className="text-4xl font-mono critical-data mb-xs">{Math.round(activePacket.risk_signal.confidence * 100)}%</span>
+                <small className="data-label">CONFIDENCE</small>
               </div>
-
-              <h3 className="editorial-h3" style={{ marginTop: "32px" }}>Risk Signal</h3>
-              <span className="editorial-tag red" style={{ marginBottom: "12px" }}>{activePacket.risk_signal.severity} EXPOSURE</span>
-              <p className="editorial-p">{activePacket.risk_signal.explanation}</p>
             </div>
+          </Panel>
 
-            {/* COLUMN 2: Underwriting Memo */}
-            <div className="editorial-block">
-              <h2 className="editorial-h2">Underwriting Memo</h2>
-              <p className="editorial-p" style={{ fontSize: "1.1rem", lineHeight: 1.5 }}>
-                {activePacket.underwriting_memo.summary}
-              </p>
-
-              <div style={{ borderTop: "1px dotted var(--border-strong)", margin: "24px 0", paddingTop: "16px" }}>
-                <h3 className="editorial-h3">Open Questions for Review</h3>
-                <ul className="editorial-list">
-                  {activePacket.underwriting_memo.open_questions.map((q, i) => (
-                    <li key={i} style={{ display: "block" }}>
-                      <p className="editorial-p" style={{ margin: 0 }}>— {q}</p>
-                    </li>
+          <Panel title="UNDERWRITING_MEMO">
+            <p className="font-mono text-sm text-primary leading-relaxed mb-lg border-b border-[#333] pb-md">{activePacket.underwriting_memo.summary}</p>
+            <div className="mt-md">
+              <h3 className="data-label mb-md">OPEN_REVIEW_QUESTIONS</h3>
+              {activePacket.underwriting_memo.open_questions.length > 0 ? (
+                <div className="flex flex-col gap-sm">
+                  {activePacket.underwriting_memo.open_questions.map((question) => (
+                    <label key={question} className="flex items-start gap-md cursor-pointer group">
+                      <input type="checkbox" className="mt-1 w-4 h-4 bg-transparent border border-accent accent-primary" />
+                      <span className="font-mono text-sm text-secondary group-hover:text-primary transition-colors">{question}</span>
+                    </label>
                   ))}
-                </ul>
-              </div>
+                </div>
+              ) : (
+                <span className="font-mono text-sm text-secondary">None</span>
+              )}
             </div>
+          </Panel>
 
-            {/* COLUMN 3: Evidence & Timeline */}
-            <div className="editorial-block">
-              <h2 className="editorial-h2">RAG Evidence</h2>
-              <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-                {activePacket.underwriting_memo.citations.map((cite, i) => (
-                  <div key={i} style={{ borderBottom: "1px solid var(--border-strong)", paddingBottom: "16px" }}>
-                    <div style={{ fontFamily: "var(--font-sans)", fontSize: "0.75rem", fontWeight: 600, textTransform: "uppercase", marginBottom: "8px" }}>
-                      {cite.source_type} // {cite.source_id}
-                    </div>
-                    <p className="editorial-p" style={{ margin: 0, fontSize: "0.85rem" }}>{cite.excerpt}</p>
+          <Panel title="CLAIMS_TIMELINE">
+            <div className="flex flex-col gap-sm">
+              <table className="w-full text-left">
+                <thead>
+                  <tr className="border-b border-[#333]">
+                    <th className="pb-xs data-label w-24">TIME (Z)</th>
+                    <th className="pb-xs data-label">EVENT_LABEL</th>
+                    <th className="pb-xs data-label text-right">SOURCE</th>
+                  </tr>
+                </thead>
+                <tbody className="font-mono text-xs">
+                  {activePacket.claims_timeline.map((event) => (
+                    <tr key={`${event.at}-${event.source}`} className="border-b border-[#222]">
+                      <td className="py-sm text-secondary">{event.at.split("T")[1].replace("Z", "")}</td>
+                      <td className="py-sm text-primary max-w-[300px] truncate pr-md" title={event.label}>{event.label}</td>
+                      <td className="py-sm text-secondary text-right">{event.source}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </Panel>
+        </section>
+
+        <aside className="col-span-3 flex flex-col gap-lg">
+          <Panel title="EVIDENCE_INDEX">
+            <div className="grid grid-cols-3 gap-sm mb-lg">
+              <Metric value={evidenceSummary.citationCount} label="CITATIONS" />
+              <Metric value={evidenceSummary.sourceTypes.length} label="SOURCES" />
+              <Metric value={evidenceSummary.hasStreamingContext ? "YES" : "NO"} label="STREAM" />
+            </div>
+            <div className="flex flex-col gap-md">
+              {evidenceGroups.map((group) => (
+                <details key={group.sourceType} open className="group">
+                  <summary className="data-label cursor-pointer mb-sm hover:text-primary transition-colors">{group.sourceType}</summary>
+                  <div className="flex flex-col gap-sm pl-xs border-l border-[#333] ml-xs">
+                    {group.citations.map((citation: Citation) => (
+                      <div key={`${citation.source_type}-${citation.source_id}`} className="p-sm bg-[rgba(255,255,255,0.02)] border border-transparent hover:border-[#333]">
+                        <span className="font-mono text-xs text-secondary block mb-xs">{citation.source_id}</span>
+                        <p className="font-mono text-xs text-primary leading-relaxed mb-xs line-clamp-3" title={citation.excerpt}>{citation.excerpt}</p>
+                        <small className="font-mono text-[10px] text-tertiary">USED_BY: {citation.usedBy}</small>
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
+                </details>
+              ))}
+              {evidenceGroups.length === 0 && (
+                <span className="font-mono text-sm text-secondary">No evidence collected yet.</span>
+              )}
             </div>
+          </Panel>
 
-          </div>
-
-          <div style={{ borderTop: "4px solid var(--border-strong)", marginTop: "48px", paddingTop: "24px" }}>
-            <h2 className="editorial-h2" style={{ borderBottom: "none" }}>Claims Timeline Reconstruction</h2>
-            <div className="editorial-timeline-grid">
-              {activePacket.claims_timeline.map((event, i) => (
-                <div key={i} style={{ borderTop: "1px dotted var(--border-strong)", paddingTop: "16px" }}>
-                  <div style={{ fontFamily: "var(--font-sans)", fontSize: "0.75rem", fontWeight: 700, marginBottom: "8px" }}>{event.at.split('T')[1].replace('Z', '')}</div>
-                  <p className="editorial-p" style={{ fontSize: "0.85rem" }}>{event.label}</p>
-                  <div style={{ fontFamily: "var(--font-sans)", fontSize: "0.65rem", color: "var(--text-muted)", textTransform: "uppercase" }}>SRC: {event.source}</div>
+          <Panel title="REQUIRED_ACTIONS">
+            <div className="flex flex-col gap-md">
+              {activePacket.action_plan.map((action) => (
+                <div key={action.title} className="flex gap-md p-sm border border-[#333]">
+                  <ClipboardCheck size={16} className="text-secondary mt-xs" />
+                  <div>
+                    <h3 className="font-mono text-sm text-primary font-bold mb-xs">{action.title}</h3>
+                    <p className="font-mono text-xs text-secondary mb-sm">{action.rationale}</p>
+                    <small className="font-mono text-[10px] text-accent block">{action.evidence_needed.join(" // ")}</small>
+                  </div>
                 </div>
               ))}
+              {activePacket.action_plan.length === 0 && (
+                <span className="font-mono text-sm text-secondary">No pending actions.</span>
+              )}
             </div>
-          </div>
-
-        </section>
+          </Panel>
+        </aside>
       </main>
     </div>
   );
 }
 
-function fallbackPacket(): IncidentPacket {
-  return {
-    incident: {
-      id: "preview",
-      venue_id: "elsewhere-brooklyn",
-      occurred_at: demoIncident.occurred_at,
-      location: demoIncident.location,
-      summary: demoIncident.summary,
-    },
-    risk_signal: {
-      type: "altercation_event",
-      severity: "medium",
-      confidence: 0.78,
-      explanation:
-        "A brawl creates liquor-liability and claims-defense exposure, but the venue appears staffed and under capacity.",
-      review_status: "needs_review",
-      citations: [
-        {
-          source_id: "policy-2026-liquor-liability",
-          source_type: "policy",
-          excerpt: "Liquor liability policy requires documented security response and incident records for altercations.",
-        },
-        {
-          source_id: "stream:camera-rear-bar-clip",
-          source_type: "stream",
-          excerpt:
-            "Non-biometric camera metadata flagged a short altercation-like event near rear bar; human review is required.",
-        },
-        {
-          source_id: "staffing-2026-05-02",
-          source_type: "staffing",
-          excerpt: "Security shift log confirms 6 floor staff and 4 licensed security guards scheduled for the sold-out DJ event.",
-        },
-      ],
-    },
-    action_plan: [
-      {
-        title: "Preserve incident evidence",
-        rationale: "A clean evidence package makes the event defensible if a claim appears later.",
-        evidence_needed: ["Reviewed rear-bar clip from 23:10-23:18", "Completed witness/contact section", "Security lead narrative"],
-      },
-      {
-        title: "Complete same-night manager follow-up",
-        rationale: "Underwriters value contemporaneous records over reconstructed notes.",
-        evidence_needed: ["Manager sign-off", "Police/EMS confirmation fields", "Removal/trespass outcome"],
-      },
-    ],
+function Panel({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <section className="workbench-panel p-lg">
+      <h2 className="data-label mb-lg border-b border-[#333] pb-xs">{title}</h2>
+      {children}
+    </section>
+  );
+}
+
+function DataRow({ label, value, critical = false }: { label: string; value: string; critical?: boolean }) {
+  return (
+    <div className="flex justify-between items-baseline border-b border-[#222] pb-xs">
+      <span className="data-label">{label}</span>
+      <span className={critical ? "critical-data" : "data-value"}>{value}</span>
+    </div>
+  );
+}
+
+function Fact({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="border-l-2 border-secondary pl-sm">
+      <span className="data-label block mb-xs">{label}</span>
+      <p className="font-mono text-sm text-primary uppercase">{value}</p>
+    </div>
+  );
+}
+
+function Metric({ value, label }: { value: string | number; label: string }) {
+  return (
+    <div className="flex flex-col items-center justify-center p-sm border border-[#333]">
+      <strong className="font-mono text-lg text-secondary mb-xs">{value}</strong>
+      <span className="data-label text-[10px] text-center">{label}</span>
+    </div>
+  );
+}
+
+function getMockDataForTab(tab: Lifecycle): IncidentPacket {
+  const basePacket = {
+    incident: { id: "preview", venue_id: "elsewhere-brooklyn", occurred_at: demoIncident.occurred_at, location: demoIncident.location, summary: demoIncident.summary },
     claims_timeline: [
-      {
-        at: "2026-05-02T23:12:00Z",
-        label: "Door count recorded 742 guests against 800 capacity.",
-        source: "stream:door-count",
-      },
-      {
-        at: "2026-05-02T23:10:00Z",
-        label: "POS aggregate shows normal transaction volume before the brawl.",
-        source: "stream:pos",
-      },
-      {
-        at: "2026-05-02T23:13:00Z",
-        label: "Camera metadata flagged a 90-second altercation-like motion event near rear bar.",
-        source: "stream:camera-rear-bar-clip",
-      },
-      {
-        at: "2026-05-02T23:13:00Z",
-        label: "Incident logged by shift-lead: Two patrons began fighting near the rear bar during a sold-out DJ event.",
-        source: "venue:incident-report",
-      },
+      { at: "2026-05-02T23:10:00Z", label: "POS aggregate shows normal transaction volume before the brawl.", source: "stream:pos" },
+      { at: "2026-05-02T23:12:00Z", label: "Door count recorded 742 guests against 800 capacity.", source: "stream:door-count" },
+      { at: "2026-05-02T23:13:00Z", label: "Camera metadata flagged a 90-second altercation-like motion event near rear bar.", source: "stream:camera-rear-bar-clip" },
+      { at: "2026-05-02T23:13:00Z", label: "Incident logged by shift lead after two patrons began fighting.", source: "venue:incident-report" },
     ],
-    underwriting_memo: {
-      summary:
-        "Brawl incident at rear bar requires underwriter review. Current evidence shows the incident was logged promptly, camera metadata identified the relevant clip window, and staffing/capacity controls may mitigate the underwriting impact.",
-      open_questions: [
-        "Was service stopped for the involved patrons before removal?",
-        "Were witness names and contact details collected before close?",
-        "Has the rear-bar clip been reviewed and preserved?",
-      ],
-      review_status: "draft",
-      citations: [
-        {
-          source_id: "policy-2026-liquor-liability",
-          source_type: "policy",
-          excerpt: "Liquor liability policy requires documented security response and incident records for altercations.",
-        },
-        {
-          source_id: "stream:camera-rear-bar-clip",
-          source_type: "stream",
-          excerpt:
-            "Non-biometric camera metadata flagged a short altercation-like event near rear bar; human review is required.",
-        },
-        {
-          source_id: "stream:pos",
-          source_type: "stream",
-          excerpt: "POS activity did not show a sudden bar-service spike before the reported altercation.",
-        },
-        {
-          source_id: "staffing-2026-05-02",
-          source_type: "staffing",
-          excerpt: "Security shift log confirms 6 floor staff and 4 licensed security guards scheduled for the sold-out DJ event.",
-        },
-      ],
-    },
   };
+
+  switch (tab) {
+    case "draft":
+      return {
+        ...basePacket,
+        risk_signal: {
+          type: "pending_analysis", severity: "unknown", confidence: 0.0, explanation: "Awaiting LLM extraction and risk scoring.", review_status: "draft", citations: []
+        },
+        action_plan: [],
+        underwriting_memo: { summary: "Awaiting generation...", open_questions: [], review_status: "draft", citations: [] }
+      };
+    case "processing":
+      return {
+        ...basePacket,
+        risk_signal: {
+          type: "altercation_event", severity: "calculating...", confidence: 0.45, explanation: "Processing camera feeds and matching against policy TSR-LIQ-2026-0442.", review_status: "processing", citations: []
+        },
+        action_plan: [],
+        underwriting_memo: { summary: "Extracting timeline events and checking compliance status...", open_questions: [], review_status: "processing", citations: [] }
+      };
+    case "needs_review":
+      return {
+        ...basePacket,
+        risk_signal: {
+          type: "altercation_event", severity: "medium", confidence: 0.78, explanation: "A brawl creates liquor-liability and claims-defense exposure, but staffing and capacity controls may mitigate premium impact if evidence is preserved.", review_status: "needs_review", citations: [
+            { source_id: "policy-2026-liquor-liability", source_type: "policy", excerpt: "Liquor liability policy requires documented security response and incident records for altercations." }
+          ]
+        },
+        action_plan: [
+          { title: "PRESERVE INCIDENT EVIDENCE", rationale: "A clean evidence package makes the event defensible if a claim appears later.", evidence_needed: ["Reviewed rear-bar clip 23:10-23:18", "Completed witness/contact section", "Security lead narrative"] },
+          { title: "COMPLETE MANAGER FOLLOW-UP", rationale: "Underwriters value contemporaneous records over reconstructed notes.", evidence_needed: ["Manager sign-off", "Police/EMS confirmation fields", "Removal outcome"] }
+        ],
+        underwriting_memo: {
+          summary: "Brawl incident at rear bar requires underwriter review. Current evidence shows the incident was logged promptly, camera metadata identified the relevant clip window, and staffing/capacity controls may mitigate the underwriting impact.",
+          open_questions: ["WAS SERVICE STOPPED FOR INVOLVED PATRONS?", "WERE WITNESS NAMES COLLECTED BEFORE CLOSE?", "HAS THE REAR-BAR CLIP BEEN PRESERVED?"], review_status: "needs_review", citations: [
+            { source_id: "stream:camera-rear-bar-clip", source_type: "stream", excerpt: "Camera metadata flagged a short altercation-like event near rear bar; human review is required." },
+            { source_id: "staffing-2026-05-02", source_type: "staffing", excerpt: "Security shift log confirms 6 floor staff and 4 licensed security guards scheduled." }
+          ]
+        }
+      };
+    case "approved":
+      return {
+        ...basePacket,
+        risk_signal: {
+          type: "altercation_event", severity: "low", confidence: 0.95, explanation: "Evidence preserved. Incident deemed highly defensible. No immediate premium action required.", review_status: "approved", citations: []
+        },
+        action_plan: [
+          { title: "ARCHIVE TO CARRIER RECORD", rationale: "Evidence successfully gathered and verified by underwriter.", evidence_needed: ["All items complete"] }
+        ],
+        underwriting_memo: { summary: "Underwriter M. Rao verified all required evidence. Video clip confirms staff intervened within 45 seconds. Manager sign-off completed. File marked closed and defensible.", open_questions: [], review_status: "approved", citations: [] }
+      };
+    case "blocked":
+      return {
+        ...basePacket,
+        risk_signal: {
+          type: "altercation_event", severity: "high", confidence: 0.88, explanation: "CRITICAL FAILURE: Venue management failed to upload requested camera footage within the 72-hour window. Claim defensibility compromised.", review_status: "blocked", citations: []
+        },
+        action_plan: [
+          { title: "ESCALATE TO BROKER", rationale: "Missing evidence violates policy terms.", evidence_needed: ["Require immediate broker contact with venue owner."] }
+        ],
+        underwriting_memo: { summary: "Packet blocked. Missing camera footage. Risk of non-renewal flag if not resolved in 24 hours.", open_questions: ["Why was footage not preserved?"], review_status: "blocked", citations: [] }
+      };
+  }
 }

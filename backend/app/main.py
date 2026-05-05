@@ -27,6 +27,9 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Third Space Risk OS", lifespan=lifespan)
 
+from app.auth import router as auth_router
+app.include_router(auth_router, prefix="/api/auth", tags=["auth"])
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:3000"],
