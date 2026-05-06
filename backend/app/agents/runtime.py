@@ -1,7 +1,8 @@
 from dataclasses import dataclass
 from pathlib import Path
 
-from app.rag import VenueKnowledgeBase
+from app.rag_v2 import SemanticKnowledgeBase as VenueKnowledgeBase
+from app.providers import MemoProvider, get_default_provider
 from app.schemas import ActionItem, Citation, IncidentCreate, RiskSignal, TimelineEvent, UnderwritingMemo
 
 
@@ -38,8 +39,13 @@ class UnderwritingPacketAgentResult:
 
 
 class UnderwritingPacketAgentRuntime:
-    def __init__(self, contracts_dir: Path | None = None):
+    def __init__(
+        self,
+        contracts_dir: Path | None = None,
+        memo_provider: MemoProvider | None = None,
+    ):
         self._contracts_dir = contracts_dir or Path(__file__).resolve().parent
+        self._memo_provider = memo_provider or get_default_provider()
 
     def execute(
         self,
@@ -76,7 +82,9 @@ class UnderwritingPacketAgentRuntime:
         )
         trace.append(self._trace_step("claims_timeline_agent", contracts))
 
-        underwriting_memo = self._run_underwriter_memo_agent(citations=citations)
+        underwriting_memo = self._run_underwriter_memo_agent(
+            incident=incident, risk_signal=risk_signal, citations=citations
+        )
         trace.append(self._trace_step("underwriter_memo_agent", contracts))
 
         return UnderwritingPacketAgentResult(
@@ -171,18 +179,24 @@ class UnderwritingPacketAgentRuntime:
         )
         return claims_timeline
 
-    def _run_underwriter_memo_agent(self, *, citations: list[Citation]) -> UnderwritingMemo:
+    def _run_underwriter_memo_agent(
+        self,
+        *,
+        incident: IncidentCreate,
+        risk_signal: RiskSignal,
+        citations: list[Citation],
+    ) -> UnderwritingMemo:
+        memo_output = self._memo_provider.draft_memo(
+            incident_summary=incident.summary,
+            incident_location=incident.location,
+            risk_type=risk_signal.type,
+            severity=risk_signal.severity,
+            confidence=risk_signal.confidence,
+            citation_excerpts=[c.excerpt for c in citations],
+        )
         return UnderwritingMemo(
-            summary=(
-                "Brawl incident at rear bar requires underwriter review. Current evidence shows "
-                "the incident was logged promptly, camera metadata identified the relevant clip "
-                "window, and staffing/capacity controls may mitigate the underwriting impact."
-            ),
-            open_questions=[
-                "Was service stopped for the involved patrons before removal?",
-                "Were witness names and contact details collected before close?",
-                "Has the rear-bar clip been reviewed and preserved?",
-            ],
+            summary=memo_output.summary,
+            open_questions=memo_output.open_questions,
             review_status="draft",
             citations=citations,
         )
