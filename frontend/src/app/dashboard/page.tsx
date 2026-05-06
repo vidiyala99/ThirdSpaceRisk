@@ -59,16 +59,14 @@ export default function DashboardPage() {
 
   useEffect(() => {
     async function fetchDashboard() {
-      if (!tenantId) {
-        setLoading(false);
-        return;
-      }
+      // Brokers have no tenantId — use the primary demo venue for portfolio view
+      const venueId = tenantId ?? "elsewhere-brooklyn";
       try {
         const [liveRes, riskRes, quoteRes, incidentsRes] = await Promise.all([
-          fetch(`${API_URL}/api/venues/${tenantId}/live`),
-          fetch(`${API_URL}/api/venues/${tenantId}/risk-score`),
-          fetch(`${API_URL}/api/venues/${tenantId}/quote`),
-          fetch(`${API_URL}/api/venues/${tenantId}/incidents`),
+          fetch(`${API_URL}/api/venues/${venueId}/live`),
+          fetch(`${API_URL}/api/venues/${venueId}/risk-score`),
+          fetch(`${API_URL}/api/venues/${venueId}/quote`),
+          fetch(`${API_URL}/api/venues/${venueId}/incidents`),
         ]);
         const incidentCount = incidentsRes.ok ? (await incidentsRes.json()).length : 0;
         if (liveRes.ok) {
@@ -123,15 +121,21 @@ export default function DashboardPage() {
     <div className="theme-venue min-h-screen p-xl">
       <header className="page-header border-b border-subtle mb-xl pb-lg flex justify-between items-start">
         <div>
-          <h1 className="text-4xl font-bold glow-text mb-xs">VENUE <span className="text-accent">OS</span></h1>
+          <h1 className="text-4xl font-bold glow-text mb-xs">
+            {isBroker
+              ? <><span className="text-accent">Evidence-First</span> Underwriting</>
+              : <>Operational <span className="text-accent">Defense</span></>}
+          </h1>
           <p className="text-secondary mt-sm">
-            {isBroker ? "Overview of all venues and risk metrics" : "Live Operational Health"}
+            {isBroker
+              ? "Proprietary risk intelligence across your nightlife portfolio"
+              : "Your operational data — your defense against premium hikes"}
           </p>
         </div>
         <button onClick={handleSignOut} className="btn btn-ghost"><LogOut size={18} /> Sign Out</button>
       </header>
 
-      <div className="bento-grid mb-xl">
+      <div className="bento-grid mb-xl stagger-children">
         <div className="card bento-card">
            <div className="flex gap-md items-center">
              <div className="stat-icon" style={{ background: 'rgba(212, 255, 0, 0.1)', color: 'var(--brand-primary)' }}>

@@ -199,9 +199,18 @@ export default function UnderwriterPage() {
               ))}
             </select>
           </div>
-          <div className="text-right border-r border-dim pr-md">
-            <div className="data-label">STATUS</div>
-            <div className="data-value text-accent font-bold">ONLINE // DEMO_DATA</div>
+          <div className="flex flex-col gap-xs border-r border-dim pr-md">
+            <div className="flex flex-col">
+              <div className="data-label">AI_ENGINE</div>
+              <div className="data-value text-xxs text-secondary">PROPRIETARY // v1</div>
+            </div>
+            <div className="flex flex-col">
+              <div className="data-label">STATUS</div>
+              <div className="data-value text-accent font-bold flex items-center gap-xs">
+                <span className="live-dot" />
+                ONLINE
+              </div>
+            </div>
           </div>
           <button className="btn btn-accent-outline" onClick={runIncidentFlow} disabled={loading}>
             {loading ? <RefreshCw size={16} className="spin-icon" /> : <FileSearch size={16} />}
@@ -328,9 +337,9 @@ export default function UnderwriterPage() {
 
         <aside className="col-span-3 flex flex-col gap-lg">
           <Panel title="EVIDENCE_INDEX">
-            <div className="grid grid-cols-3 gap-sm mb-lg">
-              <Metric value={evidenceSummary.citationCount} label="CITATIONS" />
-              <Metric value={evidenceSummary.sourceTypes.length} label="SOURCES" />
+            <div className="flex gap-xs mb-lg">
+              <Metric value={evidenceSummary.citationCount} label="CITE" />
+              <Metric value={evidenceSummary.sourceTypes.length} label="SRC" />
               <Metric value={evidenceSummary.hasStreamingContext ? "YES" : "NO"} label="STREAM" />
             </div>
             <div className="flex flex-col gap-md">
@@ -481,9 +490,9 @@ function Fact({ label, value }: { label: string; value: string }) {
 
 function Metric({ value, label }: { value: string | number; label: string }) {
   return (
-    <div className="flex flex-col items-center justify-center p-sm border border-dim">
-      <strong className="font-mono text-lg text-secondary mb-xs">{value}</strong>
-      <span className="data-label text-xxs text-center">{label}</span>
+    <div className="flex-1 flex flex-col items-center justify-center py-sm border border-dim" style={{ minWidth: 0 }}>
+      <strong className="font-mono text-secondary" style={{ fontSize: '1.1rem' }}>{value}</strong>
+      <span style={{ fontFamily: 'var(--font-mono)', fontSize: '9px', textTransform: 'uppercase', color: 'var(--brand-secondary)', letterSpacing: '0.04em', textAlign: 'center' }}>{label}</span>
     </div>
   );
 }

@@ -151,6 +151,12 @@ export default function LoginPage() {
               <Sparkles size={14} />
               Demo: broker@thirdspace.risk / demo123
             </p>
+            <div className="login-investors">
+              <span>Backed by</span>
+              <strong>a16z SpeedRun</strong>
+              <span>&amp;</span>
+              <strong>Dorm Room Fund</strong>
+            </div>
           </div>
         </div>
 

@@ -50,6 +50,7 @@ export function AppShell({ children }: AppShellProps) {
         <div className="sidebar-brand">
           <h1>Third Space</h1>
           <p>Risk OS</p>
+          <span className="sidebar-mission">Keep venues alive.</span>
         </div>
 
         <div className="sidebar-user">
