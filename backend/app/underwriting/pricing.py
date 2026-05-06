@@ -16,6 +16,10 @@ class PremiumQuote(BaseModel):
     base_rate: float
     annual_premium: float
     monthly_premium: float
+    market_rate_annual: float
+    savings_annual: float
+    savings_pct: float
+    renewal_date: str
     billing_options: dict
     coverage_breakdown: dict
 
@@ -23,11 +27,16 @@ class PremiumQuote(BaseModel):
 class PremiumCalculator:
     """Calculate premium quotes for venues."""
 
-    # Base premium rates by venue type (annual)
+    # Base premium rates by venue type — market standard rates (annual)
     BASE_RATES = {
         "dive_bar": 6000,
         "rooftop_bar": 8000,
         "music_venue": 12000,
+        "music venue and bar": 12000,
+        "outdoor music venue": 15000,
+        "nightclub and performance space": 16000,
+        "outdoor bar and music venue": 11000,
+        "diy music venue and bar": 10000,
         "latin_club": 11000,
         "club": 15000,
     }
@@ -46,26 +55,29 @@ class PremiumCalculator:
     def __init__(self, venues: dict):
         self.venues = venues
 
-    def calculate_quote(self, venue_id: str, billing: str = "annual") -> PremiumQuote:
+    def calculate_quote(self, venue_id: str, billing: str = "annual", tier_override: str | None = None) -> PremiumQuote:
         """Calculate premium quote for a venue."""
         if venue_id not in self.venues:
             raise ValueError(f"Venue not found: {venue_id}")
 
         venue = self.venues[venue_id]
         venue_type = venue.get("venue_type", "dive_bar")
-        tier = self._get_tier_for_venue(venue_id)
+        tier = tier_override or self._get_tier_for_venue(venue_id)
 
-        # Get base rate
-        base_rate = self.BASE_RATES.get(venue_type, 6000)
+        # Get base rate — this is the market standard rate (Tier B, no intelligence discount)
+        base_rate = self.BASE_RATES.get(venue_type.lower(), self.BASE_RATES.get(venue_type, 6000))
 
-        # Calculate premium with tier multiplier
+        # Market rate = what a comparable venue pays without Third Space (Tier B = 1.0x)
+        market_rate_annual = round(base_rate * self.TIER_MULTIPLIERS["B"], 2)
+
+        # Third Space rate = risk-adjusted with our intelligence
         multiplier = self.TIER_MULTIPLIERS.get(tier, 1.0)
         annual_premium = round(base_rate * multiplier, 2)
-
-        # Monthly: annual / 12 * 1.03
         monthly_premium = round((annual_premium / 12) * self.MONTHLY_FEE, 2)
 
-        # Build response
+        savings_annual = round(market_rate_annual - annual_premium, 2)
+        savings_pct = round((savings_annual / market_rate_annual) * 100, 1) if market_rate_annual > 0 else 0.0
+
         return PremiumQuote(
             venue_id=venue_id,
             venue_type=venue_type,
@@ -73,6 +85,10 @@ class PremiumCalculator:
             base_rate=base_rate,
             annual_premium=annual_premium,
             monthly_premium=monthly_premium,
+            market_rate_annual=market_rate_annual,
+            savings_annual=savings_annual,
+            savings_pct=savings_pct,
+            renewal_date=venue.get("renewal_date", ""),
             billing_options={
                 "annual": {
                     "amount": annual_premium,
@@ -124,7 +140,9 @@ class PremiumCalculator:
 
 
 def get_premium_quote(venue_id: str, venues: dict, billing: str = "annual") -> dict:
-    """Helper function to get premium quote as dict."""
+    """Helper function to get premium quote as dict, using actual risk score tier."""
+    from app.underwriting.scoring import get_risk_score
+    risk = get_risk_score(venue_id, venues)
     calculator = PremiumCalculator(venues)
-    result = calculator.calculate_quote(venue_id, billing)
+    result = calculator.calculate_quote(venue_id, billing, tier_override=risk["tier"])
     return result.model_dump()

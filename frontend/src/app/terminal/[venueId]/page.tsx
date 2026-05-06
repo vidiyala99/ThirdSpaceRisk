@@ -3,9 +3,16 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
-import { Upload, AlertTriangle } from "lucide-react";
+import { Upload, AlertTriangle, ShieldCheck, DollarSign, TrendingUp, Calendar, Zap } from "lucide-react";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
+
+const TIER_COLOR: Record<string, string> = {
+  A: "var(--brand-primary)",
+  B: "var(--brand-secondary)",
+  C: "var(--state-warning)",
+  D: "var(--brand-tertiary)",
+};
 
 const makeFallback = (venueId: string) => ({
   venue_id: venueId,
@@ -21,8 +28,11 @@ export default function VenueTerminalPage() {
   const router = useRouter();
   const { isSignedIn, isLoaded } = useAuth();
   const [liveState, setLiveState] = useState(makeFallback(venueId));
+  const [riskScore, setRiskScore] = useState<any>(null);
+  const [quote, setQuote] = useState<any>(null);
   const [uploadingId, setUploadingId] = useState<string | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [simulatingAlert, setSimulatingAlert] = useState(false);
 
   useEffect(() => {
     if (isLoaded && !isSignedIn) router.push("/login");
@@ -51,6 +61,38 @@ export default function VenueTerminalPage() {
       setUploadingId(null);
     }
   };
+
+  const simulateAlert = async () => {
+    setSimulatingAlert(true);
+    try {
+      await fetch(`${API_URL}/api/venues/${venueId}/events/inject`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify([{
+          event_id: `CAM-${Date.now()}`,
+          event_type: "camera_metadata",
+          timestamp: new Date().toISOString(),
+          payload: { camera_id: "camera-rear-bar", anomaly_score: 0.85, clip_duration: 90 },
+        }]),
+      });
+      // Refresh live state immediately to show new compliance item
+      const res = await fetch(`${API_URL}/api/venues/${venueId}/live`);
+      if (res.ok) setLiveState(await res.json());
+    } finally {
+      setSimulatingAlert(false);
+    }
+  };
+
+  useEffect(() => {
+    // Fetch risk score and premium quote once on mount
+    Promise.all([
+      fetch(`${API_URL}/api/venues/${venueId}/risk-score`),
+      fetch(`${API_URL}/api/venues/${venueId}/quote`),
+    ]).then(async ([riskRes, quoteRes]) => {
+      if (riskRes.ok) setRiskScore(await riskRes.json());
+      if (quoteRes.ok) setQuote(await quoteRes.json());
+    }).catch(() => {});
+  }, [venueId]);
 
   useEffect(() => {
     const fetchState = async () => {
@@ -83,13 +125,24 @@ export default function VenueTerminalPage() {
           </div>
           <h1 className="glow-text">{venueId.replace(/-/g, " ").toUpperCase()}</h1>
         </div>
-        <div className="card p-md text-center" style={{ minWidth: "120px" }}>
-          <div className="text-xs uppercase tracking-wide text-secondary mb-xs">Coverage</div>
-          <div className="text-xl font-bold text-accent font-mono flex items-center justify-center gap-xs live-pulse">
-            <span className="live-dot" />
-            LIVE
+        <div className="flex items-center gap-md">
+          <button
+            onClick={simulateAlert}
+            disabled={simulatingAlert}
+            className="btn btn-secondary btn-sm flex items-center gap-xs"
+            title="Inject a camera anomaly event to simulate a live incident alert"
+          >
+            <Zap size={14} style={{ color: 'var(--state-warning)' }} />
+            {simulatingAlert ? "Injecting..." : "Simulate Alert"}
+          </button>
+          <div className="card p-md text-center" style={{ minWidth: "120px" }}>
+            <div className="text-xs uppercase tracking-wide text-secondary mb-xs">Coverage</div>
+            <div className="text-xl font-bold text-accent font-mono flex items-center justify-center gap-xs live-pulse">
+              <span className="live-dot" />
+              LIVE
+            </div>
+            <div className="text-xs text-secondary font-mono">{quote?.renewal_date ?? "—"}</div>
           </div>
-          <div className="text-xs text-secondary font-mono">Renewal: Oct 2026</div>
         </div>
       </header>
 
@@ -108,6 +161,97 @@ export default function VenueTerminalPage() {
           <div className="capacity-fill" style={{ width: `${capacityPercent}%`, background: capacityColor }} />
         </div>
       </div>
+
+      {/* Insurance Overview */}
+      {riskScore && quote && (
+        <div className="grid grid-cols-2 gap-lg mb-xl stagger-children">
+          {/* Risk & Tier */}
+          <div className="card highlight">
+            <div className="flex justify-between items-start mb-md">
+              <div>
+                <div className="text-xs uppercase tracking-wide text-secondary font-mono mb-xs">Risk Profile</div>
+                <div className="flex items-baseline gap-sm">
+                  <span className="text-5xl font-bold glow-text">{riskScore.total_score}</span>
+                  <span className="text-secondary font-mono">/ 100</span>
+                </div>
+              </div>
+              <div className="flex flex-col items-end gap-sm">
+                <div className="font-mono font-bold px-3 py-1 text-lg"
+                  style={{ border: `1px solid ${TIER_COLOR[riskScore.tier] ?? 'var(--brand-primary)'}`, color: TIER_COLOR[riskScore.tier] ?? 'var(--brand-primary)', borderRadius: 'var(--radius-sm)' }}>
+                  TIER {riskScore.tier}
+                </div>
+                <div className="flex items-center gap-xs">
+                  <ShieldCheck size={14} className="text-accent" />
+                  <span className="text-xs font-mono text-secondary">{quote.current_carrier ?? "Third Space"}</span>
+                </div>
+              </div>
+            </div>
+            <div className="flex flex-col gap-sm">
+              {Object.entries(riskScore.factors as Record<string, {score: number}>).map(([key, data]) => (
+                <div key={key} className="flex items-center gap-md">
+                  <span className="text-xs uppercase tracking-wide text-secondary" style={{ width: '140px' }}>{key.replace(/_/g, ' ')}</span>
+                  <div className="flex-1 capacity-bar bg-dark">
+                    <div className="capacity-fill" style={{ width: `${data.score}%`, background: TIER_COLOR[riskScore.tier] ?? 'var(--brand-primary)' }} />
+                  </div>
+                  <span className="text-xs font-mono text-secondary" style={{ width: '32px', textAlign: 'right' }}>{data.score}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Premium & Coverage */}
+          <div className="flex flex-col gap-lg">
+            <div className="card border-accent">
+              <div className="text-xs uppercase tracking-wide text-secondary font-mono mb-md">Premium</div>
+              <div className="flex items-baseline gap-sm mb-xs">
+                <DollarSign size={22} className="text-accent" />
+                <span className="text-4xl font-bold text-primary glow-text">{quote.annual_premium?.toLocaleString()}</span>
+                <span className="text-secondary font-mono text-xs uppercase">/ Year</span>
+              </div>
+              <div className="flex items-baseline gap-xs mb-md">
+                <span className="text-xl font-mono text-secondary">${quote.monthly_premium?.toLocaleString()}</span>
+                <span className="text-xs text-muted uppercase tracking-wide">/ Month</span>
+              </div>
+              {quote.savings_annual > 0 && (
+                <div className="p-sm mb-md rounded" style={{ background: 'rgba(212,255,0,0.06)', border: '1px solid rgba(212,255,0,0.2)' }}>
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs font-mono text-secondary uppercase">Market Rate</span>
+                    <span className="text-xs font-mono text-secondary line-through">${quote.market_rate_annual?.toLocaleString()}/yr</span>
+                  </div>
+                  <div className="flex justify-between items-center mt-xs">
+                    <span className="text-xs font-mono text-accent uppercase font-bold">You Save</span>
+                    <span className="text-sm font-mono text-accent font-bold">${quote.savings_annual?.toLocaleString()}/yr ({quote.savings_pct}%)</span>
+                  </div>
+                </div>
+              )}
+              <div className="flex gap-lg border-t border-subtle pt-sm">
+                <div className="flex items-center gap-xs">
+                  <TrendingUp size={12} className="text-accent" />
+                  <span className="text-xs font-mono text-secondary">{quote.tier} Tier Rate</span>
+                </div>
+                <div className="flex items-center gap-xs">
+                  <Calendar size={12} className="text-secondary" />
+                  <span className="text-xs font-mono text-secondary">Renewal {quote.renewal_date || "—"}</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="card">
+              <div className="text-xs uppercase tracking-wide text-secondary font-mono mb-md">Coverage</div>
+              <div className="flex flex-col gap-sm">
+                {Object.entries(quote.coverage_breakdown ?? {}).map(([key, val]: [string, any]) => (
+                  <div key={key} className="flex justify-between items-center py-xs border-b border-subtle">
+                    <span className="text-sm capitalize">{key.replace(/_/g, ' ')}</span>
+                    <span className={`text-xs font-mono font-bold uppercase ${val.included ? 'text-accent' : 'text-secondary'}`}>
+                      {val.included ? 'Included' : val.optional ? 'Optional' : '—'}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-2 gap-2xl">
         {/* Compliance Queue */}
@@ -178,23 +322,6 @@ export default function VenueTerminalPage() {
         </section>
       </div>
 
-      {/* Premium Impact footer */}
-      <div className="flex justify-between items-end mt-2xl pt-lg border-t border-subtle">
-        <div>
-          <div className="text-xs font-mono text-secondary uppercase tracking-wide mb-xs">
-            &gt; PREMIUM_IMPACT_ANALYSIS
-          </div>
-          <div className="text-3xl font-bold font-mono">
-            {(liveState.premium_impact ?? 0).toFixed(2)}%
-          </div>
-        </div>
-        <div className="text-right">
-          <div className="text-3xl font-bold text-accent font-mono">
-            {String(liveState.compliance_queue?.length ?? 0).padStart(2, "0")}
-          </div>
-          <div className="text-xs font-mono text-secondary uppercase">PENDING_ACTION</div>
-        </div>
-      </div>
     </div>
   );
 }

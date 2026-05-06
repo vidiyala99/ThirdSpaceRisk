@@ -117,6 +117,12 @@ export default function UnderwriterPage() {
   const evidenceSummary = useMemo(() => summarizeEvidence(activePacket), [activePacket]);
   const evidenceGroups = useMemo(() => buildEvidenceGroups(activePacket), [activePacket]);
 
+  // Auto-load the delayed brawl scenario on mount for best first impression
+  useEffect(() => {
+    const timer = setTimeout(() => handleScenarioChange("SCENARIO-001-DELAYED-BRAWL"), 600);
+    return () => clearTimeout(timer);
+  }, []);
+
   async function runIncidentFlow() {
     setLoading(true);
     setError(null);

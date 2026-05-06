@@ -1,42 +1,35 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth, useRole } from "@/contexts/AuthContext";
-import { User, Shield, CreditCard, Users, LogOut } from "lucide-react";
+import { User, Shield, CreditCard, Users, LogOut, Check, Building2, FileText } from "lucide-react";
 
 export default function SettingsPage() {
   const router = useRouter();
-  const { user, signOut, isSignedIn, isLoaded } = useAuth();
-const role = useRole();
+  const { user, signOut, isSignedIn } = useAuth();
+  const role = useRole();
   const [activeTab, setActiveTab] = useState("profile");
+  const [saved, setSaved] = useState(false);
 
   const isBroker = role === "broker" || role === "admin";
 
   const tabs = [
     { id: "profile", label: "Profile", icon: User },
     { id: "security", label: "Security", icon: Shield },
-    { id: "team", label: "Team", icon: Users },
-    { id: "billing", label: "Billing", icon: CreditCard },
+    ...(isBroker ? [{ id: "team", label: "Team", icon: Users }] : []),
+    { id: "coverage", label: "Coverage", icon: FileText },
   ];
 
-  useEffect(() => {
-    if (isLoaded && !isSignedIn) {
-      router.push("/login");
-    }
-  }, [isLoaded, isSignedIn, router]);
+  const handleSignOut = () => { signOut(); router.push("/login"); };
 
-  const handleSignOut = () => {
-    signOut();
-    router.push("/login");
+  const handleSave = () => {
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2000);
   };
 
   if (!isSignedIn) {
-    return (
-      <div className="page-loading">
-        <div className="loading-spinner" />
-      </div>
-    );
+    return <div className="page-loading"><div className="loading-spinner" /></div>;
   }
 
   return (
@@ -45,28 +38,18 @@ const role = useRole();
         <div>
           <h1>Settings</h1>
           <p className="page-subtitle">
-            {isBroker 
-              ? "Manage your account and organization" 
-              : "Manage your account"}
+            {isBroker ? "Manage your account and brokerage" : "Manage your account and venue"}
           </p>
         </div>
-        <button onClick={handleSignOut} className="btn btn-ghost">
-          <LogOut size={18} />
-          Sign Out
-        </button>
+        <button onClick={handleSignOut} className="btn btn-ghost"><LogOut size={18} /> Sign Out</button>
       </header>
 
       <div className="settings-tabs">
         {tabs.map((tab) => {
           const Icon = tab.icon;
           return (
-            <button
-              key={tab.id}
-              className={`settings-tab ${activeTab === tab.id ? "active" : ""}`}
-              onClick={() => setActiveTab(tab.id)}
-            >
-              <Icon size={18} />
-              {tab.label}
+            <button key={tab.id} className={`settings-tab ${activeTab === tab.id ? "active" : ""}`} onClick={() => setActiveTab(tab.id)}>
+              <Icon size={16} /> {tab.label}
             </button>
           );
         })}
@@ -74,91 +57,104 @@ const role = useRole();
 
       {activeTab === "profile" && (
         <div className="settings-section animate-fade-in">
-          <h3>Profile Information</h3>
+          <div className="flex items-center gap-lg mb-xl">
+            <div style={{ width: 64, height: 64, borderRadius: '50%', background: 'rgba(212,255,0,0.1)', border: '2px solid var(--brand-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.5rem', fontWeight: 700, color: 'var(--brand-primary)' }}>
+              {user?.name?.[0] ?? "U"}
+            </div>
+            <div>
+              <h2 style={{ fontSize: '1.25rem', marginBottom: 4 }}>{user?.name}</h2>
+              <p style={{ color: 'var(--text-tertiary)', fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{user?.role?.replace("_", " ")}</p>
+            </div>
+          </div>
           <div className="settings-form">
             <div className="input-wrapper">
               <label className="input-label">Full Name</label>
-              <input
-                type="text"
-                className="input-field"
-                value={user?.name || ""}
-                disabled
-              />
+              <input type="text" className="input-field" defaultValue={user?.name ?? ""} />
             </div>
             <div className="input-wrapper">
               <label className="input-label">Email</label>
-              <input
-                type="email"
-                className="input-field"
-                value={user?.email || ""}
-                disabled
-              />
+              <input type="email" className="input-field" defaultValue={user?.email ?? ""} />
             </div>
-            <p className="settings-hint">
-              Contact your broker to update profile information.
-            </p>
+            <div className="input-wrapper">
+              <label className="input-label">Role</label>
+              <input type="text" className="input-field" value={user?.role?.replace("_", " ") ?? ""} readOnly style={{ color: 'var(--text-tertiary)' }} />
+            </div>
+            <div className="flex justify-end">
+              <button className="btn btn-primary" onClick={handleSave}>
+                {saved ? <><Check size={16} /> Saved</> : "Save Changes"}
+              </button>
+            </div>
           </div>
         </div>
       )}
 
       {activeTab === "security" && (
         <div className="settings-section animate-fade-in">
-          <h3>Security Settings</h3>
-          <div className="security-card">
+          <div className="security-card mb-lg">
             <div className="security-info">
               <h4>Two-Factor Authentication</h4>
-              <p>Add an extra layer of security to your account</p>
+              <p>Add an extra layer of security with an authenticator app</p>
             </div>
-            <button className="btn btn-secondary">
-              Enable 2FA
-            </button>
+            <button className="btn btn-secondary">Enable 2FA</button>
+          </div>
+          <div className="security-card mb-lg">
+            <div className="security-info">
+              <h4>Session Management</h4>
+              <p>Active on this device · Last seen just now</p>
+            </div>
+            <button className="btn btn-ghost" style={{ color: 'var(--state-error)' }} onClick={handleSignOut}>Sign Out All</button>
+          </div>
+          <div className="security-card">
+            <div className="security-info">
+              <h4>Password</h4>
+              <p>Last changed never</p>
+            </div>
+            <button className="btn btn-secondary">Change Password</button>
           </div>
         </div>
       )}
 
       {activeTab === "team" && isBroker && (
         <div className="settings-section animate-fade-in">
-          <h3>Team Members</h3>
-          <div className="team-list">
-            <div className="team-member">
-              <div className="team-avatar">{user?.name?.[0] || "U"}</div>
-              <div className="team-info">
-                <span className="team-name">{user?.name || "User"}</span>
-                <span className="team-email">{user?.email}</span>
+          <div className="team-list mb-lg">
+            {[
+              { name: user?.name ?? "You", email: user?.email ?? "", role: "Admin", isYou: true },
+              { name: "Dhruv Chopra", email: "dhruv@thirdspace.risk", role: "Co-Founder", isYou: false },
+              { name: "Vinai Rachakonda", email: "vinai@thirdspace.risk", role: "Co-Founder", isYou: false },
+            ].map((member) => (
+              <div key={member.email} className="team-member">
+                <div className="team-avatar">{member.name[0]}</div>
+                <div className="team-info">
+                  <span className="team-name">{member.name} {member.isYou && <span style={{ color: 'var(--text-tertiary)', fontSize: '0.75rem' }}>(you)</span>}</span>
+                  <span className="team-email">{member.email}</span>
+                </div>
+                <span className="team-role">{member.role}</span>
               </div>
-              <span className="team-role">Admin</span>
-            </div>
+            ))}
           </div>
-          <button className="btn btn-secondary mt-md">
-            <Users size={18} />
-            Invite Member
-          </button>
+          <button className="btn btn-secondary"><Users size={16} /> Invite Member</button>
         </div>
       )}
 
-      {activeTab === "team" && !isBroker && (
+      {activeTab === "coverage" && (
         <div className="settings-section animate-fade-in">
-          <h3>Team Members</h3>
-          <div className="team-list">
-            <div className="team-member">
-              <div className="team-avatar">{user?.name?.[0] || "U"}</div>
-              <div className="team-info">
-                <span className="team-name">{user?.name || "User"}</span>
-                <span className="team-email">{user?.email}</span>
+          <div className="flex flex-col gap-md">
+            {[
+              { label: "Liquor Liability", status: "Active", detail: "$1M per occurrence", icon: Shield },
+              { label: "General Liability", status: "Active", detail: "$2M aggregate", icon: Shield },
+              { label: "Property Coverage", status: "Optional", detail: "Not enrolled", icon: Building2 },
+              { label: "Workers Compensation", status: "Optional", detail: "Not enrolled", icon: Users },
+            ].map((item) => (
+              <div key={item.label} className="card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                  <h4 style={{ marginBottom: 4 }}>{item.label}</h4>
+                  <p style={{ fontSize: '0.85rem', color: 'var(--text-tertiary)' }}>{item.detail}</p>
+                </div>
+                <span className={`badge ${item.status === "Active" ? "badge-success" : "badge-info"}`}>
+                  {item.status}
+                </span>
               </div>
-              <span className="team-role">Admin</span>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {activeTab === "billing" && (
-        <div className="settings-section animate-fade-in">
-          <h3>Billing</h3>
-          <div className="empty-state">
-            <CreditCard size={48} />
-            <h3>Billing Management</h3>
-            <p>Contact support for changes to your subscription.</p>
+            ))}
           </div>
         </div>
       )}

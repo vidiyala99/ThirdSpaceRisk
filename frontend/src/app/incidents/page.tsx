@@ -50,14 +50,10 @@ export default function IncidentsPage() {
 
   useEffect(() => {
     async function fetchIncidents() {
-      if (!tenantId) {
-        setIncidents([]);
-        setLoading(false);
-        return;
-      }
-
+      // Brokers use the primary demo venue; operators use their own venue
+      const venueId = tenantId ?? "elsewhere-brooklyn";
       try {
-        const res = await fetch(`${API_URL}/api/venues/${tenantId}/incidents`);
+        const res = await fetch(`${API_URL}/api/venues/${venueId}/incidents`);
         if (res.ok) {
           const data = await res.json();
           setIncidents(Array.isArray(data) ? data : []);
@@ -74,12 +70,13 @@ export default function IncidentsPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!tenantId) return;
+    const venueId = tenantId ?? "elsewhere-brooklyn";
+    if (!venueId) return;
     
     setSubmitting(true);
 
     try {
-      const res = await fetch(`${API_URL}/api/venues/${tenantId}/incidents`, {
+      const res = await fetch(`${API_URL}/api/venues/${venueId}/incidents`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -102,7 +99,7 @@ export default function IncidentsPage() {
         ems_called: false,
       });
       
-      const updated = await fetch(`${API_URL}/api/venues/${tenantId}/incidents`);
+      const updated = await fetch(`${API_URL}/api/venues/${venueId}/incidents`);
       if (updated.ok) {
         const data = await updated.json();
         setIncidents(Array.isArray(data) ? data : []);

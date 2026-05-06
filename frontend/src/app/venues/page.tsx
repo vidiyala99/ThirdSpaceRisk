@@ -89,7 +89,7 @@ export default function VenuesPage() {
 
       {isBroker && (
         <div className="page-actions">
-          <button className="btn btn-primary">
+          <button className="btn btn-primary" onClick={() => { import("@/lib/toast").then(m => m.toastSuccess("Venue onboarding coming in Phase 2 — contact your Third Space rep.")); }}>
             <Plus size={18} />
             Add Venue
           </button>

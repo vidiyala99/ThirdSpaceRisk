@@ -147,10 +147,25 @@ export default function LoginPage() {
           </form>
 
           <div className="login-footer">
-            <p className="demo-note">
-              <Sparkles size={14} />
-              Demo: broker@thirdspace.risk / demo123
-            </p>
+            <button
+              type="button"
+              onClick={() => {
+                setEmail("broker@thirdspace.risk");
+                setPassword("demo123");
+                setTimeout(() => {
+                  (document.querySelector("form") as HTMLFormElement)?.requestSubmit();
+                }, 50);
+              }}
+              style={{
+                width: '100%', padding: '10px', background: 'rgba(212,255,0,0.08)',
+                border: '1px solid rgba(212,255,0,0.3)', borderRadius: '8px',
+                color: 'var(--brand-primary)', fontFamily: 'var(--font-mono)',
+                fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer',
+                letterSpacing: '0.05em', marginBottom: '12px',
+              }}
+            >
+              ⚡ QUICK DEMO LOGIN
+            </button>
             <div className="login-investors">
               <span>Backed by</span>
               <strong>a16z SpeedRun</strong>
