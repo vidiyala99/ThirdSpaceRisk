@@ -1,11 +1,44 @@
 VENUES = {
     "elsewhere-brooklyn": {
-        "name": "Elsewhere Brooklyn Mock",
+        "name": "Elsewhere Brooklyn",
         "capacity": 800,
         "venue_type": "music venue and bar",
+        "address": "599 Johnson Ave, Brooklyn, NY 11237",
         "current_carrier": "Admitted Market A",
-        "renewal_date": "2026-06-15",
-    }
+        "renewal_date": "2026-10-15",
+    },
+    "brooklyn-mirage": {
+        "name": "Brooklyn Mirage",
+        "capacity": 5000,
+        "venue_type": "outdoor music venue",
+        "address": "140 Stewart Ave, Brooklyn, NY 11237",
+        "current_carrier": "Surplus Lines B",
+        "renewal_date": "2026-08-01",
+    },
+    "house-of-yes": {
+        "name": "House of Yes",
+        "capacity": 600,
+        "venue_type": "nightclub and performance space",
+        "address": "2 Wyckoff Ave, Brooklyn, NY 11237",
+        "current_carrier": "Admitted Market A",
+        "renewal_date": "2026-12-01",
+    },
+    "nowadays": {
+        "name": "Nowadays",
+        "capacity": 400,
+        "venue_type": "outdoor bar and music venue",
+        "address": "56-06 Cooper Ave, Ridgewood, NY 11385",
+        "current_carrier": "Surplus Lines C",
+        "renewal_date": "2027-03-01",
+    },
+    "market-hotel": {
+        "name": "Market Hotel",
+        "capacity": 350,
+        "venue_type": "DIY music venue and bar",
+        "address": "1140 Myrtle Ave, Brooklyn, NY 11221",
+        "current_carrier": "Admitted Market B",
+        "renewal_date": "2026-11-01",
+    },
 }
 
 

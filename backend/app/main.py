@@ -6,7 +6,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException, Depends, BackgroundTasks, UploadFile, File, Query
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from sqlmodel import Session, select, text
+from sqlmodel import Session, select, text, func
 import time
 
 from app.incident_flow import create_brawl_incident_flow
@@ -67,6 +67,41 @@ def health() -> dict[str, str]:
 @app.get("/api/venues")
 def list_venues() -> list[dict]:
     return [{"id": venue_id, **venue} for venue_id, venue in VENUES.items()]
+
+
+@app.get("/api/venues/count")
+def venue_count() -> dict:
+    return {"count": len(VENUES)}
+
+
+@app.get("/api/portfolio")
+def get_portfolio(session: Session = Depends(get_session)) -> list[dict]:
+    """Single endpoint for broker portfolio view — all venues with scores + live state."""
+    result = []
+    for venue_id, venue_data in VENUES.items():
+        risk = get_risk_score(venue_id, VENUES)
+        live = live_state_manager.get_state(venue_id, venue_data["capacity"])
+        open_count = session.exec(
+            select(func.count(IncidentRecord.id))
+            .where(IncidentRecord.venue_id == venue_id)
+            .where(IncidentRecord.status == "open")
+        ).one()
+        result.append({
+            "id": venue_id,
+            "name": venue_data["name"],
+            "venue_type": venue_data.get("venue_type", ""),
+            "address": venue_data.get("address", ""),
+            "capacity": venue_data["capacity"],
+            "current_capacity": live.current_capacity,
+            "renewal_date": venue_data.get("renewal_date", ""),
+            "current_carrier": venue_data.get("current_carrier", ""),
+            "tier": risk["tier"],
+            "total_score": risk["total_score"],
+            "open_incidents": open_count,
+            "compliance_actions": len(live.compliance_queue),
+            "has_degraded_infra": any(item.is_degraded for item in live.infrastructure),
+        })
+    return result
 
 
 @app.get("/api/venues/{venue_id}/incidents", response_model=list[Incident])

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useRole, useTenantId, useAuth } from "@/contexts/AuthContext";
 import { Building2, MapPin, Users, Plus, ArrowRight, LogOut } from "lucide-react";
+import Link from "next/link";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
 
@@ -12,6 +13,8 @@ interface Venue {
   name: string;
   address?: string;
   capacity?: number;
+  venue_type?: string;
+  renewal_date?: string;
 }
 
 export default function VenuesPage() {
@@ -95,27 +98,33 @@ export default function VenuesPage() {
 
       <div className="venues-grid">
         {venues.map((venue) => (
-          <div key={venue.id} className="venue-card">
+          <Link key={venue.id} href={`/terminal/${venue.id}`} className="venue-card" style={{ textDecoration: 'none' }}>
             <div className="venue-icon">
               <Building2 size={24} />
             </div>
             <div className="venue-info">
               <h3>{venue.name}</h3>
+              {venue.venue_type && (
+                <p className="venue-address" style={{ color: 'var(--brand-primary)', textTransform: 'uppercase', fontSize: '0.7rem', letterSpacing: '0.05em' }}>
+                  {venue.venue_type}
+                </p>
+              )}
               {venue.address && (
                 <p className="venue-address">
-                  <MapPin size={14} />
+                  <MapPin size={12} />
                   {venue.address}
                 </p>
               )}
               {venue.capacity && (
                 <p className="venue-capacity">
-                  <Users size={14} />
-                  Capacity: {venue.capacity}
+                  <Users size={12} />
+                  Cap. {venue.capacity.toLocaleString()}
+                  {venue.renewal_date && <span style={{ marginLeft: '8px', color: 'var(--text-tertiary)' }}>· Renewal {venue.renewal_date}</span>}
                 </p>
               )}
             </div>
             <ArrowRight size={20} className="venue-arrow" />
-          </div>
+          </Link>
         ))}
       </div>
 
