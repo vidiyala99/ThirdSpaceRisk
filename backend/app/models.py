@@ -17,6 +17,7 @@ class IncidentRecord(SQLModel, table=True):
     injury_observed: bool
     police_called: bool
     ems_called: bool
+    status: str = Field(default="open")
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
     evaluation: Optional["IncidentEvaluation"] = Relationship(back_populates="incident")

@@ -3,10 +3,10 @@ from app.fastapi_compat import patch_starlette_router_for_fastapi
 patch_starlette_router_for_fastapi()
 
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, HTTPException, Depends, BackgroundTasks, UploadFile, File
+from fastapi import FastAPI, HTTPException, Depends, BackgroundTasks, UploadFile, File, Query
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from sqlmodel import Session, select
+from sqlmodel import Session, select, text
 import time
 
 from app.incident_flow import create_brawl_incident_flow
@@ -28,8 +28,14 @@ class ReviewDecisionCreate(BaseModel):
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     create_db_and_tables()
-    # Seed venues if they don't exist
     with next(get_session()) as session:
+        # Add status column to existing DBs that predate this field
+        try:
+            session.exec(text("ALTER TABLE incidentrecord ADD COLUMN status TEXT NOT NULL DEFAULT 'open'"))
+            session.commit()
+        except Exception:
+            pass  # Column already exists
+        # Seed venues
         for venue_id, venue_data in VENUES.items():
             if not session.get(Venue, venue_id):
                 session.add(Venue(id=venue_id, name=venue_data["name"]))
@@ -64,15 +70,20 @@ def list_venues() -> list[dict]:
 
 
 @app.get("/api/venues/{venue_id}/incidents", response_model=list[Incident])
-def list_incidents(venue_id: str, session: Session = Depends(get_session)) -> list[Incident]:
+def list_incidents(
+    venue_id: str,
+    status: str | None = Query(default=None, description="Filter by status: open | under_review | closed"),
+    session: Session = Depends(get_session),
+) -> list[Incident]:
     if venue_id not in VENUES:
         raise HTTPException(status_code=404, detail="Venue not found")
 
-    records = session.exec(
-        select(IncidentRecord)
-        .where(IncidentRecord.venue_id == venue_id)
-        .order_by(IncidentRecord.created_at.desc())
-    ).all()
+    query = select(IncidentRecord).where(IncidentRecord.venue_id == venue_id)
+    if status:
+        query = query.where(IncidentRecord.status == status)
+    query = query.order_by(IncidentRecord.created_at.desc())
+
+    records = session.exec(query).all()
     return [
         Incident(
             id=record.id,
@@ -84,9 +95,28 @@ def list_incidents(venue_id: str, session: Session = Depends(get_session)) -> li
             injury_observed=record.injury_observed,
             police_called=record.police_called,
             ems_called=record.ems_called,
+            status=record.status,
         )
         for record in records
     ]
+
+
+@app.patch("/api/incidents/{incident_id}/status", status_code=200)
+def update_incident_status(
+    incident_id: str,
+    body: dict,
+    session: Session = Depends(get_session),
+) -> dict:
+    record = session.get(IncidentRecord, incident_id)
+    if record is None:
+        raise HTTPException(status_code=404, detail="Incident not found")
+    new_status = body.get("status")
+    if new_status not in ("open", "under_review", "closed"):
+        raise HTTPException(status_code=400, detail="status must be open | under_review | closed")
+    record.status = new_status
+    session.add(record)
+    session.commit()
+    return {"id": incident_id, "status": record.status}
 
 
 @app.post("/api/venues/{venue_id}/incidents", response_model=IncidentFlowResponse, status_code=201)

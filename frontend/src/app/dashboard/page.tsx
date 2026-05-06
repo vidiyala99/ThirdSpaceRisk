@@ -59,14 +59,15 @@ export default function DashboardPage() {
 
   useEffect(() => {
     async function fetchDashboard() {
-      // Brokers have no tenantId — use the primary demo venue for portfolio view
-      const venueId = tenantId ?? "elsewhere-brooklyn";
+      // Brokers manage all venues — use the primary demo venue for portfolio data.
+      // Venue operators use their own tenantId.
+      const venueId = isBroker ? "elsewhere-brooklyn" : (tenantId ?? "elsewhere-brooklyn");
       try {
         const [liveRes, riskRes, quoteRes, incidentsRes] = await Promise.all([
           fetch(`${API_URL}/api/venues/${venueId}/live`),
           fetch(`${API_URL}/api/venues/${venueId}/risk-score`),
           fetch(`${API_URL}/api/venues/${venueId}/quote`),
-          fetch(`${API_URL}/api/venues/${venueId}/incidents`),
+          fetch(`${API_URL}/api/venues/${venueId}/incidents?status=open`),
         ]);
         const incidentCount = incidentsRes.ok ? (await incidentsRes.json()).length : 0;
         if (liveRes.ok) {
@@ -104,7 +105,7 @@ export default function DashboardPage() {
     return <div className="theme-venue min-h-screen page-loading"><div className="loading-spinner" /></div>;
   }
 
-  if (!tenantId) {
+  if (!isBroker && !tenantId) {
     return (
       <div className="theme-venue min-h-screen p-xl">
         <div className="flex flex-col items-center justify-center" style={{ minHeight: "60vh" }}>

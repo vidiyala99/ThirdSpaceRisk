@@ -25,6 +25,7 @@ class Incident(BaseModel):
     injury_observed: bool
     police_called: bool
     ems_called: bool
+    status: str = "open"  # open | under_review | closed
 
 class RiskSignal(BaseModel):
     type: str

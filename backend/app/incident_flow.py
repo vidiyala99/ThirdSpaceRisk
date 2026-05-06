@@ -37,6 +37,7 @@ def create_brawl_incident_flow(venue_id: str, payload: IncidentCreate, session: 
         injury_observed=incident.injury_observed,
         police_called=incident.police_called,
         ems_called=incident.ems_called,
+        status="open",
     )
     
     db_eval = IncidentEvaluation(
