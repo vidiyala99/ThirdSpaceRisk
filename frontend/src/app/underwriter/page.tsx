@@ -82,12 +82,14 @@ const goldStandardScenarios = [
 
 type DecisionRecord = { decision: string; decided_at: string };
 
+const DEFAULT_SCENARIO = goldStandardScenarios[0];
+
 export default function UnderwriterPage() {
-  const [packet, setPacket] = useState<IncidentPacket | null>(null);
+  const [packet, setPacket] = useState<IncidentPacket | null>(DEFAULT_SCENARIO.data as any);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<Lifecycle>("needs_review");
-  const [selectedScenario, setSelectedScenario] = useState<string>("");
+  const [selectedScenario, setSelectedScenario] = useState<string>(DEFAULT_SCENARIO.id);
   const [packetId, setPacketId] = useState<string | null>(null);
   const [reviewNotes, setReviewNotes] = useState("");
   const [reviewOverride, setReviewOverride] = useState("");
@@ -117,11 +119,6 @@ export default function UnderwriterPage() {
   const evidenceSummary = useMemo(() => summarizeEvidence(activePacket), [activePacket]);
   const evidenceGroups = useMemo(() => buildEvidenceGroups(activePacket), [activePacket]);
 
-  // Auto-load the delayed brawl scenario on mount for best first impression
-  useEffect(() => {
-    const timer = setTimeout(() => handleScenarioChange("SCENARIO-001-DELAYED-BRAWL"), 600);
-    return () => clearTimeout(timer);
-  }, []);
 
   async function runIncidentFlow() {
     setLoading(true);
@@ -332,7 +329,7 @@ export default function UnderwriterPage() {
                     <tr key={`${event.at}-${event.source}`} className="border-b border-darker">
                       <td className="py-sm text-secondary">{event.at.split("T")[1].replace("Z", "")}</td>
                       <td className="py-sm text-primary truncate pr-md" style={{ maxWidth: '300px' }} title={event.label}>{event.label}</td>
-                      <td className="py-sm text-secondary text-right">{event.source}</td>
+                      <td className="py-sm text-secondary text-right whitespace-nowrap">{event.source}</td>
                     </tr>
                   ))}
                 </tbody>
