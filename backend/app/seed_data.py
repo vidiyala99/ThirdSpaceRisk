@@ -6,6 +6,18 @@ VENUES = {
         "address": "599 Johnson Ave, Brooklyn, NY 11237",
         "current_carrier": "Admitted Market A",
         "renewal_date": "2026-10-15",
+        # Scoring attributes
+        "incident_count": 2,
+        "compliance_items": 0,
+        "security_level": "high",
+        "years_in_operation": 12,
+        "prior_carrier": "Admitted Market A",
+        # Live infrastructure
+        "infrastructure": [
+            {"name": "DOOR_ID_SCANNER [FRONT]", "status": "ACTIVE", "detail": "[742/HR]", "is_degraded": False},
+            {"name": "GUESTLIST_SYNC [DICE.FM]", "status": "ACTIVE", "detail": "[REALTIME]", "is_degraded": False},
+            {"name": "CAMERA_FEED_REAR", "status": "DEGRADED", "detail": "[12% LOSS]", "is_degraded": True},
+        ],
     },
     "brooklyn-mirage": {
         "name": "Brooklyn Mirage",
@@ -14,6 +26,17 @@ VENUES = {
         "address": "140 Stewart Ave, Brooklyn, NY 11237",
         "current_carrier": "Surplus Lines B",
         "renewal_date": "2026-08-01",
+        "incident_count": 5,
+        "compliance_items": 1,
+        "security_level": "high",
+        "years_in_operation": 6,
+        "prior_carrier": "Surplus Lines B",
+        "infrastructure": [
+            {"name": "PERIMETER_SCANNER [MAIN]", "status": "ACTIVE", "detail": "[4650/HR]", "is_degraded": False},
+            {"name": "GUESTLIST_SYNC [SEE TICKETS]", "status": "ACTIVE", "detail": "[REALTIME]", "is_degraded": False},
+            {"name": "CAMERA_STAGE_LEFT", "status": "ACTIVE", "detail": "[ONLINE]", "is_degraded": False},
+            {"name": "POS_BAR_EAST", "status": "ACTIVE", "detail": "[REALTIME]", "is_degraded": False},
+        ],
     },
     "house-of-yes": {
         "name": "House of Yes",
@@ -22,6 +45,16 @@ VENUES = {
         "address": "2 Wyckoff Ave, Brooklyn, NY 11237",
         "current_carrier": "Admitted Market A",
         "renewal_date": "2026-12-01",
+        "incident_count": 7,
+        "compliance_items": 0,
+        "security_level": "medium",
+        "years_in_operation": 9,
+        "prior_carrier": "Admitted Market A",
+        "infrastructure": [
+            {"name": "DOOR_ID_SCANNER [ENTRY]", "status": "ACTIVE", "detail": "[558/HR]", "is_degraded": False},
+            {"name": "CAMERA_MAIN_FLOOR", "status": "ACTIVE", "detail": "[ONLINE]", "is_degraded": False},
+            {"name": "POS_BAR_PRIMARY", "status": "DEGRADED", "detail": "[OFFLINE]", "is_degraded": True},
+        ],
     },
     "nowadays": {
         "name": "Nowadays",
@@ -30,6 +63,15 @@ VENUES = {
         "address": "56-06 Cooper Ave, Ridgewood, NY 11385",
         "current_carrier": "Surplus Lines C",
         "renewal_date": "2027-03-01",
+        "incident_count": 1,
+        "compliance_items": 2,
+        "security_level": "medium",
+        "years_in_operation": 4,
+        "prior_carrier": "Surplus Lines C",
+        "infrastructure": [
+            {"name": "DOOR_ID_SCANNER [OUTDOOR]", "status": "ACTIVE", "detail": "[372/HR]", "is_degraded": False},
+            {"name": "POS_BAR_OUTDOOR", "status": "ACTIVE", "detail": "[REALTIME]", "is_degraded": False},
+        ],
     },
     "market-hotel": {
         "name": "Market Hotel",
@@ -38,6 +80,16 @@ VENUES = {
         "address": "1140 Myrtle Ave, Brooklyn, NY 11221",
         "current_carrier": "Admitted Market B",
         "renewal_date": "2026-11-01",
+        "incident_count": 3,
+        "compliance_items": 3,
+        "security_level": "low",
+        "years_in_operation": 16,
+        "prior_carrier": "Admitted Market B",
+        "infrastructure": [
+            {"name": "DOOR_ID_SCANNER [MAIN]", "status": "ACTIVE", "detail": "[310/HR]", "is_degraded": False},
+            {"name": "CAMERA_ENTRANCE", "status": "DEGRADED", "detail": "[NO SIGNAL]", "is_degraded": True},
+            {"name": "CAMERA_STAGE", "status": "DEGRADED", "detail": "[OFFLINE]", "is_degraded": True},
+        ],
     },
 }
 

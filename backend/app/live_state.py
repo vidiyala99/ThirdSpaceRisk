@@ -4,18 +4,28 @@ class LiveStateManager:
     def __init__(self):
         self._states = {}
 
-    def get_state(self, venue_id: str, max_capacity: int) -> LiveVenueState:
+    def get_state(self, venue_id: str, max_capacity: int, venue_data: dict | None = None) -> LiveVenueState:
         if venue_id not in self._states:
+            seeded_capacity = int(max_capacity * 0.93)
+            # Use venue-specific infrastructure if available, else a generic fallback
+            raw_infra = (venue_data or {}).get("infrastructure", [
+                {"name": "DOOR_ID_SCANNER", "status": "ACTIVE", "detail": "[ONLINE]", "is_degraded": False},
+            ])
+            infrastructure = [
+                InfrastructureItem(
+                    name=item["name"],
+                    status=item["status"],
+                    detail=item["detail"],
+                    is_degraded=item["is_degraded"],
+                )
+                for item in raw_infra
+            ]
             self._states[venue_id] = LiveVenueState(
                 venue_id=venue_id,
-                current_capacity=0,
+                current_capacity=seeded_capacity,
                 max_capacity=max_capacity,
                 premium_impact=0.0,
-                infrastructure=[
-                    InfrastructureItem(name="DOOR_ID_SCANNER [FRONT]", status="ACTIVE", detail="[742/HR]", is_degraded=False),
-                    InfrastructureItem(name="GUESTLIST_SYNC [DICE.FM]", status="ACTIVE", detail="[REALTIME]", is_degraded=False),
-                    InfrastructureItem(name="CAMERA_FEED_REAR", status="DEGRADED", detail="[12% LOSS]", is_degraded=True),
-                ],
+                infrastructure=infrastructure,
                 compliance_queue=[]
             )
         return self._states[venue_id]

@@ -80,7 +80,7 @@ def get_portfolio(session: Session = Depends(get_session)) -> list[dict]:
     result = []
     for venue_id, venue_data in VENUES.items():
         risk = get_risk_score(venue_id, VENUES)
-        live = live_state_manager.get_state(venue_id, venue_data["capacity"])
+        live = live_state_manager.get_state(venue_id, venue_data["capacity"], venue_data)
         open_count = session.exec(
             select(func.count(IncidentRecord.id))
             .where(IncidentRecord.venue_id == venue_id)
@@ -287,7 +287,7 @@ def get_live_state(venue_id: str) -> LiveVenueState:
     if venue_id not in VENUES:
         raise HTTPException(status_code=404, detail="Venue not found")
 
-    return live_state_manager.get_state(venue_id, VENUES[venue_id]["capacity"])
+    return live_state_manager.get_state(venue_id, VENUES[venue_id]["capacity"], VENUES[venue_id])
 
 
 @app.get("/api/venues/{venue_id}/risk-score")
