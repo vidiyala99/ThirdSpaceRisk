@@ -1,0 +1,157 @@
+"""
+Tests for portfolio, review decisions, audit trail, source registry, and incident status.
+Uses the real SQLite database via TestClient (same pattern as test_brawl_incident_flow.py).
+"""
+import pytest
+from fastapi.testclient import TestClient
+from app.main import app
+from app.seed_data import VENUES
+
+DEMO_INCIDENT = {
+    "occurred_at": "2026-05-05T22:00:00Z",
+    "location": "rear bar",
+    "summary": "Test incident for automated test suite.",
+    "reported_by": "pytest",
+    "injury_observed": False,
+    "police_called": False,
+    "ems_called": False,
+}
+
+
+# ── Portfolio ─────────────────────────────────────────────────────────────────
+
+def test_portfolio_returns_all_venues():
+    with TestClient(app) as client:
+        resp = client.get("/api/portfolio")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert len(data) == len(VENUES)
+    ids = {v["id"] for v in data}
+    assert "elsewhere-brooklyn" in ids
+
+
+def test_portfolio_venue_has_required_fields():
+    with TestClient(app) as client:
+        data = client.get("/api/portfolio").json()
+    venue = next(v for v in data if v["id"] == "elsewhere-brooklyn")
+    required = {
+        "id", "name", "tier", "total_score", "capacity", "current_capacity",
+        "renewal_date", "open_incidents", "compliance_actions", "has_degraded_infra",
+    }
+    assert required.issubset(venue.keys())
+
+
+def test_portfolio_all_tiers_valid():
+    with TestClient(app) as client:
+        data = client.get("/api/portfolio").json()
+    for venue in data:
+        assert venue["tier"] in ("A", "B", "C", "D"), f"{venue['id']} has invalid tier"
+
+
+def test_portfolio_elsewhere_is_tier_a():
+    with TestClient(app) as client:
+        data = client.get("/api/portfolio").json()
+    elsewhere = next(v for v in data if v["id"] == "elsewhere-brooklyn")
+    assert elsewhere["tier"] == "A"
+    assert elsewhere["total_score"] >= 80
+
+
+# ── Incident status filter ─────────────────────────────────────────────────────
+
+def test_incidents_status_filter_open_vs_closed():
+    with TestClient(app) as client:
+        client.post("/api/venues/elsewhere-brooklyn/incidents", json=DEMO_INCIDENT)
+        all_resp = client.get("/api/venues/elsewhere-brooklyn/incidents")
+        open_resp = client.get("/api/venues/elsewhere-brooklyn/incidents?status=open")
+
+    assert all_resp.status_code == 200
+    assert open_resp.status_code == 200
+    assert all(i["status"] == "open" for i in open_resp.json())
+
+
+def test_incident_status_patch():
+    with TestClient(app) as client:
+        create = client.post("/api/venues/elsewhere-brooklyn/incidents", json=DEMO_INCIDENT)
+        incident_id = create.json()["incident"]["id"]
+        patch = client.patch(f"/api/incidents/{incident_id}/status", json={"status": "closed"})
+        assert patch.status_code == 200
+        assert patch.json()["status"] == "closed"
+        open_list = client.get("/api/venues/elsewhere-brooklyn/incidents?status=open").json()
+    assert not any(i["id"] == incident_id for i in open_list)
+
+
+def test_incident_status_invalid_value_rejected():
+    with TestClient(app) as client:
+        create = client.post("/api/venues/elsewhere-brooklyn/incidents", json=DEMO_INCIDENT)
+        incident_id = create.json()["incident"]["id"]
+        resp = client.patch(f"/api/incidents/{incident_id}/status", json={"status": "invalid_value"})
+    assert resp.status_code == 400
+
+
+# ── Review decisions ──────────────────────────────────────────────────────────
+
+def test_review_decision_approve_changes_packet_status():
+    with TestClient(app) as client:
+        client.post("/api/venues/elsewhere-brooklyn/incidents", json=DEMO_INCIDENT)
+        incidents = client.get("/api/venues/elsewhere-brooklyn/incidents").json()
+        incident_id = incidents[0]["id"]
+        packets = client.get(f"/api/incidents/{incident_id}/packets").json()
+        packet_id = packets[0]["id"]
+
+        decision = client.post(
+            f"/api/packets/{packet_id}/review-decisions",
+            json={"reviewer_id": "test-reviewer", "decision": "approved"},
+        )
+        assert decision.status_code == 201
+        assert decision.json()["decision"] == "approved"
+
+        packet = client.get(f"/api/packets/{packet_id}").json()
+    assert packet["status"] == "approved"
+
+
+# ── Audit trail ───────────────────────────────────────────────────────────────
+
+def test_audit_events_include_packet_generated():
+    with TestClient(app) as client:
+        client.post("/api/venues/elsewhere-brooklyn/incidents", json=DEMO_INCIDENT)
+        incidents = client.get("/api/venues/elsewhere-brooklyn/incidents").json()
+        incident_id = incidents[0]["id"]
+        packets = client.get(f"/api/incidents/{incident_id}/packets").json()
+        packet_id = packets[0]["id"]
+        events = client.get(f"/api/packets/{packet_id}/audit-events").json()
+
+    event_types = {e["event_type"] for e in events}
+    assert "packet.generated" in event_types
+
+
+def test_audit_events_include_decision_after_review():
+    with TestClient(app) as client:
+        client.post("/api/venues/elsewhere-brooklyn/incidents", json=DEMO_INCIDENT)
+        incidents = client.get("/api/venues/elsewhere-brooklyn/incidents").json()
+        incident_id = incidents[0]["id"]
+        packets = client.get(f"/api/incidents/{incident_id}/packets").json()
+        packet_id = packets[0]["id"]
+        client.post(
+            f"/api/packets/{packet_id}/review-decisions",
+            json={"reviewer_id": "uw-test", "decision": "approved"},
+        )
+        events = client.get(f"/api/packets/{packet_id}/audit-events").json()
+
+    event_types = {e["event_type"] for e in events}
+    assert "packet.review_decision_recorded" in event_types
+
+
+# ── Source registry ───────────────────────────────────────────────────────────
+
+def test_source_registry_populated_after_incident():
+    with TestClient(app) as client:
+        client.post("/api/venues/elsewhere-brooklyn/incidents", json=DEMO_INCIDENT)
+        resp = client.get("/api/venues/elsewhere-brooklyn/sources")
+
+    assert resp.status_code == 200
+    sources = resp.json()
+    assert len(sources) > 0
+    for s in sources:
+        assert "source_type" in s
+        assert "excerpt" in s
+        assert "id" in s

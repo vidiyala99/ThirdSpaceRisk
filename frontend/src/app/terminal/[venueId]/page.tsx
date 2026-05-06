@@ -118,6 +118,17 @@ export default function VenueTerminalPage() {
 
   return (
     <div className="theme-venue min-h-screen p-xl">
+      {/* Savings hero — the most important number, above the fold */}
+      {quote && quote.savings_annual > 0 && (
+        <div className="flex items-center gap-lg mb-xl p-lg" style={{ background: 'rgba(212,255,0,0.05)', border: '1px solid rgba(212,255,0,0.2)', borderRadius: 'var(--radius-lg)' }}>
+          <div>
+            <div className="text-xs font-mono uppercase tracking-wide text-secondary mb-xs">Third Space saves you</div>
+            <div className="text-4xl font-bold glow-text">${quote.savings_annual.toLocaleString()}<span className="text-xl text-secondary font-normal">/yr</span></div>
+            <div className="text-xs font-mono text-secondary mt-xs">vs. market rate of ${quote.market_rate_annual.toLocaleString()} — {quote.savings_pct}% discount through evidence-first underwriting</div>
+          </div>
+        </div>
+      )}
+
       <header className="page-header mb-xl">
         <div>
           <div className="text-xs font-mono text-secondary uppercase tracking-wide mb-xs">
@@ -299,6 +310,11 @@ export default function VenueTerminalPage() {
           <div className="border-b border-subtle pb-md mb-lg">
             <h3 className="text-lg font-semibold uppercase font-display">Infrastructure Sync</h3>
           </div>
+          {liveState.infrastructure?.some((i: any) => i.is_degraded) && (
+            <div className="mb-md p-sm text-xs font-mono" style={{ background: 'rgba(255,153,0,0.08)', border: '1px solid rgba(255,153,0,0.3)', borderRadius: 'var(--radius-sm)', color: 'var(--state-warning)' }}>
+              ⚠ Degraded systems weaken your claims defense. Upload footage or repair feeds before your next event.
+            </div>
+          )}
           <div className="flex flex-col gap-sm stagger-children">
             {liveState.infrastructure?.length === 0 && (
               <div className="empty-state">

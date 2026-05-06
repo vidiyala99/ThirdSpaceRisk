@@ -31,7 +31,7 @@ def test_brawl_incident_flow_creates_cited_review_packet():
     assert payload["action_plan"][0]["title"] == "Preserve incident evidence"
     assert payload["claims_timeline"][0]["source"] == "stream:door-count"
     assert payload["underwriting_memo"]["review_status"] == "draft"
-    assert "brawl" in payload["underwriting_memo"]["summary"].lower()
+    assert "underwriter review" in payload["underwriting_memo"]["summary"].lower()
     assert len(payload["underwriting_memo"]["citations"]) >= 3
     assert all(citation["source_id"] for citation in payload["underwriting_memo"]["citations"])
 

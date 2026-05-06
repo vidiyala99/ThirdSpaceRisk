@@ -14,7 +14,7 @@ from app.schemas import Incident, IncidentCreate, IncidentFlowResponse, LiveVenu
 from app.seed_data import VENUES
 from app.database import create_db_and_tables, get_session
 from app.live_state import live_state_manager
-from app.models import AuditEvent, IncidentRecord, ReviewDecision, UnderwritingPacket, Venue
+from app.models import AuditEvent, IncidentRecord, ReviewDecision, SourceRecord, UnderwritingPacket, Venue
 from app.packet_core import record_review_decision, record_packet_opened
 from app.underwriting import get_premium_quote, get_risk_score
 

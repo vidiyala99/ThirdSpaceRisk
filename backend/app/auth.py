@@ -1,50 +1,81 @@
-from datetime import datetime, timedelta
-from typing import Optional
-import secrets
-import hashlib
 import base64
+import hashlib
+import hmac
+import os
+import time
+from typing import Optional
 
-SECRET_KEY = secrets.token_hex(32)
-TOKEN_EXPIRE_HOURS = 24
+# Stable secret loaded from environment. In production this would be a
+# secret manager value. For the demo, a hardcoded fallback is acceptable
+# because we're not storing sensitive production data.
+_APP_SECRET = os.getenv("APP_SECRET", "ts-risk-demo-secret-v1-do-not-use-in-prod").encode()
+
+TOKEN_EXPIRE_SECONDS = 24 * 3600
+
+
+def _sign(payload: str) -> str:
+    """Return a 32-char hex HMAC-SHA256 signature over the payload."""
+    return hmac.new(_APP_SECRET, payload.encode(), hashlib.sha256).hexdigest()[:32]
+
 
 def create_token(user_id: str, email: str, role: str, tenant_id: Optional[str] = None) -> str:
-    """Create a simple token for a user."""
-    data = f"{user_id}:{email}:{role}:{tenant_id or ''}:{datetime.utcnow().timestamp() + TOKEN_EXPIRE_HOURS * 3600}"
-    encoded = base64.b64encode(data.encode()).decode()
-    return f"{SECRET_KEY[:8]}_{encoded}"
+    """
+    Create an HMAC-signed token.
+
+    Format: <32-char-hmac>.<base64(user_id:email:role:tenant_id:expiry)>
+    The HMAC prevents forgery: verifying the signature is the first check
+    in verify_token, before decoding any fields.
+    """
+    expiry = int(time.time()) + TOKEN_EXPIRE_SECONDS
+    payload = f"{user_id}:{email}:{role}:{tenant_id or ''}:{expiry}"
+    encoded = base64.urlsafe_b64encode(payload.encode()).decode()
+    signature = _sign(encoded)
+    return f"{signature}.{encoded}"
+
 
 def verify_token(token: str) -> Optional[dict]:
-    """Verify and decode a token."""
+    """
+    Verify an HMAC-signed token and return its claims.
+
+    Returns None if the token is malformed, the signature is invalid,
+    or the token has expired.
+    """
     try:
-        if '_' not in token:
+        if "." not in token:
             return None
-        parts = token.split('_', 1)
-        if len(parts) != 2:
+        signature, encoded = token.split(".", 1)
+
+        # Constant-time comparison prevents timing attacks
+        expected = _sign(encoded)
+        if not hmac.compare_digest(signature, expected):
             return None
-        encoded = parts[1]
-        decoded = base64.b64decode(encoded.encode()).decode()
-        fields = decoded.split(':')
-        if len(fields) < 4:
+
+        payload = base64.urlsafe_b64decode(encoded.encode()).decode()
+        parts = payload.split(":")
+        if len(parts) < 5:
             return None
-        expiry = float(fields[4])
-        if datetime.utcnow().timestamp() > expiry:
+
+        expiry = int(parts[4])
+        if time.time() > expiry:
             return None
+
         return {
-            "sub": fields[0],
-            "email": fields[1],
-            "role": fields[2],
-            "tenant_id": fields[3] if fields[3] else None,
+            "sub": parts[0],
+            "email": parts[1],
+            "role": parts[2],
+            "tenant_id": parts[3] if parts[3] else None,
         }
     except Exception:
         return None
 
+
 def create_password_hash(password: str) -> str:
-    """Create a hash of a password."""
     return hashlib.sha256(password.encode()).hexdigest()
 
-def verify_password(password: str, hash: str) -> bool:
-    """Verify a password against a hash."""
-    return create_password_hash(password) == hash
+
+def verify_password(password: str, hashed: str) -> bool:
+    # Constant-time comparison prevents timing-based enumeration of valid passwords
+    return hmac.compare_digest(create_password_hash(password), hashed)
 
 USERS_DB = {
     "user_001": {
