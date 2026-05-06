@@ -15,7 +15,7 @@ from app.seed_data import VENUES
 from app.database import create_db_and_tables, get_session
 from app.live_state import live_state_manager
 from app.models import AuditEvent, IncidentRecord, ReviewDecision, UnderwritingPacket, Venue
-from app.packet_core import record_review_decision
+from app.packet_core import record_review_decision, record_packet_opened
 from app.underwriting import get_premium_quote, get_risk_score
 
 
@@ -172,11 +172,40 @@ def list_incident_packets(incident_id: str, session: Session = Depends(get_sessi
 
 
 @app.get("/api/packets/{packet_id}")
-def get_packet(packet_id: str, session: Session = Depends(get_session)) -> dict:
+def get_packet(
+    packet_id: str,
+    reviewer_id: str | None = None,
+    session: Session = Depends(get_session),
+) -> dict:
     packet = session.get(UnderwritingPacket, packet_id)
     if packet is None:
         raise HTTPException(status_code=404, detail="Packet not found")
+    if reviewer_id:
+        record_packet_opened(session=session, packet_id=packet_id, reviewer_id=reviewer_id)
     return _packet_to_dict(packet)
+
+
+@app.get("/api/venues/{venue_id}/sources")
+def list_venue_sources(venue_id: str, session: Session = Depends(get_session)) -> list[dict]:
+    """Source registry — all evidence sources for a venue."""
+    if venue_id not in VENUES:
+        raise HTTPException(status_code=404, detail="Venue not found")
+    sources = session.exec(
+        select(SourceRecord)
+        .where(SourceRecord.venue_id == venue_id)
+        .order_by(SourceRecord.created_at.desc())
+    ).all()
+    return [
+        {
+            "id": s.id,
+            "source_type": s.source_type,
+            "excerpt": s.excerpt,
+            "incident_id": s.incident_id,
+            "content_hash": s.content_hash,
+            "created_at": s.created_at.isoformat(),
+        }
+        for s in sources
+    ]
 
 
 @app.post("/api/packets/{packet_id}/review-decisions", status_code=201)

@@ -37,12 +37,18 @@ def create_packet_snapshot(
     packet_id = f"pkt-{uuid4().hex[:12]}"
     citation_ids: list[str] = []
 
+    invalid_citations: list[str] = []
     for index, citation in enumerate(citations):
         source = _ensure_source_record(
             session=session,
             venue_id=venue_id,
             incident_id=incident_id,
             citation=citation,
+        )
+        validation_status, failure_reason = _validate_citation(
+            source=source,
+            venue_id=venue_id,
+            excerpt=citation.excerpt,
         )
         citation_id = f"cit-{uuid4().hex[:12]}"
         citation_record = CitationRecord(
@@ -53,16 +59,31 @@ def create_packet_snapshot(
             citation_type=citation.source_type,
             field_path="excerpt",
             excerpt=citation.excerpt,
-            validation_status="valid",
+            validation_status=validation_status,
         )
         session.add(citation_record)
         citation_ids.append(citation_id)
+        if validation_status == "invalid":
+            invalid_citations.append(f"{citation.source_id}: {failure_reason}")
 
+    overall_status = "invalid" if invalid_citations else "valid"
     validation = {
-        "status": "valid",
+        "status": overall_status,
         "citation_count": len(citation_ids),
+        "invalid_count": len(invalid_citations),
+        "failures": invalid_citations,
         "validated_at": _utc_iso(),
     }
+    if invalid_citations:
+        _add_audit_event(
+            session=session,
+            actor_id="system",
+            actor_type="system",
+            entity_type="underwriting_packet",
+            entity_id=packet_id,
+            event_type="packet.validation_failed",
+            event_metadata={"failures": invalid_citations},
+        )
     packet_body = {
         "incident_id": incident_id,
         "venue_id": venue_id,
@@ -152,6 +173,42 @@ def record_review_decision(
     session.commit()
     session.refresh(decision_record)
     return decision_record
+
+
+def record_packet_opened(*, session: Session, packet_id: str, reviewer_id: str) -> None:
+    """Emit an audit event when an underwriter opens a packet for review."""
+    _add_audit_event(
+        session=session,
+        actor_id=reviewer_id,
+        actor_type="underwriter",
+        entity_type="underwriting_packet",
+        entity_id=packet_id,
+        event_type="packet.opened",
+        event_metadata={"reviewer_id": reviewer_id},
+    )
+    session.commit()
+
+
+def _validate_citation(
+    *,
+    source: "SourceRecord",
+    venue_id: str,
+    excerpt: str,
+) -> tuple[str, str]:
+    """
+    Validate a citation against the trust invariants:
+    - Source must belong to the same venue
+    - Excerpt must be non-empty
+    - Source must have content (excerpt in DB)
+    Returns (validation_status, failure_reason).
+    """
+    if source.venue_id != venue_id:
+        return "invalid", f"source venue mismatch: {source.venue_id} != {venue_id}"
+    if not excerpt or not excerpt.strip():
+        return "invalid", "excerpt is empty"
+    if not source.excerpt or not source.excerpt.strip():
+        return "invalid", "source has no stored excerpt to validate against"
+    return "valid", ""
 
 
 def _ensure_source_record(

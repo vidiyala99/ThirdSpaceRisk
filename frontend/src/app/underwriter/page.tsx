@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { AlertTriangle, CheckCircle2, ClipboardCheck, FileSearch, LockKeyhole, RefreshCw, ShieldCheck } from "lucide-react";
 import { buildEvidenceGroups, classifyPacketLifecycle, summarizeEvidence } from "../../lib/incidentView.mjs";
 
@@ -81,6 +81,8 @@ const goldStandardScenarios = [
 ];
 
 type DecisionRecord = { decision: string; decided_at: string };
+type AuditEvent = { id: string; event_type: string; actor_id: string; actor_type: string; metadata: any; created_at: string };
+type PacketVersion = { id: string; status: string; generated_at: string; rubric_version_id: string; snapshot_hash: string; validation: any };
 
 const DEFAULT_SCENARIO = goldStandardScenarios[0];
 
@@ -91,10 +93,15 @@ export default function UnderwriterPage() {
   const [activeTab, setActiveTab] = useState<Lifecycle>("needs_review");
   const [selectedScenario, setSelectedScenario] = useState<string>(DEFAULT_SCENARIO.id);
   const [packetId, setPacketId] = useState<string | null>(null);
+  const [incidentId, setIncidentId] = useState<string | null>(null);
   const [reviewNotes, setReviewNotes] = useState("");
   const [reviewOverride, setReviewOverride] = useState("");
   const [submittingDecision, setSubmittingDecision] = useState(false);
   const [decisionRecorded, setDecisionRecorded] = useState<DecisionRecord | null>(null);
+  const [auditEvents, setAuditEvents] = useState<AuditEvent[]>([]);
+  const [packetVersions, setPacketVersions] = useState<PacketVersion[]>([]);
+  const [activeVersionIndex, setActiveVersionIndex] = useState(0);
+  const [auditExpanded, setAuditExpanded] = useState(false);
 
   const activePacket = packet ?? getMockDataForTab(activeTab);
 
@@ -119,11 +126,35 @@ export default function UnderwriterPage() {
   const evidenceSummary = useMemo(() => summarizeEvidence(activePacket), [activePacket]);
   const evidenceGroups = useMemo(() => buildEvidenceGroups(activePacket), [activePacket]);
 
+  // Fetch audit trail whenever a real packet is loaded
+  useEffect(() => {
+    if (!packetId) { setAuditEvents([]); return; }
+    fetch(`${API_URL}/api/packets/${packetId}/audit-events`)
+      .then(r => r.ok ? r.json() : [])
+      .then(setAuditEvents)
+      .catch(() => {});
+    // Emit packet.opened event so the audit trail records the reviewer
+    fetch(`${API_URL}/api/packets/${packetId}?reviewer_id=uw-demo-reviewer`).catch(() => {});
+  }, [packetId]);
+
+  // Fetch packet version history whenever an incident is linked
+  useEffect(() => {
+    if (!incidentId) { setPacketVersions([]); setActiveVersionIndex(0); return; }
+    fetch(`${API_URL}/api/incidents/${incidentId}/packets`)
+      .then(r => r.ok ? r.json() : [])
+      .then((versions: PacketVersion[]) => {
+        setPacketVersions(versions);
+        setActiveVersionIndex(0); // latest is first
+      })
+      .catch(() => {});
+  }, [incidentId]);
+
 
   async function runIncidentFlow() {
     setLoading(true);
     setError(null);
     setPacketId(null);
+    setIncidentId(null);
     setDecisionRecorded(null);
     try {
       const response = await fetch(`${API_URL}/api/venues/elsewhere-brooklyn/incidents`, {
@@ -136,10 +167,11 @@ export default function UnderwriterPage() {
       setPacket(data);
       setActiveTab("needs_review");
       // Resolve packet ID so review decisions can be recorded
-      const incidentId = data.incident?.id;
-      if (incidentId) {
+      const iid = data.incident?.id;
+      if (iid) {
+        setIncidentId(iid);
         try {
-          const pktsRes = await fetch(`${API_URL}/api/incidents/${incidentId}/packets`);
+          const pktsRes = await fetch(`${API_URL}/api/incidents/${iid}/packets`);
           if (pktsRes.ok) {
             const pkts = await pktsRes.json();
             if (pkts.length > 0) setPacketId(pkts[0].id);
@@ -173,6 +205,11 @@ export default function UnderwriterPage() {
       const result = await res.json();
       setDecisionRecorded({ decision, decided_at: result.decided_at });
       setActiveTab(decision === "approved" ? "approved" : decision === "blocked" ? "blocked" : "needs_review");
+      // Refresh audit trail to include the decision event
+      if (packetId) {
+        fetch(`${API_URL}/api/packets/${packetId}/audit-events`)
+          .then(r => r.ok ? r.json() : []).then(setAuditEvents).catch(() => {});
+      }
     } catch (err) {
       console.error("Review decision error:", err);
     } finally {
@@ -229,6 +266,35 @@ export default function UnderwriterPage() {
             <strong className="font-mono text-warning uppercase block mb-xs">BACKEND OFFLINE FALLBACK</strong>
             <span className="font-mono text-secondary text-sm">{error}</span>
           </div>
+        </div>
+      )}
+
+      {/* Packet version history — only when multiple versions exist */}
+      {packetVersions.length > 1 && (
+        <div className="flex items-center gap-md mb-sm px-xs">
+          <span className="data-label">PACKET_HISTORY</span>
+          <div className="flex items-center gap-xs">
+            <button
+              className="font-mono text-xxs text-secondary border border-dim px-2 py-1 cursor-pointer"
+              onClick={() => setActiveVersionIndex(i => Math.min(i + 1, packetVersions.length - 1))}
+              disabled={activeVersionIndex >= packetVersions.length - 1}
+            >←</button>
+            <span className="font-mono text-xs text-primary">
+              v{packetVersions.length - activeVersionIndex} of {packetVersions.length}
+            </span>
+            <button
+              className="font-mono text-xxs text-secondary border border-dim px-2 py-1 cursor-pointer"
+              onClick={() => setActiveVersionIndex(i => Math.max(i - 1, 0))}
+              disabled={activeVersionIndex <= 0}
+            >→</button>
+          </div>
+          <span className="font-mono text-xxs text-secondary">
+            {packetVersions[activeVersionIndex]?.status?.toUpperCase()} ·{" "}
+            {new Date(packetVersions[activeVersionIndex]?.generated_at).toLocaleTimeString()}
+          </span>
+          <span className="font-mono text-xxs text-tertiary ml-md" title="Immutable snapshot hash">
+            SHA: {packetVersions[activeVersionIndex]?.snapshot_hash?.slice(0, 12)}…
+          </span>
         </div>
       )}
 
@@ -454,6 +520,38 @@ export default function UnderwriterPage() {
                     </button>
                   </div>
                   <span className="font-mono text-xxs text-secondary">PKT_ID: {packetId}</span>
+                </div>
+              )}
+            </Panel>
+          )}
+
+          {/* Audit Trail — visible whenever a real packet is loaded */}
+          {auditEvents.length > 0 && (
+            <Panel title="AUDIT_LOG">
+              <button
+                className="flex items-center justify-between w-full mb-sm cursor-pointer"
+                onClick={() => setAuditExpanded(e => !e)}
+              >
+                <span className="font-mono text-xxs text-secondary uppercase">
+                  {auditEvents.length} event{auditEvents.length !== 1 ? "s" : ""} recorded
+                </span>
+                <span className="font-mono text-xxs text-secondary">{auditExpanded ? "▲ collapse" : "▼ expand"}</span>
+              </button>
+              {auditExpanded && (
+                <div className="flex flex-col gap-xs">
+                  {[...auditEvents].reverse().map((evt) => (
+                    <div key={evt.id} className="border-t border-dim pt-xs">
+                      <div className="flex justify-between items-start">
+                        <span className="font-mono text-xxs text-accent uppercase">{evt.event_type.replace("packet.", "")}</span>
+                        <span className="font-mono text-xxs text-tertiary">
+                          {new Date(evt.created_at).toLocaleTimeString()}
+                        </span>
+                      </div>
+                      <span className="font-mono text-xxs text-secondary">
+                        {evt.actor_type} · {evt.actor_id}
+                      </span>
+                    </div>
+                  ))}
                 </div>
               )}
             </Panel>
