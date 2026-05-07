@@ -103,10 +103,6 @@ export default function CompliancePage() {
             Complete pending compliance actions to maintain coverage
           </p>
         </div>
-        <button onClick={handleSignOut} className="btn btn-ghost">
-          <LogOut size={18} />
-          Sign Out
-        </button>
       </header>
 
       {complianceItems.length === 0 ? (
@@ -123,7 +119,7 @@ export default function CompliancePage() {
             <div key={item.id} className="compliance-card">
               <div className="compliance-header">
                 <AlertCircle size={18} />
-                <span>{item.id}</span>
+                <span>{item.description || item.id.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase())}</span>
               </div>
               <p className="compliance-desc">{item.description}</p>
               <div className="compliance-meta">

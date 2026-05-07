@@ -154,7 +154,6 @@ export default function DashboardPage() {
               : "Your operational data — your defense against premium hikes"}
           </p>
         </div>
-        <button onClick={handleSignOut} className="btn btn-ghost"><LogOut size={18} /> Sign Out</button>
       </header>
 
       {/* Top stat bar */}

@@ -3,6 +3,7 @@ from app.fastapi_compat import patch_starlette_router_for_fastapi
 patch_starlette_router_for_fastapi()
 
 from contextlib import asynccontextmanager
+from pathlib import Path
 from fastapi import FastAPI, HTTPException, Depends, BackgroundTasks, UploadFile, File, Query
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -10,12 +11,15 @@ from sqlmodel import Session, select, text, func
 import time
 
 from app.incident_flow import create_brawl_incident_flow
+from app.agents.vision_agent import analyze_image, analyze_video_keyframes
+from app.agents.corroboration_agent import corroborate
 from app.schemas import Incident, IncidentCreate, IncidentFlowResponse, LiveVenueState, StreamEvent
-from app.seed_data import VENUES
+from app.seed_data import KNOWLEDGE_SOURCES, SEED_INCIDENTS, STREAM_EVENTS, VENUES
 from app.database import create_db_and_tables, get_session
 from app.live_state import live_state_manager
-from app.models import AuditEvent, IncidentRecord, ReviewDecision, SourceRecord, UnderwritingPacket, Venue
-from app.packet_core import record_review_decision, record_packet_opened
+from app.models import AuditEvent, EvidenceAnalysis, EvidenceFile, IncidentRecord, ReviewDecision, SourceRecord, UnderwritingPacket, Venue
+from app.packet_core import create_packet_snapshot, record_review_decision, record_packet_opened
+from app.agents.runtime import execute_underwriting_packet_agents
 from app.underwriting import get_premium_quote, get_risk_score
 
 
@@ -24,6 +28,55 @@ class ReviewDecisionCreate(BaseModel):
     decision: str
     override_reason: str | None = None
     notes: str | None = None
+
+def _backfill_incident_packets(session: Session) -> None:
+    """Generate underwriting packets for any incidents that don't have one yet."""
+    all_incidents = session.exec(select(IncidentRecord)).all()
+    packeted_ids = set(
+        session.exec(select(UnderwritingPacket.incident_id)).all()
+    )
+    pending = [inc for inc in all_incidents if inc.id not in packeted_ids]
+    if not pending:
+        return
+    print(f"[BACKFILL] Generating packets for {len(pending)} unprocessed incident(s)...")
+    fallback_venue = list(VENUES.values())[0]
+    for record in pending:
+        try:
+            venue = VENUES.get(record.venue_id, fallback_venue)
+            payload = IncidentCreate(
+                occurred_at=record.occurred_at.isoformat() if hasattr(record.occurred_at, "isoformat") else str(record.occurred_at),
+                location=record.location,
+                summary=record.summary,
+                reported_by=record.reported_by,
+                injury_observed=record.injury_observed or False,
+                police_called=record.police_called or False,
+                ems_called=record.ems_called or False,
+            )
+            result = execute_underwriting_packet_agents(
+                venue_id=record.venue_id,
+                venue=venue,
+                incident=payload,
+                knowledge_sources=KNOWLEDGE_SOURCES,
+                stream_events=STREAM_EVENTS,
+            )
+            create_packet_snapshot(
+                session=session,
+                venue_id=record.venue_id,
+                incident_id=record.id,
+                incident=payload,
+                risk_signal=result.risk_signal.model_dump(),
+                action_plan=[a.model_dump() for a in result.action_plan],
+                claims_timeline=[t.model_dump() for t in result.claims_timeline],
+                underwriting_memo=result.underwriting_memo.model_dump(),
+                citations=result.citations,
+                rubric_version="demo-rubric-v1",
+            )
+            session.commit()
+            print(f"[BACKFILL] Packet created for incident {record.id}")
+        except Exception as exc:
+            session.rollback()
+            print(f"[BACKFILL] Skipped {record.id}: {exc}")
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -40,6 +93,32 @@ async def lifespan(app: FastAPI):
             if not session.get(Venue, venue_id):
                 session.add(Venue(id=venue_id, name=venue_data["name"]))
         session.commit()
+        # Reseed incidents if DB has no seed incidents (fresh start or after reset)
+        existing_count = session.exec(select(func.count(IncidentRecord.id))).one()
+        if existing_count == 0:
+            print(f"[SEED] Inserting {len(SEED_INCIDENTS)} seed incidents...")
+            for raw in SEED_INCIDENTS:
+                from uuid import uuid4
+                from datetime import datetime
+                occurred = raw["occurred_at"]
+                if isinstance(occurred, str):
+                    occurred = datetime.fromisoformat(occurred)
+                session.add(IncidentRecord(
+                    id=f"inc-{raw['venue_id']}-{uuid4().hex[:12]}",
+                    venue_id=raw["venue_id"],
+                    occurred_at=occurred,
+                    location=raw["location"],
+                    summary=raw["summary"],
+                    reported_by=raw["reported_by"],
+                    injury_observed=raw["injury_observed"],
+                    police_called=raw["police_called"],
+                    ems_called=raw["ems_called"],
+                    status="open",
+                ))
+            session.commit()
+            print("[SEED] Done.")
+        # Backfill packets for any incidents that don't have one yet
+        _backfill_incident_packets(session)
     yield
 
 app = FastAPI(title="Third Space Risk OS", lifespan=lifespan)
@@ -142,6 +221,233 @@ def list_incidents(
         )
         for record in records
     ]
+
+
+EVIDENCE_DIR = Path(__file__).resolve().parent.parent / "evidence_uploads"
+EVIDENCE_DIR.mkdir(exist_ok=True)
+
+
+def _process_evidence_sync(evidence_id: str) -> None:
+    """Phase 2: analyze uploaded evidence and update the underwriting packet."""
+    with next(get_session()) as session:
+        ev = session.get(EvidenceFile, evidence_id)
+        if not ev:
+            return
+        incident = session.get(IncidentRecord, ev.incident_id)
+        if not incident:
+            return
+
+        # Run vision analysis based on file type
+        try:
+            if ev.content_type.startswith("image/"):
+                finding = analyze_image(
+                    file_path=ev.file_path,
+                    incident_summary=incident.summary,
+                    incident_location=incident.location,
+                    injury_observed=incident.injury_observed or False,
+                    police_called=incident.police_called or False,
+                )
+                analysis_type = "image"
+            elif ev.content_type.startswith("video/"):
+                finding = analyze_video_keyframes(
+                    file_path=ev.file_path,
+                    incident_summary=incident.summary,
+                    incident_location=incident.location,
+                    injury_observed=incident.injury_observed or False,
+                    police_called=incident.police_called or False,
+                )
+                analysis_type = "video"
+            else:
+                return  # PDFs and other docs — skip vision for now
+
+            from datetime import datetime
+            from uuid import uuid4
+            analysis = EvidenceAnalysis(
+                id=f"ea-{uuid4().hex[:12]}",
+                evidence_id=evidence_id,
+                incident_id=ev.incident_id,
+                analysis_type=analysis_type,
+                findings=finding.__dict__,
+                corroboration=finding.corroboration,
+                confidence_delta=finding.confidence_delta,
+                raw_description=finding.raw_description,
+                status="complete",
+                analyzed_at=datetime.utcnow(),
+            )
+            session.add(analysis)
+            session.commit()
+
+            # Check if all evidence files for this incident have been analyzed
+            all_files = session.exec(
+                select(EvidenceFile).where(EvidenceFile.incident_id == ev.incident_id)
+            ).all()
+            all_analyses = session.exec(
+                select(EvidenceAnalysis)
+                .where(EvidenceAnalysis.incident_id == ev.incident_id)
+                .where(EvidenceAnalysis.status == "complete")
+            ).all()
+
+            if len(all_analyses) >= len(all_files):
+                _run_corroboration_and_update_packet(session, ev.incident_id, incident, all_analyses)
+
+        except Exception as exc:
+            print(f"[VISION] Failed to analyze {evidence_id}: {exc}")
+            session.rollback()
+
+
+def _run_corroboration_and_update_packet(session, incident_id: str, incident: IncidentRecord, analyses) -> None:
+    """Run corroboration agent and regenerate packet with visual context."""
+    from app.agents.vision_agent import VisionFinding
+    findings = []
+    for a in analyses:
+        f = a.findings
+        findings.append(VisionFinding(**f))
+
+    result = corroborate(
+        findings=findings,
+        incident_summary=incident.summary,
+        injury_observed=incident.injury_observed or False,
+        police_called=incident.police_called or False,
+        ems_called=incident.ems_called or False,
+    )
+
+    # Find the latest packet for this incident and update it
+    packet = session.exec(
+        select(UnderwritingPacket)
+        .where(UnderwritingPacket.incident_id == incident_id)
+        .order_by(UnderwritingPacket.generated_at.desc())
+    ).first()
+
+    if not packet:
+        return
+
+    # Update confidence in risk_signals
+    current_confidence = packet.risk_signals.get("confidence", 0.78)
+    new_confidence = min(round(current_confidence + result.confidence_adjustment, 2), 0.99)
+    updated_risk_signals = {**packet.risk_signals, "confidence": new_confidence}
+
+    # Add visual findings to memo
+    visual_section = (
+        f"\n\nVisual Evidence Analysis ({len(analyses)} file(s) processed): "
+        f"{result.summary} "
+        f"Corroboration status: {result.status}. "
+        f"Flags: {'; '.join(result.flags)}."
+    )
+    updated_memo = {**packet.memo, "summary": packet.memo.get("summary", "") + visual_section}
+
+    packet.risk_signals = updated_risk_signals
+    packet.memo = updated_memo
+    packet.status = "needs_review"
+    session.add(packet)
+    session.commit()
+    print(f"[VISION] Packet {packet.id} updated — corroboration: {result.status}, new confidence: {new_confidence}")
+
+
+@app.post("/api/incidents/{incident_id}/evidence", status_code=201)
+async def upload_evidence(
+    incident_id: str,
+    file: UploadFile = File(...),
+    uploaded_by: str = "operator",
+    background_tasks: BackgroundTasks = None,
+    session: Session = Depends(get_session),
+) -> dict:
+    record = session.get(IncidentRecord, incident_id)
+    if record is None:
+        raise HTTPException(status_code=404, detail="Incident not found")
+    from uuid import uuid4
+    evidence_id = f"ev-{uuid4().hex[:12]}"
+    safe_name = f"{evidence_id}_{file.filename}"
+    dest = EVIDENCE_DIR / safe_name
+    MAX_IMAGE_SIZE = 20 * 1024 * 1024   # 20MB
+    MAX_VIDEO_SIZE = 200 * 1024 * 1024  # 200MB — for larger files use the link option
+
+    contents = await file.read()
+    max_size = MAX_VIDEO_SIZE if (file.content_type or "").startswith("video/") else MAX_IMAGE_SIZE
+    if len(contents) > max_size:
+        limit_mb = max_size // (1024 * 1024)
+        raise HTTPException(status_code=413, detail=f"File too large. Maximum size for this file type is {limit_mb}MB. For larger videos, use the S3 upload path.")
+    dest.write_bytes(contents)
+    evidence = EvidenceFile(
+        id=evidence_id,
+        incident_id=incident_id,
+        filename=file.filename or "upload",
+        content_type=file.content_type or "application/octet-stream",
+        file_path=str(dest),
+        file_size=len(contents),
+        uploaded_by=uploaded_by,
+    )
+    session.add(evidence)
+    session.commit()
+    # Trigger async vision analysis
+    if background_tasks and file.content_type and (
+        file.content_type.startswith("image/") or file.content_type.startswith("video/")
+    ):
+        background_tasks.add_task(_process_evidence_sync, evidence_id)
+    return {"id": evidence_id, "filename": evidence.filename, "content_type": evidence.content_type, "file_size": evidence.file_size, "uploaded_at": evidence.uploaded_at.isoformat()}
+
+
+@app.get("/api/incidents/{incident_id}/evidence")
+def list_evidence(incident_id: str, session: Session = Depends(get_session)) -> list[dict]:
+    files = session.exec(
+        select(EvidenceFile).where(EvidenceFile.incident_id == incident_id).order_by(EvidenceFile.uploaded_at)
+    ).all()
+    return [{"id": f.id, "filename": f.filename, "content_type": f.content_type, "file_size": f.file_size, "uploaded_by": f.uploaded_by, "uploaded_at": f.uploaded_at.isoformat()} for f in files]
+
+
+@app.get("/api/incidents/{incident_id}/evidence-analysis")
+def get_evidence_analysis(incident_id: str, session: Session = Depends(get_session)) -> dict:
+    """Return aggregated vision analysis status for all evidence on an incident."""
+    analyses = session.exec(
+        select(EvidenceAnalysis).where(EvidenceAnalysis.incident_id == incident_id)
+    ).all()
+    all_files = session.exec(
+        select(EvidenceFile).where(EvidenceFile.incident_id == incident_id)
+    ).all()
+    processable = [f for f in all_files if f.content_type.startswith(("image/", "video/"))]
+    complete = [a for a in analyses if a.status == "complete"]
+    return {
+        "total_files": len(processable),
+        "processed": len(complete),
+        "status": "complete" if len(complete) >= len(processable) > 0 else "processing" if processable else "no_media",
+        "analyses": [
+            {
+                "evidence_id": a.evidence_id,
+                "analysis_type": a.analysis_type,
+                "corroboration": a.corroboration,
+                "confidence_delta": a.confidence_delta,
+                "raw_description": a.raw_description,
+                "findings": a.findings,
+                "analyzed_at": a.analyzed_at.isoformat() if a.analyzed_at else None,
+            }
+            for a in complete
+        ],
+    }
+
+
+@app.get("/api/evidence/{evidence_id}/file")
+def serve_evidence(evidence_id: str, session: Session = Depends(get_session)):
+    from fastapi.responses import FileResponse
+    ev = session.get(EvidenceFile, evidence_id)
+    if ev is None:
+        raise HTTPException(status_code=404, detail="Evidence not found")
+    path = Path(ev.file_path)
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="File not found on disk")
+    return FileResponse(str(path), media_type=ev.content_type, filename=ev.filename)
+
+
+@app.get("/api/incidents", response_model=list[Incident])
+def list_all_incidents(limit: int = 100, session: Session = Depends(get_session)) -> list[Incident]:
+    """Return all incidents across all venues, newest first."""
+    records = session.exec(
+        select(IncidentRecord).order_by(IncidentRecord.occurred_at.desc()).limit(limit)
+    ).all()
+    return [Incident(
+        id=r.id, venue_id=r.venue_id, occurred_at=r.occurred_at,
+        location=r.location, summary=r.summary, reported_by=r.reported_by,
+        injury_observed=r.injury_observed or False, police_called=r.police_called or False,
+        ems_called=r.ems_called or False, status=r.status,
+    ) for r in records]
 
 
 @app.get("/api/incidents/{incident_id}", response_model=Incident)
@@ -253,6 +559,17 @@ def create_review_decision(
     except ValueError as error:
         raise HTTPException(status_code=400, detail=str(error)) from error
     return _review_decision_to_dict(decision)
+
+
+@app.get("/api/packets")
+def list_packets(limit: int = 20, session: Session = Depends(get_session)) -> list[dict]:
+    """Return the most recent underwriting packets across all incidents."""
+    packets = session.exec(
+        select(UnderwritingPacket)
+        .order_by(UnderwritingPacket.generated_at.desc())
+        .limit(limit)
+    ).all()
+    return [_packet_to_dict(packet) for packet in packets]
 
 
 @app.get("/api/packets/{packet_id}/audit-events")

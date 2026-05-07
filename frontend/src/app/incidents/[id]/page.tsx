@@ -62,6 +62,8 @@ export default function IncidentDetailPage() {
 
   const [incident, setIncident] = useState<Incident | null>(null);
   const [packets, setPackets] = useState<Packet[]>([]);
+  const [evidence, setEvidence] = useState<Array<{ id: string; filename: string; content_type: string; file_size: number; uploaded_at: string }>>([]);
+  const [visionAnalysis, setVisionAnalysis] = useState<{ status: string; processed: number; total_files: number; analyses: any[] } | null>(null);
   const [loading, setLoading] = useState(true);
   const [updatingStatus, setUpdatingStatus] = useState(false);
 
@@ -72,12 +74,16 @@ export default function IncidentDetailPage() {
   useEffect(() => {
     async function load() {
       try {
-        const [incidentRes, packetsRes] = await Promise.all([
+        const [incidentRes, packetsRes, evidenceRes, analysisRes] = await Promise.all([
           fetch(`${API_URL}/api/incidents/${id}`),
           fetch(`${API_URL}/api/incidents/${id}/packets`),
+          fetch(`${API_URL}/api/incidents/${id}/evidence`),
+          fetch(`${API_URL}/api/incidents/${id}/evidence-analysis`),
         ]);
         if (incidentRes.ok) setIncident(await incidentRes.json());
         if (packetsRes.ok) setPackets(await packetsRes.json());
+        if (evidenceRes.ok) { const d = await evidenceRes.json(); setEvidence(Array.isArray(d) ? d : []); }
+        if (analysisRes.ok) setVisionAnalysis(await analysisRes.json());
       } catch {
         // non-fatal
       } finally {
@@ -107,7 +113,7 @@ export default function IncidentDetailPage() {
     <div className="theme-venue min-h-screen p-xl">
       {/* Back nav */}
       <button
-        onClick={() => router.back()}
+        onClick={() => router.push("/incidents")}
         className="flex items-center gap-xs text-secondary text-sm mb-xl font-mono"
         style={{ background: "none", border: "none", cursor: "pointer", padding: 0 }}
       >
@@ -124,8 +130,7 @@ export default function IncidentDetailPage() {
         <>
           {/* Header */}
           <header className="mb-xl">
-            <div className="text-xs font-mono text-secondary uppercase tracking-wide mb-xs">{incident.id}</div>
-            <h1 className="glow-text mb-md">{incident.summary.split(".")[0]}</h1>
+            <h1 className="glow-text mb-md">{incident.summary.length > 80 ? incident.summary.slice(0, 80) + "…" : incident.summary}</h1>
             <div className="flex items-center gap-lg flex-wrap">
               <span className={`badge ${incident.status === "open" ? "badge-error" : incident.status === "under_review" ? "badge-warning" : "badge-success"}`} style={{ fontSize: "0.8rem", padding: "4px 10px" }}>
                 {incident.status === "open" && <AlertTriangle size={12} />}
@@ -154,12 +159,83 @@ export default function IncidentDetailPage() {
                 </div>
               </div>
 
-              {/* Evidence Packets */}
+              {/* Evidence files */}
+              {evidence.length > 0 && (
+                <div className="card">
+                  <div className="text-xs font-mono uppercase tracking-wide text-secondary mb-md">Attached Evidence</div>
+                  <div className="flex flex-col gap-sm">
+                    {evidence.map((ev) => {
+                      const isImage = ev.content_type.startsWith("image/");
+                      const isVideo = ev.content_type.startsWith("video/");
+                      const fileUrl = `${API_URL}/api/evidence/${ev.id}/file`;
+                      return (
+                        <div key={ev.id} className="flex items-center gap-md p-sm" style={{ border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-sm)" }}>
+                          {isImage && (
+                            <img src={fileUrl} alt={ev.filename} style={{ width: 56, height: 56, objectFit: "cover", borderRadius: "var(--radius-sm)", flexShrink: 0 }} />
+                          )}
+                          {!isImage && (
+                            <div style={{ width: 56, height: 56, background: "var(--bg-elevated)", borderRadius: "var(--radius-sm)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                              <span className="text-xs font-mono text-secondary">{isVideo ? "VID" : "FILE"}</span>
+                            </div>
+                          )}
+                          <div className="flex-1" style={{ minWidth: 0 }}>
+                            <p className="text-sm font-mono truncate">{ev.filename}</p>
+                            <p className="text-xs text-secondary">{(ev.file_size / 1024).toFixed(1)} KB · {new Date(ev.uploaded_at).toLocaleString()}</p>
+                          </div>
+                          <a href={fileUrl} target="_blank" rel="noreferrer" className="btn btn-ghost btn-sm text-xs">View</a>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Vision Analysis */}
+              {visionAnalysis && visionAnalysis.total_files > 0 && (
+                <div className="card">
+                  <div className="flex items-center justify-between mb-md">
+                    <div className="text-xs font-mono uppercase tracking-wide text-secondary">AI Evidence Analysis</div>
+                    {visionAnalysis.status === "processing" ? (
+                      <span className="flex items-center gap-xs text-xs font-mono" style={{ color: "var(--state-warning)" }}>
+                        <div className="loading-spinner loading-spinner-sm" /> Analyzing evidence...
+                      </span>
+                    ) : (
+                      <span className="text-xs font-mono px-sm py-xs" style={{
+                        color: visionAnalysis.analyses[0]?.corroboration === "CONSISTENT" ? "var(--brand-primary)" :
+                               visionAnalysis.analyses[0]?.corroboration === "CONTRADICTED" ? "var(--state-error)" : "var(--state-warning)",
+                        border: `1px solid currentColor`, borderRadius: "var(--radius-sm)"
+                      }}>
+                        {visionAnalysis.analyses[0]?.corroboration ?? "COMPLETE"}
+                      </span>
+                    )}
+                  </div>
+                  {visionAnalysis.analyses.map((a, i) => (
+                    <div key={i} className="flex flex-col gap-sm p-sm mb-sm" style={{ background: "var(--bg-elevated)", borderRadius: "var(--radius-sm)", borderLeft: `3px solid ${a.corroboration === "CONSISTENT" ? "var(--brand-primary)" : a.corroboration === "CONTRADICTED" ? "var(--state-error)" : "var(--state-warning)"}` }}>
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-mono uppercase text-secondary">{a.analysis_type} analysis</span>
+                        <span className="text-xs font-mono" style={{ color: "var(--brand-primary)" }}>+{Math.round(a.confidence_delta * 100)}% confidence</span>
+                      </div>
+                      <p className="text-sm" style={{ lineHeight: 1.6 }}>{a.raw_description}</p>
+                      {a.findings?.incident_indicators?.length > 0 && (
+                        <div className="flex flex-wrap gap-xs">
+                          {a.findings.incident_indicators.map((ind: string, j: number) => (
+                            <span key={j} className="text-xs px-sm py-xs font-mono" style={{ background: "rgba(212,255,0,0.06)", border: "1px solid rgba(212,255,0,0.2)", borderRadius: "var(--radius-sm)", color: "var(--brand-primary)" }}>
+                              {ind}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Insurance Reports */}
               <div>
                 <div className="flex items-center gap-sm mb-lg">
                   <FileText size={14} className="text-secondary" />
                   <h2 className="text-sm font-mono uppercase tracking-wide text-secondary" style={{ margin: 0 }}>
-                    Evidence Packets
+                    Insurance Reports
                   </h2>
                   {packets.length > 0 && (
                     <span className="text-xs font-mono" style={{ color: "var(--brand-primary)" }}>{packets.length}</span>
@@ -274,8 +350,12 @@ export default function IncidentDetailPage() {
                     <div className="text-xs font-mono text-secondary">{incident.reported_by}</div>
                   </div>
                   <div>
-                    <div className="text-xs text-muted mb-xs">Evidence Packets</div>
+                    <div className="text-xs text-muted mb-xs">Insurance Reports</div>
                     <div className="text-xs font-mono text-secondary">{packets.length}</div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-muted mb-xs">Evidence Files</div>
+                    <div className="text-xs font-mono text-secondary">{evidence.length || "None"}</div>
                   </div>
                 </div>
               </div>

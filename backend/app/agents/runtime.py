@@ -69,7 +69,7 @@ class UnderwritingPacketAgentRuntime:
         )
         trace.append(self._trace_step("retrieval_agent", contracts))
 
-        risk_signal = self._run_risk_evaluator_agent(citations=citations)
+        risk_signal = self._run_risk_evaluator_agent(citations=citations, incident=incident)
         trace.append(self._trace_step("risk_evaluator_agent", contracts))
 
         action_plan = self._run_customer_action_agent()
@@ -127,15 +127,53 @@ class UnderwritingPacketAgentRuntime:
         query = f"{incident.summary} {incident.location} brawl altercation security incident policy camera evidence"
         return knowledge_base.retrieve(venue_id, query)
 
-    def _run_risk_evaluator_agent(self, *, citations: list[Citation]) -> RiskSignal:
+    def _run_risk_evaluator_agent(
+        self, *, citations: list[Citation], incident: IncidentCreate | None = None
+    ) -> RiskSignal:
+        injury = getattr(incident, "injury_observed", False) if incident else False
+        police = getattr(incident, "police_called", False) if incident else False
+        ems = getattr(incident, "ems_called", False) if incident else False
+        summary = (getattr(incident, "summary", "") or "").lower() if incident else ""
+
+        # Determine type from summary keywords
+        if any(k in summary for k in ["fire", "electrical"]):
+            incident_type, base_severity, base_confidence = "property_damage", "medium", 0.82
+        elif any(k in summary for k in ["overdose", "unresponsive", "hospital"]):
+            incident_type, base_severity, base_confidence = "medical_emergency", "critical", 0.94
+        elif any(k in summary for k in ["assault", "excessive force", "fight", "brawl", "fighting"]):
+            incident_type, base_severity, base_confidence = "altercation_event", "medium", 0.78
+        elif any(k in summary for k in ["slip", "fell", "fall", "stairs"]):
+            incident_type, base_severity, base_confidence = "premises_liability", "medium", 0.81
+        elif any(k in summary for k in ["serving", "liquor", "intoxicated", "cutoff", "dram"]):
+            incident_type, base_severity, base_confidence = "liquor_liability", "high", 0.91
+        elif any(k in summary for k in ["crowd", "surge", "faint"]):
+            incident_type, base_severity, base_confidence = "crowd_management", "high", 0.87
+        elif any(k in summary for k in ["vandal", "damage"]):
+            incident_type, base_severity, base_confidence = "property_damage", "low", 0.74
+        else:
+            incident_type, base_severity, base_confidence = "general_incident", "low", 0.70
+
+        # Escalate severity based on flags
+        severity_order = ["low", "medium", "high", "critical"]
+        severity = base_severity
+        if ems and severity_order.index(severity) < severity_order.index("critical"):
+            severity = severity_order[severity_order.index(severity) + 1]
+        if injury and police and severity_order.index(severity) < severity_order.index("high"):
+            severity = "high"
+        confidence = min(base_confidence + (0.04 if police else 0) + (0.03 if ems else 0), 0.99)
+
+        severity_explanations = {
+            "critical": "Multiple aggravating factors present. Immediate carrier escalation and legal hold recommended.",
+            "high": "Significant liability exposure identified. Evidence preservation and underwriter review required.",
+            "medium": "Moderate exposure detected. Staffing and capacity controls may mitigate premium impact if evidence is preserved.",
+            "low": "Limited liability exposure. Standard documentation and follow-up recommended.",
+        }
+
         return RiskSignal(
-            type="altercation_event",
-            severity="medium",
-            confidence=0.78,
-            explanation=(
-                "A brawl creates liquor-liability and claims-defense exposure, but available "
-                "streaming context indicates the venue was under capacity and had security staffed."
-            ),
+            type=incident_type,
+            severity=severity,
+            confidence=round(confidence, 2),
+            explanation=severity_explanations[severity],
             review_status="needs_review",
             citations=citations,
         )

@@ -94,6 +94,115 @@ VENUES = {
 }
 
 
+SEED_INCIDENTS = [
+    # Elsewhere Brooklyn
+    {
+        "venue_id": "elsewhere-brooklyn",
+        "occurred_at": "2026-05-02T23:13:00",
+        "location": "Rear Bar",
+        "summary": "Two patrons began fighting near the rear bar during a sold-out DJ event. One patron sustained a cut to the face.",
+        "reported_by": "Shift Lead",
+        "injury_observed": True,
+        "police_called": True,
+        "ems_called": False,
+    },
+    {
+        "venue_id": "elsewhere-brooklyn",
+        "occurred_at": "2026-04-18T01:45:00",
+        "location": "Main Stairwell",
+        "summary": "Patron slipped on wet stairs near the main stairwell and fell. Complained of knee pain. No EMS called.",
+        "reported_by": "Floor Manager",
+        "injury_observed": True,
+        "police_called": False,
+        "ems_called": False,
+    },
+    # Brooklyn Mirage
+    {
+        "venue_id": "brooklyn-mirage",
+        "occurred_at": "2026-04-25T22:30:00",
+        "location": "Main Stage Pit",
+        "summary": "Crowd surge near the main stage during headliner set. Three patrons reported feeling faint. EMS called as precaution.",
+        "reported_by": "Head of Security",
+        "injury_observed": True,
+        "police_called": False,
+        "ems_called": True,
+    },
+    {
+        "venue_id": "brooklyn-mirage",
+        "occurred_at": "2026-04-10T04:07:00",
+        "location": "East Bar",
+        "summary": "POS logs show spirits sold at 4:07 AM, past the 4:00 AM legal service cutoff. Bartender was unaware of last call policy.",
+        "reported_by": "Operations Manager",
+        "injury_observed": False,
+        "police_called": False,
+        "ems_called": False,
+    },
+    # House of Yes
+    {
+        "venue_id": "house-of-yes",
+        "occurred_at": "2026-05-01T00:15:00",
+        "location": "Dance Floor",
+        "summary": "Patron alleged assault by another guest on the dance floor. Victim requested police. Alleged attacker escorted out before arrival.",
+        "reported_by": "Security Lead",
+        "injury_observed": True,
+        "police_called": True,
+        "ems_called": False,
+    },
+    {
+        "venue_id": "house-of-yes",
+        "occurred_at": "2026-04-20T02:30:00",
+        "location": "Backstage Corridor",
+        "summary": "Patron found unresponsive in backstage corridor. EMS called immediately. Patron transported to hospital. Suspected drug overdose.",
+        "reported_by": "Venue Manager",
+        "injury_observed": True,
+        "police_called": True,
+        "ems_called": True,
+    },
+    # Nowadays
+    {
+        "venue_id": "nowadays",
+        "occurred_at": "2026-04-30T23:50:00",
+        "location": "Outdoor Patio",
+        "summary": "Patron vandalized two patio tables and a speaker enclosure before being removed by security. Estimated $800 in damage.",
+        "reported_by": "Bar Manager",
+        "injury_observed": False,
+        "police_called": True,
+        "ems_called": False,
+    },
+    {
+        "venue_id": "nowadays",
+        "occurred_at": "2026-04-12T21:00:00",
+        "location": "Front Bar",
+        "summary": "Staff served a visibly intoxicated patron who later fell in the parking lot. Patron declined EMS but filed a complaint the next day.",
+        "reported_by": "Bartender",
+        "injury_observed": True,
+        "police_called": False,
+        "ems_called": False,
+    },
+    # Market Hotel
+    {
+        "venue_id": "market-hotel",
+        "occurred_at": "2026-05-03T21:20:00",
+        "location": "Stage Left",
+        "summary": "Electrical short caused a small fire behind the stage monitor stack. Staff evacuated venue and used fire extinguisher. No injuries.",
+        "reported_by": "Production Manager",
+        "injury_observed": False,
+        "police_called": False,
+        "ems_called": False,
+    },
+    {
+        "venue_id": "market-hotel",
+        "occurred_at": "2026-04-22T23:10:00",
+        "location": "Main Bar",
+        "summary": "Bouncer used excessive force when removing a patron who refused to leave. Patron claims injuries to shoulder. Police arrived post-incident.",
+        "reported_by": "Venue Owner",
+        "injury_observed": True,
+        "police_called": True,
+        "ems_called": True,
+    },
+]
+
+
 KNOWLEDGE_SOURCES = [
     {
         "source_id": "policy-2026-liquor-liability",

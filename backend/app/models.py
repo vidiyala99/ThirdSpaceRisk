@@ -118,6 +118,30 @@ class ReviewDecision(SQLModel, table=True):
     decided_at: datetime = Field(default_factory=datetime.utcnow)
 
 
+class EvidenceAnalysis(SQLModel, table=True):
+    id: str = Field(primary_key=True)
+    evidence_id: str = Field(foreign_key="evidencefile.id", index=True)
+    incident_id: str = Field(index=True)
+    analysis_type: str  # image | video | audio
+    findings: dict = Field(default_factory=dict, sa_column=Column(JSON))
+    corroboration: str = "pending"  # pending | CONSISTENT | PARTIAL | CONTRADICTED | INCONCLUSIVE
+    confidence_delta: float = 0.0
+    raw_description: str = ""
+    status: str = "processing"  # processing | complete | failed
+    analyzed_at: Optional[datetime] = None
+
+
+class EvidenceFile(SQLModel, table=True):
+    id: str = Field(primary_key=True)
+    incident_id: str = Field(foreign_key="incidentrecord.id", index=True)
+    filename: str
+    content_type: str
+    file_path: str
+    file_size: int = 0
+    uploaded_by: str = "operator"
+    uploaded_at: datetime = Field(default_factory=datetime.utcnow)
+
+
 class AuditEvent(SQLModel, table=True):
     id: str = Field(primary_key=True)
     actor_id: str

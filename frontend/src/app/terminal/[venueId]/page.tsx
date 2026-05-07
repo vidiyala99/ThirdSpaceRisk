@@ -223,20 +223,22 @@ export default function VenueTerminalPage() {
         <header className="page-header mb-xl">
           <div>
             <div className="text-xs font-mono text-secondary uppercase tracking-wide mb-xs">
-              SYS.INIT // {venueId.toUpperCase()}
+              Live Terminal
             </div>
             <h1 className="glow-text">{displayName}</h1>
           </div>
           <div className="flex items-center gap-md">
-            <button
-              onClick={simulateAlert}
-              disabled={simulatingAlert}
-              className="btn btn-secondary btn-sm flex items-center gap-xs"
-              title="Inject a camera anomaly event to simulate a live incident alert"
-            >
-              <Zap size={14} style={{ color: "var(--state-warning)" }} />
-              {simulatingAlert ? "Injecting..." : "Simulate Alert"}
-            </button>
+{process.env.NODE_ENV === "development" && (
+              <button
+                onClick={simulateAlert}
+                disabled={simulatingAlert}
+                className="btn btn-secondary btn-sm flex items-center gap-xs"
+                title="Dev only: inject a camera anomaly event"
+              >
+                <Zap size={14} style={{ color: "var(--state-warning)" }} />
+                {simulatingAlert ? "Injecting..." : "Simulate Alert"}
+              </button>
+            )}
             <div className="card p-md text-center" style={{ minWidth: "120px" }}>
               <div className="text-xs uppercase tracking-wide text-secondary mb-xs">Coverage</div>
               <div className="text-xl font-bold text-accent font-mono flex items-center justify-center gap-xs live-pulse">
@@ -252,7 +254,7 @@ export default function VenueTerminalPage() {
         <div className="card mb-xl">
           <div className="flex justify-between items-center mb-sm">
             <span className="text-xs uppercase tracking-wide text-secondary font-mono">
-              DOOR_CAPACITY // MAIN_ROOM
+              Live Occupancy
             </span>
             <span className="text-2xl font-bold font-mono" style={{ color: capacityColor }}>
               {liveState.current_capacity}
@@ -391,8 +393,8 @@ export default function VenueTerminalPage() {
             <div className="flex flex-col gap-lg">
               {(liveState.compliance_queue?.length ?? 0) === 0 ? (
                 <TerminalEmpty
-                  label="COMPLIANCE_QUEUE [SCAN]"
-                  message="No active items. System nominal."
+                  label="Compliance"
+                  message="No pending actions. You're all clear."
                 />
               ) : (
                 liveState.compliance_queue?.map((item: any) => (
@@ -409,7 +411,7 @@ export default function VenueTerminalPage() {
                       />
                       <label htmlFor={`upload-${item.id}`} className="btn btn-secondary">
                         <Upload size={16} />
-                        {uploadingId === item.id ? "Uploading..." : "Execute Upload"}
+                        {uploadingId === item.id ? "Uploading..." : "Upload Evidence"}
                       </label>
                     </div>
                     {uploadError && uploadingId !== item.id && (
@@ -435,7 +437,7 @@ export default function VenueTerminalPage() {
             <div className="flex flex-col gap-sm stagger-children">
               {(liveState.infrastructure?.length ?? 0) === 0 ? (
                 <TerminalEmpty
-                  label="INFRA_SYNC [POLL]"
+                  label="Infrastructure"
                   message="No systems reporting. Check device connectivity."
                 />
               ) : (

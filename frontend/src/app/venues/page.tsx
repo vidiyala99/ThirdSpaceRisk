@@ -81,20 +81,8 @@ export default function VenuesPage() {
               : "Your venue information"}
           </p>
         </div>
-        <button onClick={handleSignOut} className="btn btn-ghost">
-          <LogOut size={18} />
-          Sign Out
-        </button>
       </header>
 
-      {isBroker && (
-        <div className="page-actions">
-          <button className="btn btn-primary" onClick={() => { import("@/lib/toast").then(m => m.toastSuccess("Venue onboarding coming in Phase 2 — contact your Third Space rep.")); }}>
-            <Plus size={18} />
-            Add Venue
-          </button>
-        </div>
-      )}
 
       <div className="venues-grid">
         {venues.map((venue) => (

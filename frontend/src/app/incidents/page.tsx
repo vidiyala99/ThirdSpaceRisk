@@ -2,10 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useTenantId, useAuth } from "@/contexts/AuthContext";
+import { useTenantId, useAuth, useRole } from "@/contexts/AuthContext";
 import { toastSuccess, toastError } from "@/lib/toast";
 import {
-  AlertTriangle, Plus, Calendar, MapPin, User, LogOut,
+  AlertTriangle, Plus, Calendar, MapPin, User,
   ShieldAlert, CheckCircle2, Clock, ArrowRight,
 } from "lucide-react";
 
@@ -28,8 +28,10 @@ interface Incident {
 
 export default function IncidentsPage() {
   const router = useRouter();
-  const { signOut, isSignedIn } = useAuth();
+  const { isSignedIn } = useAuth();
   const tenantId = useTenantId();
+  const role = useRole();
+  const isBroker = role === "broker" || role === "admin";
   const [incidents, setIncidents] = useState<Incident[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -45,6 +47,9 @@ export default function IncidentsPage() {
     police_called: false,
     ems_called: false,
   });
+  const [evidenceFiles, setEvidenceFiles] = useState<File[]>([]);
+  const [evidenceLinks, setEvidenceLinks] = useState<string[]>([]);
+  const [linkInput, setLinkInput] = useState("");
 
   useEffect(() => {
     if (!isSignedIn) router.push("/login");
@@ -52,9 +57,11 @@ export default function IncidentsPage() {
 
   useEffect(() => {
     async function fetchIncidents() {
-      const venueId = tenantId ?? "elsewhere-brooklyn";
       try {
-        const res = await fetch(`${API_URL}/api/venues/${venueId}/incidents`);
+        const url = isBroker
+          ? `${API_URL}/api/incidents`
+          : `${API_URL}/api/venues/${tenantId ?? "elsewhere-brooklyn"}/incidents`;
+        const res = await fetch(url);
         if (res.ok) {
           const data = await res.json();
           setIncidents(Array.isArray(data) ? data : []);
@@ -66,7 +73,7 @@ export default function IncidentsPage() {
       }
     }
     fetchIncidents();
-  }, [tenantId]);
+  }, [tenantId, isBroker]);
 
   const openIncident = (incidentId: string) => {
     router.push(`/incidents/${incidentId}`);
@@ -84,10 +91,25 @@ export default function IncidentsPage() {
         body: JSON.stringify({ ...formData, occurred_at: new Date(formData.occurred_at).toISOString() }),
       });
       if (!res.ok) throw new Error("Failed to submit");
-      toastSuccess("Incident reported successfully");
+      const created = await res.json();
+      // Upload any attached evidence files
+      if (evidenceFiles.length > 0 && created.incident?.id) {
+        await Promise.all(evidenceFiles.map(file => {
+          const fd = new FormData();
+          fd.append("file", file);
+          return fetch(`${API_URL}/api/incidents/${created.incident.id}/evidence`, { method: "POST", body: fd });
+        }));
+      }
+      toastSuccess(evidenceLinks.length > 0
+        ? "Incident reported. Linked footage will be reviewed within 24–48 hours."
+        : "Incident reported successfully"
+      );
       setShowForm(false);
+      setEvidenceFiles([]);
+      setEvidenceLinks([]);
+      setLinkInput("");
       setFormData({ occurred_at: new Date().toISOString().slice(0, 16), location: "", summary: "", reported_by: "", injury_observed: false, police_called: false, ems_called: false });
-      const updated = await fetch(`${API_URL}/api/venues/${venueId}/incidents`);
+      const updated = await fetch(isBroker ? `${API_URL}/api/incidents` : `${API_URL}/api/venues/${venueId}/incidents`);
       if (updated.ok) {
         const data = await updated.json();
         setIncidents(Array.isArray(data) ? data : []);
@@ -132,8 +154,7 @@ export default function IncidentsPage() {
           <h1>Incidents</h1>
           <p className="page-subtitle">Report and track incidents at your venue</p>
         </div>
-        <button onClick={() => { signOut(); router.push("/login"); }} className="btn btn-ghost">
-          <LogOut size={18} /> Sign Out
+        <button style={{display:"none"}}>
         </button>
       </header>
 
@@ -183,8 +204,103 @@ export default function IncidentsPage() {
             <label className="checkbox-label"><input type="checkbox" checked={formData.police_called} onChange={(e) => setFormData({ ...formData, police_called: e.target.checked })} /><span>Police called</span></label>
             <label className="checkbox-label"><input type="checkbox" checked={formData.ems_called} onChange={(e) => setFormData({ ...formData, ems_called: e.target.checked })} /><span>EMS called</span></label>
           </div>
+
+          {/* Evidence upload */}
+          <div className="form-group">
+            <label className="form-label">Evidence (optional)</label>
+            <div
+              style={{ border: "1px dashed var(--border-subtle)", borderRadius: "var(--radius-md)", padding: "var(--space-lg)", textAlign: "center", cursor: "pointer", background: "var(--bg-surface)" }}
+              onClick={() => document.getElementById("evidence-upload")?.click()}
+            >
+              <input
+                id="evidence-upload"
+                type="file"
+                multiple
+                accept="image/*,video/*,application/pdf"
+                style={{ display: "none" }}
+                onChange={(e) => {
+                  const MAX_IMAGE = 20 * 1024 * 1024;
+                  const MAX_VIDEO = 200 * 1024 * 1024;
+                  const newFiles = Array.from(e.target.files ?? []);
+                  const oversized = newFiles.filter(f =>
+                    f.type.startsWith("video/") ? f.size > MAX_VIDEO : f.size > MAX_IMAGE
+                  );
+                  if (oversized.length > 0) {
+                    import("@/lib/toast").then(m => m.toastError(
+                      `${oversized.map(f => f.name).join(", ")} exceeds the size limit (images: 20MB, videos: 200MB)`
+                    ));
+                  }
+                  const valid = newFiles.filter(f =>
+                    f.type.startsWith("video/") ? f.size <= MAX_VIDEO : f.size <= MAX_IMAGE
+                  );
+                  setEvidenceFiles(prev => {
+                    const existingNames = new Set(prev.map(f => f.name));
+                    return [...prev, ...valid.filter(f => !existingNames.has(f.name))];
+                  });
+                  e.target.value = "";
+                }}
+              />
+              <p className="text-sm text-secondary">Attach photos, video clips, or documents</p>
+              <p className="text-xs text-muted mt-xs">Images, video, PDF · Click to add more files</p>
+              {evidenceFiles.length > 0 && (
+                <div className="flex flex-wrap gap-xs mt-md justify-center">
+                  {evidenceFiles.map((f, i) => (
+                    <span key={i} className="flex items-center gap-xs text-xs font-mono px-sm py-xs" style={{ background: "rgba(212,255,0,0.08)", border: "1px solid rgba(212,255,0,0.2)", borderRadius: "var(--radius-sm)", color: "var(--brand-primary)" }}>
+                      {f.name}
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); setEvidenceFiles(prev => prev.filter((_, idx) => idx !== i)); }}
+                        style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-secondary)", lineHeight: 1, padding: 0 }}
+                      >×</button>
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Link alternative for large footage */}
+          <div className="form-group">
+            <label className="form-label">Share a footage link (for CC or large videos)</label>
+            <div className="flex gap-sm">
+              <input
+                type="url"
+                className="input-field flex-1"
+                placeholder="e.g. Google Drive, Dropbox, NVR portal link..."
+                value={linkInput}
+                onChange={(e) => setLinkInput(e.target.value)}
+              />
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={() => {
+                  if (!linkInput.trim()) return;
+                  setEvidenceLinks(prev => [...prev, linkInput.trim()]);
+                  setLinkInput("");
+                }}
+              >
+                Add
+              </button>
+            </div>
+            {evidenceLinks.length > 0 && (
+              <div className="flex flex-col gap-xs mt-sm">
+                {evidenceLinks.map((link, i) => (
+                  <div key={i} className="flex items-center justify-between text-xs font-mono px-sm py-xs" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-sm)" }}>
+                    <span className="text-secondary truncate flex-1 mr-sm">{link}</span>
+                    <button type="button" onClick={() => setEvidenceLinks(prev => prev.filter((_, idx) => idx !== i))} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-secondary)" }}>×</button>
+                  </div>
+                ))}
+              </div>
+            )}
+            {evidenceLinks.length > 0 && (
+              <p className="text-xs text-secondary mt-xs" style={{ color: "var(--state-warning)" }}>
+                Linked footage will be reviewed manually — allow 24–48 hours for analysis to complete.
+              </p>
+            )}
+          </div>
+
           <div className="form-actions">
-            <button type="button" className="btn btn-ghost" onClick={() => setShowForm(false)}>Cancel</button>
+            <button type="button" className="btn btn-ghost" onClick={() => { setShowForm(false); setEvidenceFiles([]); setEvidenceLinks([]); setLinkInput(""); }}>Cancel</button>
             <button type="submit" className="btn btn-primary" disabled={submitting}>{submitting ? "Submitting..." : "Submit Report"}</button>
           </div>
         </form>
