@@ -90,7 +90,7 @@ Open `http://localhost:3000`
 
 ## Architecture
 
-See [`docs/superpowers/specs/2026-05-07-architecture-v2.md`](docs/superpowers/specs/2026-05-07-architecture-v2.md) for the full system design, data contracts, LLM integration points, and phased roadmap.
+See `docs/superpowers/specs/2026-05-07-architecture-v2.md` for the full system design, data contracts, LLM integration points, and phased roadmap.
 
 ---
 
