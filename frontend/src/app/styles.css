@@ -568,6 +568,10 @@ a:hover { color: var(--text-primary); }
   gap: var(--space-md);
 }
 
+@media (max-width: 640px) {
+  .skeleton-grid { grid-template-columns: 1fr; }
+}
+
 /* ============================================
    APP SHELL
    ============================================ */
@@ -697,6 +701,9 @@ a:hover { color: var(--text-primary); }
   background: var(--bg-dark);
 }
 
+.mobile-nav-bar { display: none; }
+.sidebar-overlay { display: none; }
+
 @media (max-width: 860px) {
   .app-shell {
     grid-template-columns: 1fr;
@@ -711,6 +718,69 @@ a:hover { color: var(--text-primary); }
     display: grid;
     grid-template-columns: repeat(2, 1fr);
   }
+}
+
+@media (max-width: 640px) {
+  .sidebar {
+    display: none;
+  }
+  .sidebar.open {
+    display: flex;
+    position: fixed;
+    inset: 0;
+    z-index: 100;
+    width: 260px;
+    height: 100vh;
+    background: var(--bg-base);
+    border-right: 1px solid var(--border-subtle);
+    overflow-y: auto;
+  }
+  .sidebar-overlay {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.6);
+    z-index: 99;
+  }
+  .mobile-nav-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--space-md) var(--space-lg);
+    border-bottom: 1px solid var(--border-subtle);
+    background: var(--bg-base);
+    position: sticky;
+    top: 0;
+    z-index: 50;
+  }
+  .mobile-nav-bar .brand {
+    font-family: var(--font-display);
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+  .hamburger {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 4px;
+  }
+  .hamburger span {
+    display: block;
+    width: 22px;
+    height: 2px;
+    background: var(--text-primary);
+    border-radius: 2px;
+    transition: all 0.2s;
+  }
+  .page-header { flex-direction: column; gap: var(--space-md); align-items: flex-start; }
+  .form-row { grid-template-columns: 1fr; }
+  .venues-grid { grid-template-columns: 1fr; }
+  .compliance-grid { grid-template-columns: 1fr; }
+  .page { padding: var(--space-md); }
 }
 
 /* ============================================
@@ -1017,7 +1087,7 @@ a:hover { color: var(--text-primary); }
 
 .venues-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(340px, 100%), 1fr));
   gap: var(--space-md);
 }
 
@@ -2005,7 +2075,7 @@ a:hover { color: var(--text-primary); }
 
 .compliance-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(340px, 100%), 1fr));
   gap: var(--space-md);
 }
 

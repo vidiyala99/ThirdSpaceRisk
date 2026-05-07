@@ -203,7 +203,7 @@ export default function DashboardPage() {
           <h2 className="text-xs uppercase tracking-wide text-secondary mb-lg">
             Portfolio — {portfolioVenues.length} Venues
           </h2>
-          <div className="stagger-children" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(440px, 1fr))', gap: 'var(--space-md)' }}>
+          <div className="stagger-children" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(440px, 100%), 1fr))', gap: 'var(--space-md)' }}>
             {portfolioVenues.map((venue) => (
               <VenuePortfolioCard key={venue.id} venue={venue} />
             ))}

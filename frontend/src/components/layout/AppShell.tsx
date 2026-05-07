@@ -1,6 +1,6 @@
 "use client";
 
-import { ReactNode } from "react";
+import { ReactNode, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
@@ -9,9 +9,10 @@ import {
   AlertTriangle,
   CheckSquare,
   FileSearch,
-  Settings,
   LogOut,
   Activity,
+  Menu,
+  X,
 } from "lucide-react";
 import { useAuth, useRole, useTenantId } from "@/contexts/AuthContext";
 
@@ -31,6 +32,7 @@ export function AppShell({ children }: AppShellProps) {
   const { signOut, user } = useAuth();
   const role = useRole();
   const tenantId = useTenantId();
+  const [mobileOpen, setMobileOpen] = useState(false);
 
   const navItems = [
     { href: "/dashboard", label: "Portfolio", icon: LayoutDashboard },
@@ -50,9 +52,8 @@ export function AppShell({ children }: AppShellProps) {
     router.push("/login");
   };
 
-  return (
-    <div className="app-shell">
-      <aside className="sidebar">
+  const sidebarContent = (
+    <>
         <div className="sidebar-brand">
           <h1>Third Space</h1>
           <p>Risk OS</p>
@@ -68,12 +69,12 @@ export function AppShell({ children }: AppShellProps) {
           {filteredNav.map((item) => {
             const Icon = item.icon;
             const isActive = pathname === item.href || pathname?.startsWith(item.href + "/");
-            
             return (
               <Link
                 key={item.href}
                 href={item.href}
                 className={`sidebar-nav-item ${isActive ? "active" : ""}`}
+                onClick={() => setMobileOpen(false)}
               >
                 <Icon size={18} />
                 <span>{item.label}</span>
@@ -88,6 +89,24 @@ export function AppShell({ children }: AppShellProps) {
             <span>Sign Out</span>
           </button>
         </div>
+    </>
+  );
+
+  return (
+    <div className="app-shell">
+      {/* Mobile nav bar */}
+      <div className="mobile-nav-bar">
+        <span className="brand">Third Space</span>
+        <button className="hamburger" onClick={() => setMobileOpen(o => !o)} aria-label="Menu">
+          {mobileOpen ? <X size={22} color="var(--text-primary)" /> : <Menu size={22} color="var(--text-primary)" />}
+        </button>
+      </div>
+
+      {/* Mobile overlay */}
+      {mobileOpen && <div className="sidebar-overlay" onClick={() => setMobileOpen(false)} />}
+
+      <aside className={`sidebar${mobileOpen ? " open" : ""}`}>
+        {sidebarContent}
       </aside>
 
       <main className="main-content">

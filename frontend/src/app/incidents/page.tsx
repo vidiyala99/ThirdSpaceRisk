@@ -172,8 +172,8 @@ export default function IncidentsPage() {
         </button>
       </header>
 
-      <div className="flex justify-between items-center mb-lg">
-        <div className="flex gap-xs" style={{ background: "var(--bg-surface)", padding: "4px", borderRadius: "var(--radius-lg)" }}>
+      <div className="flex justify-between items-center mb-lg" style={{ flexWrap: "wrap", gap: "var(--space-sm)" }}>
+        <div className="flex gap-xs" style={{ background: "var(--bg-surface)", padding: "4px", borderRadius: "var(--radius-lg)", flexWrap: "wrap" }}>
           {(["all", "open", "under_review", "closed"] as const).map((s) => (
             <button
               key={s}
