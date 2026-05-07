@@ -147,25 +147,44 @@ export default function LoginPage() {
           </form>
 
           <div className="login-footer">
-            <button
-              type="button"
-              onClick={() => {
-                setEmail("broker@thirdspace.risk");
-                setPassword("demo123");
-                setTimeout(() => {
-                  (document.querySelector("form") as HTMLFormElement)?.requestSubmit();
-                }, 50);
-              }}
-              style={{
-                width: '100%', padding: '10px', background: 'rgba(212,255,0,0.08)',
-                border: '1px solid rgba(212,255,0,0.3)', borderRadius: '8px',
-                color: 'var(--brand-primary)', fontFamily: 'var(--font-mono)',
-                fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer',
-                letterSpacing: '0.05em', marginBottom: '12px',
-              }}
-            >
-              ⚡ QUICK DEMO LOGIN
-            </button>
+            <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
+              <button
+                type="button"
+                onClick={() => {
+                  setEmail("broker@thirdspace.risk");
+                  setPassword("demo123");
+                  setTimeout(() => {
+                    (document.querySelector("form") as HTMLFormElement)?.requestSubmit();
+                  }, 50);
+                }}
+                style={{
+                  flex: 1, padding: '10px', background: 'rgba(212,255,0,0.08)',
+                  border: '1px solid rgba(212,255,0,0.3)', borderRadius: '8px',
+                  color: 'var(--brand-primary)', fontFamily: 'var(--font-body)',
+                  fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer',
+                }}
+              >
+                ⚡ Broker Demo
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setEmail("venue@elsewhere.com");
+                  setPassword("demo123");
+                  setTimeout(() => {
+                    (document.querySelector("form") as HTMLFormElement)?.requestSubmit();
+                  }, 50);
+                }}
+                style={{
+                  flex: 1, padding: '10px', background: 'rgba(129,140,248,0.08)',
+                  border: '1px solid rgba(129,140,248,0.3)', borderRadius: '8px',
+                  color: 'var(--brand-secondary)', fontFamily: 'var(--font-body)',
+                  fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer',
+                }}
+              >
+                ⚡ Venue Operator
+              </button>
+            </div>
             <div className="login-investors">
               <span>Backed by</span>
               <strong>a16z SpeedRun</strong>

@@ -166,10 +166,17 @@ export default function IncidentsPage() {
       <header className="page-header">
         <div>
           <h1>Incidents</h1>
-          <p className="page-subtitle">Report and track incidents at your venue</p>
+          <p className="page-subtitle">
+            {isBroker
+              ? "All incidents across your venue portfolio"
+              : "Report and track incidents at your venue"}
+          </p>
         </div>
-        <button style={{display:"none"}}>
-        </button>
+        {!isBroker && (
+          <button className="btn btn-primary" onClick={() => setShowForm(!showForm)}>
+            <Plus size={18} /> Report Incident
+          </button>
+        )}
       </header>
 
       <div className="flex justify-between items-center mb-lg" style={{ flexWrap: "wrap", gap: "var(--space-sm)" }}>
@@ -188,9 +195,11 @@ export default function IncidentsPage() {
             </button>
           ))}
         </div>
-        <button className="btn btn-primary" onClick={() => setShowForm(!showForm)}>
-          <Plus size={18} /> Report Incident
-        </button>
+        {isBroker && (
+          <span className="text-xs text-secondary">
+            Showing all venues · Read-only
+          </span>
+        )}
       </div>
 
       {showForm && (
