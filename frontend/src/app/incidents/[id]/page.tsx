@@ -146,7 +146,7 @@ export default function IncidentDetailPage() {
             </div>
           </header>
 
-          <div className="grid gap-xl" style={{ gridTemplateColumns: "1fr 320px" }}>
+          <div className="incident-detail-grid">
             {/* Main content */}
             <div className="flex flex-col gap-xl">
 
@@ -180,7 +180,7 @@ export default function IncidentDetailPage() {
                               <span className="text-xs text-secondary">{isVideo ? "VID" : "FILE"}</span>
                             </div>
                           )}
-                          <div className="flex-1" style={{ minWidth: 0 }}>
+                          <div className="flex-1" style={{ minWidth: 0, overflow: "hidden" }}>
                             <p className="text-sm truncate">{ev.filename}</p>
                             <p className="text-xs text-secondary">{(ev.file_size / 1024).toFixed(1)} KB · {new Date(ev.uploaded_at).toLocaleString()}</p>
                           </div>
@@ -195,7 +195,7 @@ export default function IncidentDetailPage() {
               {/* Vision Analysis */}
               {visionAnalysis && visionAnalysis.total_files > 0 && (
                 <div className="card">
-                  <div className="flex items-center justify-between mb-md">
+                  <div className="flex items-center justify-between mb-md" style={{ flexWrap: "wrap", gap: "var(--space-sm)" }}>
                     <div className="text-xs uppercase tracking-wide text-secondary">AI Evidence Analysis</div>
                     {visionAnalysis.status === "processing" ? (
                       <span className="flex items-center gap-xs text-xs font-mono" style={{ color: "var(--state-warning)" }}>
@@ -213,7 +213,7 @@ export default function IncidentDetailPage() {
                   </div>
                   {visionAnalysis.analyses.map((a, i) => (
                     <div key={i} className="flex flex-col gap-sm p-sm mb-sm" style={{ background: "var(--bg-elevated)", borderRadius: "var(--radius-sm)", borderLeft: `3px solid ${a.corroboration === "CONSISTENT" ? "var(--brand-primary)" : a.corroboration === "CONTRADICTED" ? "var(--state-error)" : "var(--state-warning)"}` }}>
-                      <div className="flex items-center justify-between">
+                      <div className="flex items-center justify-between" style={{ flexWrap: "wrap", gap: "var(--space-xs)" }}>
                         <span className="text-xs font-mono uppercase text-secondary">{a.analysis_type} analysis</span>
                         <span className="text-xs" style={{ color: "var(--brand-primary)" }}>+{Math.round(a.confidence_delta * 100)}% confidence</span>
                       </div>
@@ -255,7 +255,7 @@ export default function IncidentDetailPage() {
                     {packets.map((pkt) => (
                       <div key={pkt.id} className="card" style={{ padding: 0, overflow: "hidden" }}>
                         {/* Packet header bar */}
-                        <div className="flex justify-between items-center p-md" style={{ background: "rgba(255,255,255,0.03)", borderBottom: "1px solid var(--border-subtle)" }}>
+                        <div className="flex justify-between items-center p-md" style={{ background: "rgba(255,255,255,0.03)", borderBottom: "1px solid var(--border-subtle)", flexWrap: "wrap", gap: "var(--space-sm)" }}>
                           <div className="flex items-center gap-sm">
                             <Shield size={14} style={{ color: SEVERITY_COLOR[pkt.risk_signals.severity] }} />
                             <span className="text-xs font-mono uppercase tracking-wide" style={{ color: SEVERITY_COLOR[pkt.risk_signals.severity] }}>

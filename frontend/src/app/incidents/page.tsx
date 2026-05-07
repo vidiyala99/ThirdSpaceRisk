@@ -362,9 +362,9 @@ export default function IncidentsPage() {
                   <AlertTriangle size={20} />
                 </div>
                 <div className="incident-info">
-                  <div className="flex justify-between items-start mb-xs">
-                    <h4 style={{ margin: 0 }}>{incident.summary.split(".")[0]}</h4>
-                    <div className="flex items-center gap-sm">
+                  <div className="incident-header-row">
+                    <h4>{incident.summary.split(".")[0]}</h4>
+                    <div className="incident-header-actions">
                       <span className={`badge ${incident.status === "open" ? "badge-error" : incident.status === "under_review" ? "badge-warning" : "badge-success"}`}>
                         {incident.status === "open" && <AlertTriangle size={10} />}
                         {incident.status === "under_review" && <Clock size={10} />}

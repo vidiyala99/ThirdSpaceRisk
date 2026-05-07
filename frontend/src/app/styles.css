@@ -698,6 +698,7 @@ a:hover { color: var(--text-primary); }
 
 .main-content {
   min-width: 0;
+  overflow-x: hidden;
   background: var(--bg-dark);
 }
 
@@ -1256,7 +1257,8 @@ a:hover { color: var(--text-primary); }
 
 .incident-meta {
   display: flex;
-  gap: var(--space-md);
+  flex-wrap: wrap;
+  gap: var(--space-sm) var(--space-md);
   font-size: 0.75rem;
   color: var(--text-tertiary);
   margin-bottom: var(--space-sm);
@@ -1281,6 +1283,54 @@ a:hover { color: var(--text-primary); }
 .flag-danger { background: rgba(239, 68, 68, 0.15); color: var(--state-error); }
 .flag-warning { background: rgba(245, 158, 11, 0.15); color: var(--state-warning); }
 .flag-info { background: rgba(56, 189, 248, 0.14); color: var(--state-info); }
+
+.incident-detail-grid {
+  display: grid;
+  grid-template-columns: 1fr 320px;
+  gap: var(--space-xl);
+}
+
+.incident-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-xs);
+}
+
+.incident-header-row h4 {
+  margin: 0;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.incident-header-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  flex-shrink: 0;
+}
+
+@media (max-width: 640px) {
+  .incident-detail-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .incident-header-row {
+    flex-wrap: wrap;
+  }
+
+  .incident-header-row h4 {
+    white-space: normal;
+  }
+
+  .incident-card {
+    padding: var(--space-md);
+  }
+}
 
 /* ============================================
    UNDERWRITER WORKBENCH
