@@ -137,8 +137,10 @@ app.add_middleware(
         "http://172.20.5.179:3000",
         "https://frontend-in2g6dgt3-vidiyala99s-projects.vercel.app",
         "https://frontend-mu-ebon-n3x8uw2rpx.vercel.app",
+        "exp://localhost:8081",
+        "exp://127.0.0.1:8081",
     ],
-    allow_origin_regex=r"https://.*\.vercel\.app",  # all Vercel preview URLs
+    allow_origin_regex=r"(https://.*\.vercel\.app|exp://192\.168\.\d+\.\d+:\d+)",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
