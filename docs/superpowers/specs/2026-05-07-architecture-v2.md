@@ -6,6 +6,9 @@
 **Status:** Current system + near-term roadmap
 **Audience:** Engineering, interview review
 
+> **Live demo:** https://frontend-mu-ebon-n3x8uw2rpx.vercel.app  
+> Broker login: `broker@thirdspace.risk` / `demo123` — Venue operator: `venue@elsewhere.com` / `demo123`
+
 ---
 
 ## 1. What This System Does
@@ -96,7 +99,8 @@ PacketSnapshot          ← immutable snapshot with hash, citations, rubric vers
 |------|--------------|
 | Venue Operator | Live Terminal, Incidents, Compliance |
 | Broker / Third Space | Portfolio, Reports queue, Venues, Incidents |
-| Underwriter (future) | Reports queue, Report detail, Incident detail |
+
+In v1 the broker role doubles as underwriter — the same login accesses both the portfolio view and the reports queue. A dedicated underwriter role with narrower permissions is a Phase 3 item.
 
 ---
 
