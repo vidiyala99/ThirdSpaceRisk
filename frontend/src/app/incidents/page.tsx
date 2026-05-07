@@ -180,7 +180,11 @@ export default function IncidentsPage() {
       </div>
 
       {showForm && (
-        <form onSubmit={handleSubmit} className="incident-form animate-fade-in">
+        <div
+          style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", zIndex: 50, display: "flex", alignItems: "center", justifyContent: "center", padding: "var(--space-xl)" }}
+          onClick={(e) => { if (e.target === e.currentTarget) { setShowForm(false); setEvidenceFiles([]); setEvidenceLinks([]); setLinkInput(""); } }}
+        >
+        <form onSubmit={handleSubmit} className="incident-form animate-fade-in" style={{ width: "100%", maxWidth: 760, maxHeight: "90vh", overflowY: "auto", margin: 0 }}>
           <div className="form-row">
             <div className="input-wrapper">
               <label className="input-label">Date & Time</label>
@@ -304,6 +308,7 @@ export default function IncidentsPage() {
             <button type="submit" className="btn btn-primary" disabled={submitting}>{submitting ? "Submitting..." : "Submit Report"}</button>
           </div>
         </form>
+        </div>
       )}
 
       <div className="incidents-section">

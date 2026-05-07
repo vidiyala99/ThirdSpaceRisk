@@ -145,8 +145,45 @@ def health() -> dict[str, str]:
 
 
 @app.get("/api/venues")
-def list_venues() -> list[dict]:
-    return [{"id": venue_id, **venue} for venue_id, venue in VENUES.items()]
+def list_venues(session: Session = Depends(get_session)) -> list[dict]:
+    result = [{"id": venue_id, **venue} for venue_id, venue in VENUES.items()]
+    # Include any DB-only venues not in the seed dict
+    db_venues = session.exec(select(Venue)).all()
+    seed_ids = set(VENUES.keys())
+    for v in db_venues:
+        if v.id not in seed_ids:
+            result.append({"id": v.id, "name": v.name, **v.model_dump()})
+    return result
+
+
+@app.post("/api/venues", status_code=201)
+def create_venue(payload: dict, session: Session = Depends(get_session)) -> dict:
+    import re
+    name = payload.get("name", "").strip()
+    if not name:
+        raise HTTPException(status_code=400, detail="Venue name is required")
+    venue_id = re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
+    if venue_id in VENUES:
+        raise HTTPException(status_code=409, detail="A venue with this name already exists")
+    venue_data = {
+        "name": name,
+        "capacity": int(payload.get("capacity", 300)),
+        "venue_type": payload.get("venue_type", "bar"),
+        "address": payload.get("address", ""),
+        "current_carrier": "Surplus Lines",
+        "renewal_date": payload.get("renewal_date", "2027-01-01"),
+        "incident_count": 0,
+        "compliance_items": 0,
+        "security_level": "medium",
+        "years_in_operation": int(payload.get("years_in_operation", 1)),
+        "prior_carrier": "Surplus Lines",
+        "infrastructure": [],
+    }
+    VENUES[venue_id] = venue_data
+    if not session.get(Venue, venue_id):
+        session.add(Venue(id=venue_id, name=name))
+        session.commit()
+    return {"id": venue_id, **venue_data}
 
 
 @app.get("/api/venues/{venue_id}")
