@@ -1,8 +1,8 @@
 # Third Space Risk Engine: Architecture v2
 
 **Date:** 2026-05-07
-**Last Updated:** 2026-05-07 (post-session)
-**Version:** v2.1
+**Last Updated:** 2026-05-07 (afternoon session)
+**Version:** v2.2
 **Status:** Current system + near-term roadmap
 **Audience:** Engineering, interview review
 
@@ -29,10 +29,11 @@ The core loop:
 | Layer | Technology |
 |-------|-----------|
 | Backend | FastAPI + SQLModel + SQLite |
-| Frontend | Next.js 14 (App Router) |
-| Auth | Clerk (JWT-based, role-aware) |
+| Frontend | Next.js 16.2 (App Router), DM Sans + Cormorant Garamond + JetBrains Mono |
+| Auth | Custom HMAC-signed JWT (role-aware: broker, venue_operator, admin) |
 | File storage | Local disk (`evidence_uploads/`) |
 | Agent runtime | Deterministic Python stubs (LLM-ready interfaces) |
+| Deployment | Vercel (frontend) + Railway (backend) |
 
 ### 2.2 Data Models
 
@@ -57,7 +58,7 @@ RubricVersion                        (versioned scoring rules)
 | Resource | Endpoints |
 |----------|-----------|
 | Venues | GET/POST /api/venues, GET /api/venues/{id}, GET /api/portfolio |
-| Incidents | GET/POST /api/venues/{id}/incidents, GET /api/incidents, GET /api/incidents/{id} |
+| Incidents | GET/POST /api/venues/{id}/incidents, GET /api/incidents, GET /api/incidents/{id}, PATCH /api/incidents/{id}/status |
 | Evidence | POST/GET /api/incidents/{id}/evidence, GET /api/evidence/{id}/file, GET /api/incidents/{id}/evidence-analysis |
 | Packets | GET /api/packets, GET /api/packets/{id}, GET /api/incidents/{id}/packets |
 | Review | POST /api/packets/{id}/review-decisions, GET /api/packets/{id}/audit-events |
@@ -296,7 +297,13 @@ Provider switching requires changing one function per agent, not the architectur
 - ✅ Risk-type-specific analytical memos
 - ✅ Dynamic confidence scoring by incident severity + flags
 - ✅ Startup backfill — all incidents get packets on boot
-- ✅ Premium dark SaaS UI (Cormorant Garamond + DM Sans)
+- ✅ Incident status management (open → under_review → closed), role-filtered views
+- ✅ Footage link evidence — alternative to direct upload for large video files
+- ✅ Live terminal with real-time venue state polling (capacity, infrastructure, compliance)
+- ✅ Portfolio dashboard for brokers (venue grid, risk tiers, live capacity)
+- ✅ Mobile responsive UI — viewport meta tag, adaptive layouts, hamburger nav
+- ✅ Atmospheric dark SaaS UI: Cormorant Garamond + DM Sans + JetBrains Mono, grain texture, ambient glow, stagger animations
+- ✅ Accessibility: prefers-reduced-motion, touch-action: manipulation, inputMode attributes
 
 ### Phase 2 — LLM-backed agents
 - Wire real Claude API calls behind existing interfaces
