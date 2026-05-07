@@ -185,7 +185,7 @@ export default function VenuesPage() {
             <div className="venue-info">
               <h3>{venue.name}</h3>
               {venue.venue_type && (
-                <p className="venue-address" style={{ color: "var(--brand-primary)", textTransform: "uppercase", fontSize: "0.7rem", letterSpacing: "0.05em" }}>
+                <p className="venue-address" style={{ color: "var(--text-tertiary)", textTransform: "uppercase", fontSize: "0.7rem", letterSpacing: "0.05em" }}>
                   {venue.venue_type}
                 </p>
               )}

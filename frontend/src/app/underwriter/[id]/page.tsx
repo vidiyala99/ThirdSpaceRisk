@@ -130,7 +130,7 @@ export default function ReportDetailPage() {
         {/* Left: Incident facts */}
         <div className="flex flex-col gap-lg">
           <section className="card">
-            <h2 className="text-xs font-mono uppercase tracking-wide text-secondary mb-lg" style={{ borderBottom: "1px solid var(--border-subtle)", paddingBottom: "var(--space-sm)" }}>Incident</h2>
+            <h2 className="text-xs uppercase tracking-wide text-secondary mb-lg" style={{ borderBottom: "1px solid var(--border-subtle)", paddingBottom: "var(--space-sm)" }}>Incident</h2>
             {incident ? (
               <div className="flex flex-col gap-md text-sm">
                 <div><span className="text-xs uppercase tracking-wide text-secondary block mb-xs">Summary</span><p>{incident.summary}</p></div>
@@ -149,7 +149,7 @@ export default function ReportDetailPage() {
           </section>
 
           <section className="card">
-            <h2 className="text-xs font-mono uppercase tracking-wide text-secondary mb-lg" style={{ borderBottom: "1px solid var(--border-subtle)", paddingBottom: "var(--space-sm)" }}>Required Actions</h2>
+            <h2 className="text-xs uppercase tracking-wide text-secondary mb-lg" style={{ borderBottom: "1px solid var(--border-subtle)", paddingBottom: "var(--space-sm)" }}>Required Actions</h2>
             <div className="flex flex-col gap-md">
               {packet.action_plan.length > 0 ? packet.action_plan.map((action, i) => (
                 <div key={i} className="flex gap-md">
@@ -170,11 +170,11 @@ export default function ReportDetailPage() {
         {/* Center: Risk analysis */}
         <div className="flex flex-col gap-lg">
           <section className="card">
-            <h2 className="text-xs font-mono uppercase tracking-wide text-secondary mb-lg" style={{ borderBottom: "1px solid var(--border-subtle)", paddingBottom: "var(--space-sm)" }}>Risk Signal</h2>
+            <h2 className="text-xs uppercase tracking-wide text-secondary mb-lg" style={{ borderBottom: "1px solid var(--border-subtle)", paddingBottom: "var(--space-sm)" }}>Risk Signal</h2>
             <div className="flex gap-lg items-start">
               <div className="flex-1">
                 <span
-                  className="inline-block text-xs font-mono font-bold uppercase px-sm py-xs mb-md"
+                  className="inline-block text-xs font-bold uppercase px-sm py-xs mb-md"
                   style={{ background: `${SEVERITY_COLOR[severity]}22`, color: SEVERITY_COLOR[severity], border: `1px solid ${SEVERITY_COLOR[severity]}` }}
                 >
                   {severity} exposure
@@ -182,14 +182,14 @@ export default function ReportDetailPage() {
                 <p className="text-sm leading-relaxed">{packet.risk_signals?.explanation ?? "No explanation available."}</p>
               </div>
               <div className="text-center flex-shrink-0">
-                <div className="text-4xl font-bold font-mono" style={{ color: "var(--brand-primary)" }}>{confidence}%</div>
-                <div className="text-xs text-secondary uppercase tracking-wide">confidence</div>
+                <div className="text-4xl font-bold font-display" style={{ color: "var(--brand-primary)" }}>{confidence}%</div>
+                <div className="text-xs text-secondary">confidence</div>
               </div>
             </div>
           </section>
 
           <section className="card">
-            <h2 className="text-xs font-mono uppercase tracking-wide text-secondary mb-lg" style={{ borderBottom: "1px solid var(--border-subtle)", paddingBottom: "var(--space-sm)" }}>Underwriting Memo</h2>
+            <h2 className="text-xs uppercase tracking-wide text-secondary mb-lg" style={{ borderBottom: "1px solid var(--border-subtle)", paddingBottom: "var(--space-sm)" }}>Underwriting Memo</h2>
             <p className="text-sm leading-relaxed mb-lg">{packet.memo?.summary ?? "No memo available."}</p>
             {(packet.memo?.open_questions?.length ?? 0) > 0 && (
               <div>
@@ -210,7 +210,7 @@ export default function ReportDetailPage() {
           {visionAnalysis && visionAnalysis.analyses.length > 0 && (
             <section className="card">
               <div className="flex items-center justify-between mb-lg" style={{ borderBottom: "1px solid var(--border-subtle)", paddingBottom: "var(--space-sm)" }}>
-                <h2 className="text-xs font-mono uppercase tracking-wide text-secondary">Visual Evidence Analysis</h2>
+                <h2 className="text-xs uppercase tracking-wide text-secondary">Visual Evidence Analysis</h2>
                 {visionAnalysis.analyses[0]?.corroboration && (
                   <span className="text-xs font-mono px-sm py-xs font-bold" style={{
                     background: visionAnalysis.analyses[0].corroboration === "CONSISTENT" ? "rgba(212,255,0,0.12)" : visionAnalysis.analyses[0].corroboration === "CONTRADICTED" ? "rgba(255,60,60,0.12)" : "rgba(255,153,0,0.12)",
@@ -249,7 +249,7 @@ export default function ReportDetailPage() {
           )}
 
           <section className="card">
-            <h2 className="text-xs font-mono uppercase tracking-wide text-secondary mb-lg" style={{ borderBottom: "1px solid var(--border-subtle)", paddingBottom: "var(--space-sm)" }}>Claims Timeline</h2>
+            <h2 className="text-xs uppercase tracking-wide text-secondary mb-lg" style={{ borderBottom: "1px solid var(--border-subtle)", paddingBottom: "var(--space-sm)" }}>Claims Timeline</h2>
             <div className="flex flex-col gap-sm">
               {packet.claims_timeline.length > 0 ? packet.claims_timeline.map((event, i) => (
                 <div key={i} className="flex gap-md text-sm" style={{ borderBottom: "1px solid var(--border-subtle)", paddingBottom: "var(--space-sm)" }}>
@@ -269,7 +269,7 @@ export default function ReportDetailPage() {
         {/* Right: Decision */}
         <div className="flex flex-col gap-lg">
           <section className="card">
-            <h2 className="text-xs font-mono uppercase tracking-wide text-secondary mb-lg" style={{ borderBottom: "1px solid var(--border-subtle)", paddingBottom: "var(--space-sm)" }}>Review Decision</h2>
+            <h2 className="text-xs uppercase tracking-wide text-secondary mb-lg" style={{ borderBottom: "1px solid var(--border-subtle)", paddingBottom: "var(--space-sm)" }}>Review Decision</h2>
             {decision ? (
               <div className="flex items-center gap-md p-md" style={{ border: `1px solid ${decision.decision === "approved" ? "var(--brand-primary)" : "var(--state-error)"}`, borderRadius: "var(--radius-sm)" }}>
                 {decision.decision === "approved" ? <ShieldCheck size={20} style={{ color: "var(--brand-primary)" }} /> : <LockKeyhole size={20} style={{ color: "var(--state-error)" }} />}
@@ -322,7 +322,7 @@ export default function ReportDetailPage() {
           </section>
 
           <section className="card">
-            <h2 className="text-xs font-mono uppercase tracking-wide text-secondary mb-lg" style={{ borderBottom: "1px solid var(--border-subtle)", paddingBottom: "var(--space-sm)" }}>Evidence Summary</h2>
+            <h2 className="text-xs uppercase tracking-wide text-secondary mb-lg" style={{ borderBottom: "1px solid var(--border-subtle)", paddingBottom: "var(--space-sm)" }}>Evidence Summary</h2>
             <div className="flex gap-md mb-md">
               <div className="flex-1 text-center p-md" style={{ border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-sm)" }}>
                 <div className="text-2xl font-bold font-mono" style={{ color: "var(--brand-primary)" }}>{packet.citation_ids.length}</div>

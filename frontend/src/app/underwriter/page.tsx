@@ -97,7 +97,7 @@ export default function ReportsPage() {
           <button
             key={f}
             onClick={() => setStatusFilter(f)}
-            className="text-sm font-mono px-lg py-md uppercase tracking-wide"
+            className="text-sm px-lg py-md uppercase tracking-wide"
             style={{
               background: "none",
               border: "none",
@@ -139,11 +139,11 @@ export default function ReportsPage() {
                 <div className="flex justify-between items-start gap-lg">
                   <div className="flex-1" style={{ minWidth: 0 }}>
                     <div className="flex items-center gap-md mb-sm">
-                      <span className="text-xs font-mono uppercase tracking-wide" style={{ color: "var(--text-tertiary)" }}>
-                        {packet.venue_id.replace(/-/g, " ").toUpperCase()}
+                      <span className="text-xs uppercase tracking-wide" style={{ color: "var(--text-tertiary)" }}>
+                        {packet.venue_id.replace(/-/g, " ")}
                       </span>
-                      <span className="text-xs font-mono" style={{ color: SEVERITY_COLOR[severity] }}>
-                        {severity.toUpperCase()} EXPOSURE
+                      <span className="text-xs font-semibold uppercase" style={{ color: SEVERITY_COLOR[severity] }}>
+                        {severity} Exposure
                       </span>
                     </div>
                     <p className="text-sm" style={{ color: "var(--text-primary)", marginBottom: "var(--space-xs)" }}>
@@ -153,7 +153,7 @@ export default function ReportsPage() {
                           : packet.memo.summary
                         : packet.risk_signals?.explanation?.slice(0, 120) ?? "No summary available."}
                     </p>
-                    <div className="flex items-center gap-md text-xs font-mono" style={{ color: "var(--text-tertiary)" }}>
+                    <div className="flex items-center gap-md text-xs" style={{ color: "var(--text-tertiary)" }}>
                       <span>{date} · {time}</span>
                       <span>{packet.venue_id.replace(/-/g, " ").toUpperCase()}</span>
                     </div>
@@ -175,10 +175,10 @@ export default function ReportsPage() {
                       {status.label}
                     </div>
                     <div className="text-right">
-                      <div className="text-xl font-mono font-bold" style={{ color: "var(--brand-primary)" }}>
+                      <div className="text-xl font-display font-bold" style={{ color: "var(--brand-primary)" }}>
                         {Math.round(confidence * 100)}%
                       </div>
-                      <div className="text-xs font-mono" style={{ color: "var(--text-tertiary)" }}>confidence</div>
+                      <div className="text-xs" style={{ color: "var(--text-tertiary)" }}>confidence</div>
                     </div>
                   </div>
                 </div>

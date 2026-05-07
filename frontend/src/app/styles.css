@@ -1,68 +1,65 @@
 :root {
   /* ============================================
-     THIRD SPACE RISK OS DESIGN SYSTEM
-     Midnight & Neon + Industrial Grids
+     THIRD SPACE RISK OS — DESIGN SYSTEM v2
+     Premium Dark SaaS — Evidence-First Underwriting
      ============================================ */
   color-scheme: dark;
 
-  /* Core Colors - Midnight Base */
-  --bg-dark: #050505;
-  --bg-base: #0a0a0a;
-  --bg-surface: #121212;
-  --bg-surface-elevated: #1a1a1a;
-  --bg-surface-hover: #222222;
+  /* Core Colors — Deep Navy Base */
+  --bg-dark: #0b0c15;
+  --bg-base: #0e0f1a;
+  --bg-surface: #13151f;
+  --bg-surface-elevated: #1a1c2a;
+  --bg-surface-hover: #202234;
+  --bg-elevated: #1a1c2a;
 
-  /* Brand Colors - Neon Accents */
-  --brand-primary: #D4FF00; /* Security Yellow */
-  --brand-primary-dim: #AACC00;
-  --brand-secondary: #00F0FF; /* Laser Blue */
-  --brand-tertiary: #FF0055; /* Alert Red */
+  /* Brand Colors — Refined Palette */
+  --brand-primary: #c8f000;        /* Signature green — used sparingly */
+  --brand-primary-dim: #a0c200;
+  --brand-secondary: #818cf8;      /* Soft indigo — replaces neon cyan */
+  --brand-tertiary: #f43f5e;       /* Rose red */
 
   /* Text Colors */
-  --text-primary: #FFFFFF;
-  --text-secondary: #A0A0A0;
-  --text-tertiary: #666666;
-  --text-inverse: #000000;
+  --text-primary: #eeeef5;
+  --text-secondary: #8b8fa8;
+  --text-tertiary: #50526a;
+  --text-muted: #3a3c50;
+  --text-inverse: #0b0c15;
 
   /* Legacy aliases */
-  --text-main: #FFFFFF;
-  --text-muted: #666666;
-  --text-subtle: #A0A0A0;
+  --text-main: #eeeef5;
+  --text-subtle: #8b8fa8;
 
   /* Borders & Dividers */
-  --border-subtle: rgba(255, 255, 255, 0.08);
-  --border-default: rgba(255, 255, 255, 0.15);
-  --border-strong: rgba(255, 255, 255, 0.25);
-  
-  /* Industrial Grid specific */
-  --border-grid: #333333;
+  --border-subtle: rgba(255, 255, 255, 0.06);
+  --border-default: rgba(255, 255, 255, 0.10);
+  --border-strong: rgba(255, 255, 255, 0.18);
+  --border-dim: rgba(255, 255, 255, 0.06);
+  --border-darker: rgba(255, 255, 255, 0.04);
 
   /* State Colors */
-  --state-success: #D4FF00;
-  --state-warning: #FF9900;
-  --state-error: #FF0055;
-  --state-info: #00F0FF;
+  --state-success: #22c55e;
+  --state-warning: #f59e0b;
+  --state-error: #f43f5e;
+  --state-info: #818cf8;
+
+  /* Shadows — Subtle elevation */
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3), 0 1px 2px rgba(0, 0, 0, 0.2);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4), 0 2px 4px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.5), 0 4px 8px rgba(0, 0, 0, 0.3);
+  --shadow-glow-primary: 0 0 24px rgba(200, 240, 0, 0.12);
+  --shadow-glow-secondary: 0 0 24px rgba(129, 140, 248, 0.12);
 
   /* Gradients */
-  --gradient-primary: linear-gradient(90deg, #D4FF00 0%, #00F0FF 100%);
-  --gradient-surface: linear-gradient(180deg, #1a1a1a 0%, #0a0a0a 100%);
+  --gradient-primary: linear-gradient(135deg, #c8f000 0%, #818cf8 100%);
+  --gradient-surface: linear-gradient(180deg, #1a1c2a 0%, #13151f 100%);
 
-  /* Shadows - Glows for Neon */
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.2);
-  --shadow-md: 0 4px 8px rgba(0, 0, 0, 0.3);
-  --shadow-lg: 0 8px 16px rgba(0, 0, 0, 0.4);
-  --shadow-glow-primary: 0 0 20px rgba(212, 255, 0, 0.15);
-  --shadow-glow-secondary: 0 0 20px rgba(0, 240, 255, 0.15);
-
-  /* Typography */
-  /* Aggressive geometric sans for display */
-  --font-display: 'Syncopate', 'Space Grotesk', system-ui, sans-serif;
-  /* Clean sans for body */
-  --font-body: 'Inter', system-ui, sans-serif;
-  /* Dense mono for mission control */
-  --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
-  --font-sans: 'Inter', system-ui, sans-serif;
-  --font-serif: 'Inter', system-ui, sans-serif;
+  /* Typography — Editorial + Clean Sans */
+  --font-display: var(--font-cormorant), 'Georgia', serif;
+  --font-body: var(--font-dm-sans), system-ui, sans-serif;
+  --font-mono: var(--font-jetbrains-mono), 'Fira Code', monospace;
+  --font-sans: var(--font-dm-sans), system-ui, sans-serif;
+  --font-serif: var(--font-cormorant), 'Georgia', serif;
 
   /* Spacing */
   --space-xs: 4px;
@@ -72,12 +69,12 @@
   --space-xl: 32px;
   --space-2xl: 48px;
   --space-3xl: 64px;
-  
-  /* Border Radius - sharper for industrial feel */
-  --radius-sm: 2px;
-  --radius-md: 4px;
-  --radius-lg: 8px;
-  --radius-xl: 12px;
+
+  /* Border Radius — Refined, not sharp */
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 10px;
+  --radius-xl: 14px;
   --radius-full: 9999px;
 }
 
@@ -107,19 +104,27 @@ body {
 
 /* Background Pattern for OLED */
 /* Typography */
-h1, h2, h3, h4, h5, h6 {
+h1, h2, h3 {
   font-family: var(--font-display);
   font-weight: 600;
-  line-height: 1.2;
-  letter-spacing: 0;
+  line-height: 1.15;
+  letter-spacing: -0.01em;
+  color: var(--text-primary);
 }
 
-h1 { font-size: 2.5rem; }
-h2 { font-size: 1.75rem; }
-h3 { font-size: 1.25rem; }
+h4, h5, h6 {
+  font-family: var(--font-body);
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--text-primary);
+}
+
+h1 { font-size: 2.75rem; }
+h2 { font-size: 1.875rem; }
+h3 { font-size: 1.375rem; }
 h4 { font-size: 1rem; }
 
-p { color: var(--text-secondary); }
+p { color: var(--text-secondary); line-height: 1.65; }
 
 a {
   color: var(--brand-primary);
@@ -208,12 +213,13 @@ a:hover { color: var(--text-primary); }
   gap: 6px;
 }
 
-.input-label {
+.input-label,
+.form-label {
   font-size: 0.8rem;
   font-weight: 500;
   color: var(--text-secondary);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
+  font-family: var(--font-body);
+  letter-spacing: 0;
 }
 
 .input-field {
@@ -527,6 +533,9 @@ a:hover { color: var(--text-primary); }
 .page-subtitle {
   max-width: 680px;
   color: var(--text-secondary);
+  font-size: 0.9rem;
+  margin-top: 4px;
+  font-family: var(--font-body);
 }
 
 .page-actions {
@@ -575,76 +584,107 @@ a:hover { color: var(--text-primary); }
   display: flex;
   height: 100vh;
   flex-direction: column;
-  border-right: 1px solid var(--border-default);
+  border-right: 1px solid var(--border-subtle);
   background: var(--bg-base);
   padding: var(--space-lg);
 }
 
 .sidebar-brand {
   margin-bottom: var(--space-xl);
+  padding-bottom: var(--space-lg);
+  border-bottom: 1px solid var(--border-subtle);
 }
 
 .sidebar-brand h1 {
-  font-size: 1.1rem;
-  font-weight: 700;
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--text-primary);
 }
 
-.sidebar-brand p,
+.sidebar-brand p {
+  display: block;
+  font-size: 0.7rem;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-family: var(--font-body);
+}
+
+.sidebar-mission {
+  font-size: 0.75rem !important;
+  color: var(--brand-primary) !important;
+  font-style: italic;
+  letter-spacing: 0 !important;
+  text-transform: none !important;
+}
+
 .sidebar-user span {
   display: block;
   font-size: 0.75rem;
   color: var(--text-secondary);
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
+  text-transform: none;
+  letter-spacing: 0;
 }
 
 .sidebar-user {
-  margin-bottom: var(--space-xl);
-  border: 1px solid var(--border-subtle);
+  margin-bottom: var(--space-lg);
+  padding: var(--space-sm) var(--space-sm);
   border-radius: var(--radius-md);
-  padding: var(--space-md);
-  background: var(--bg-surface);
 }
 
 .sidebar-user .user-name {
   color: var(--text-primary);
-  font-size: 0.9rem;
-  font-weight: 600;
-  text-transform: none;
-  letter-spacing: 0;
+  font-size: 0.875rem;
+  font-weight: 500;
+  font-family: var(--font-body);
+}
+
+.sidebar-user .user-role {
+  font-size: 0.7rem;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-family: var(--font-body);
 }
 
 .sidebar-nav {
   display: flex;
   flex: 1;
   flex-direction: column;
-  gap: var(--space-xs);
+  gap: 2px;
 }
 
 .sidebar-nav-item {
   display: flex;
   width: 100%;
   align-items: center;
-  gap: var(--space-sm);
-  border: 1px solid transparent;
+  gap: 10px;
+  border: none;
   border-radius: var(--radius-md);
   background: transparent;
   color: var(--text-secondary);
   cursor: pointer;
-  font: inherit;
-  padding: 10px 12px;
+  font-family: var(--font-body);
+  font-size: 0.875rem;
+  font-weight: 400;
+  padding: 9px 12px;
   text-align: left;
+  transition: all 0.15s ease;
 }
 
-.sidebar-nav-item:hover,
-.sidebar-nav-item.active {
-  border-color: var(--border-default);
+.sidebar-nav-item:hover {
   background: var(--bg-surface);
   color: var(--text-primary);
 }
 
 .sidebar-nav-item.active {
-  box-shadow: inset 3px 0 0 var(--brand-primary);
+  background: var(--bg-surface-elevated);
+  color: var(--text-primary);
+  font-weight: 500;
+  border-left: 2px solid var(--brand-primary);
+  padding-left: 10px;
 }
 
 .sidebar-footer {
@@ -720,17 +760,17 @@ a:hover { color: var(--text-primary); }
 .stat-label {
   font-size: 0.75rem;
   font-weight: 500;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
   color: var(--text-tertiary);
+  font-family: var(--font-body);
+  letter-spacing: 0;
 }
 
 .stat-value {
   font-family: var(--font-display);
-  font-size: 1.75rem;
+  font-size: 2rem;
   font-weight: 600;
   color: var(--text-primary);
-  line-height: 1.2;
+  line-height: 1.1;
 }
 
 .stat-value.warning { color: var(--state-warning); }
@@ -924,13 +964,12 @@ a:hover { color: var(--text-primary); }
 .live-label {
   font-size: 0.75rem;
   font-weight: 500;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
   color: var(--text-tertiary);
+  font-family: var(--font-body);
 }
 
 .live-value {
-  font-family: var(--font-mono);
+  font-family: var(--font-display);
   font-size: 1.5rem;
   color: var(--text-primary);
 }
@@ -1005,9 +1044,9 @@ a:hover { color: var(--text-primary); }
   justify-content: center;
   width: 48px;
   height: 48px;
-  background: rgba(34, 197, 94, 0.1);
+  background: var(--bg-surface-elevated);
   border-radius: var(--radius-md);
-  color: var(--brand-primary);
+  color: var(--text-secondary);
   flex-shrink: 0;
 }
 
@@ -1017,11 +1056,10 @@ a:hover { color: var(--text-primary); }
 }
 
 .venue-info h3 {
-  font-size: 1rem;
+  font-size: 0.95rem;
+  font-family: var(--font-body);
+  font-weight: 600;
   margin-bottom: 4px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 .venue-address,
@@ -1690,82 +1728,57 @@ a:hover { color: var(--text-primary); }
    ============================================ */
 .theme-venue {
   background-color: var(--bg-dark);
-  background-image: 
-    radial-gradient(circle at 15% 50%, rgba(212, 255, 0, 0.03), transparent 25%),
-    radial-gradient(circle at 85% 30%, rgba(0, 240, 255, 0.03), transparent 25%);
 }
 
 .theme-venue .card {
-  background: rgba(18, 18, 18, 0.7);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  background: var(--bg-surface);
   border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-xl);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
 }
 
 .theme-venue h1, .theme-venue h2 {
   font-family: var(--font-display);
-  text-transform: uppercase;
-  letter-spacing: -0.02em;
+  text-transform: none;
+  letter-spacing: -0.01em;
 }
 
 .theme-venue .glow-text {
-  text-shadow: 0 0 10px rgba(255, 255, 255, 0.3);
+  color: var(--text-primary);
 }
 
 /* ============================================
    AESTHETIC: MISSION CONTROL (UNDERWRITER)
    ============================================ */
 .theme-underwriter {
-  background-color: #000000;
-  /* Blueprint/Terminal Grid Background */
-  background-image: 
-    linear-gradient(var(--border-grid) 1px, transparent 1px),
-    linear-gradient(90deg, var(--border-grid) 1px, transparent 1px);
-  background-size: 40px 40px;
-  background-position: center center;
+  background-color: var(--bg-dark);
 }
 
 .theme-underwriter .workbench-panel {
-  background: #000000;
-  border: 1px solid var(--brand-secondary);
-  border-radius: 0;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
   position: relative;
 }
 
-/* Industrial corners */
-.theme-underwriter .workbench-panel::before,
-.theme-underwriter .workbench-panel::after {
-  content: '';
-  position: absolute;
-  width: 8px;
-  height: 8px;
-  border: 1px solid var(--brand-secondary);
-}
-
-.theme-underwriter .workbench-panel::before { top: -1px; left: -1px; border-right: none; border-bottom: none; }
-.theme-underwriter .workbench-panel::after { bottom: -1px; right: -1px; border-left: none; border-top: none; }
-
-.theme-underwriter h1, 
+.theme-underwriter h1,
 .theme-underwriter h2,
 .theme-underwriter th,
 .theme-underwriter .data-label {
-  font-family: var(--font-mono);
+  font-family: var(--font-body);
   text-transform: uppercase;
-  color: var(--brand-secondary);
+  color: var(--text-secondary);
   letter-spacing: 0.1em;
   font-size: 0.85rem;
 }
 
 .theme-underwriter .data-value {
-  font-family: var(--font-mono);
+  font-family: var(--font-body);
   color: var(--text-primary);
 }
 
 .theme-underwriter .critical-data {
   color: var(--brand-primary);
-  text-shadow: 0 0 8px rgba(212, 255, 0, 0.4);
 }
 
 /* ============================================

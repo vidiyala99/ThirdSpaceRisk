@@ -114,7 +114,7 @@ export default function IncidentDetailPage() {
       {/* Back nav */}
       <button
         onClick={() => router.push("/incidents")}
-        className="flex items-center gap-xs text-secondary text-sm mb-xl font-mono"
+        className="flex items-center gap-xs text-secondary text-sm mb-xl"
         style={{ background: "none", border: "none", cursor: "pointer", padding: 0 }}
       >
         <ArrowLeft size={14} /> Back to Incidents
@@ -150,7 +150,7 @@ export default function IncidentDetailPage() {
 
               {/* Description */}
               <div className="card">
-                <div className="text-xs font-mono uppercase tracking-wide text-secondary mb-md">Description</div>
+                <div className="text-xs uppercase tracking-wide text-secondary mb-md">Description</div>
                 <p style={{ lineHeight: 1.7, color: "var(--text-secondary)" }}>{incident.summary}</p>
                 <div className="flex gap-sm mt-lg">
                   {incident.injury_observed && <span className="flag-tag flag-danger">Injury Observed</span>}
@@ -162,7 +162,7 @@ export default function IncidentDetailPage() {
               {/* Evidence files */}
               {evidence.length > 0 && (
                 <div className="card">
-                  <div className="text-xs font-mono uppercase tracking-wide text-secondary mb-md">Attached Evidence</div>
+                  <div className="text-xs uppercase tracking-wide text-secondary mb-md">Attached Evidence</div>
                   <div className="flex flex-col gap-sm">
                     {evidence.map((ev) => {
                       const isImage = ev.content_type.startsWith("image/");
@@ -175,11 +175,11 @@ export default function IncidentDetailPage() {
                           )}
                           {!isImage && (
                             <div style={{ width: 56, height: 56, background: "var(--bg-elevated)", borderRadius: "var(--radius-sm)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                              <span className="text-xs font-mono text-secondary">{isVideo ? "VID" : "FILE"}</span>
+                              <span className="text-xs text-secondary">{isVideo ? "VID" : "FILE"}</span>
                             </div>
                           )}
                           <div className="flex-1" style={{ minWidth: 0 }}>
-                            <p className="text-sm font-mono truncate">{ev.filename}</p>
+                            <p className="text-sm truncate">{ev.filename}</p>
                             <p className="text-xs text-secondary">{(ev.file_size / 1024).toFixed(1)} KB · {new Date(ev.uploaded_at).toLocaleString()}</p>
                           </div>
                           <a href={fileUrl} target="_blank" rel="noreferrer" className="btn btn-ghost btn-sm text-xs">View</a>
@@ -194,7 +194,7 @@ export default function IncidentDetailPage() {
               {visionAnalysis && visionAnalysis.total_files > 0 && (
                 <div className="card">
                   <div className="flex items-center justify-between mb-md">
-                    <div className="text-xs font-mono uppercase tracking-wide text-secondary">AI Evidence Analysis</div>
+                    <div className="text-xs uppercase tracking-wide text-secondary">AI Evidence Analysis</div>
                     {visionAnalysis.status === "processing" ? (
                       <span className="flex items-center gap-xs text-xs font-mono" style={{ color: "var(--state-warning)" }}>
                         <div className="loading-spinner loading-spinner-sm" /> Analyzing evidence...
@@ -213,7 +213,7 @@ export default function IncidentDetailPage() {
                     <div key={i} className="flex flex-col gap-sm p-sm mb-sm" style={{ background: "var(--bg-elevated)", borderRadius: "var(--radius-sm)", borderLeft: `3px solid ${a.corroboration === "CONSISTENT" ? "var(--brand-primary)" : a.corroboration === "CONTRADICTED" ? "var(--state-error)" : "var(--state-warning)"}` }}>
                       <div className="flex items-center justify-between">
                         <span className="text-xs font-mono uppercase text-secondary">{a.analysis_type} analysis</span>
-                        <span className="text-xs font-mono" style={{ color: "var(--brand-primary)" }}>+{Math.round(a.confidence_delta * 100)}% confidence</span>
+                        <span className="text-xs" style={{ color: "var(--brand-primary)" }}>+{Math.round(a.confidence_delta * 100)}% confidence</span>
                       </div>
                       <p className="text-sm" style={{ lineHeight: 1.6 }}>{a.raw_description}</p>
                       {a.findings?.incident_indicators?.length > 0 && (
@@ -234,11 +234,11 @@ export default function IncidentDetailPage() {
               <div>
                 <div className="flex items-center gap-sm mb-lg">
                   <FileText size={14} className="text-secondary" />
-                  <h2 className="text-sm font-mono uppercase tracking-wide text-secondary" style={{ margin: 0 }}>
+                  <h2 className="text-sm font-semibold text-secondary" style={{ margin: 0 }}>
                     Insurance Reports
                   </h2>
                   {packets.length > 0 && (
-                    <span className="text-xs font-mono" style={{ color: "var(--brand-primary)" }}>{packets.length}</span>
+                    <span className="text-xs" style={{ color: "var(--brand-primary)" }}>{packets.length}</span>
                   )}
                 </div>
 
@@ -246,7 +246,7 @@ export default function IncidentDetailPage() {
                   <div className="card" style={{ textAlign: "center", padding: "var(--space-2xl)" }}>
                     <FileText size={32} style={{ color: "var(--text-muted)", margin: "0 auto var(--space-md)" }} />
                     <div className="text-sm text-secondary">No evidence packets generated yet</div>
-                    <div className="text-xs font-mono text-muted mt-xs">Packets are generated automatically when incidents are processed</div>
+                    <div className="text-xs text-muted mt-xs">Packets are generated automatically when incidents are processed</div>
                   </div>
                 ) : (
                   <div className="flex flex-col gap-lg">
@@ -260,10 +260,10 @@ export default function IncidentDetailPage() {
                               {pkt.risk_signals.severity} severity
                             </span>
                             <span className="text-xs text-muted">·</span>
-                            <span className="text-xs font-mono text-secondary">{pkt.risk_signals.type.replace(/_/g, " ")}</span>
+                            <span className="text-xs text-secondary">{pkt.risk_signals.type.replace(/_/g, " ")}</span>
                           </div>
                           <div className="flex items-center gap-md">
-                            <span className="text-xs font-mono text-secondary">{Math.round(pkt.risk_signals.confidence * 100)}% confidence</span>
+                            <span className="text-xs text-secondary">{Math.round(pkt.risk_signals.confidence * 100)}% confidence</span>
                             <span className="text-xs font-mono uppercase px-2 py-0 rounded" style={{
                               color: pkt.status === "approved" ? "var(--brand-primary)" : pkt.status === "needs_review" ? "var(--state-warning)" : "var(--text-muted)",
                               border: `1px solid ${pkt.status === "approved" ? "var(--brand-primary)" : pkt.status === "needs_review" ? "var(--state-warning)" : "var(--border-subtle)"}`,
@@ -306,7 +306,7 @@ export default function IncidentDetailPage() {
               {/* Status actions */}
               {incident.status !== "closed" && (
                 <div className="card">
-                  <div className="text-xs font-mono uppercase tracking-wide text-secondary mb-md">Actions</div>
+                  <div className="text-xs uppercase tracking-wide text-secondary mb-md">Actions</div>
                   <div className="flex flex-col gap-sm">
                     {incident.status === "open" && (
                       <button
@@ -331,31 +331,31 @@ export default function IncidentDetailPage() {
 
               {/* Metadata */}
               <div className="card">
-                <div className="text-xs font-mono uppercase tracking-wide text-secondary mb-md">Details</div>
+                <div className="text-xs uppercase tracking-wide text-secondary mb-md">Details</div>
                 <div className="flex flex-col gap-md">
                   <div>
                     <div className="text-xs text-muted mb-xs">Incident ID</div>
-                    <div className="text-xs font-mono text-secondary">{incident.id}</div>
+                    <div className="text-xs text-secondary">{incident.id}</div>
                   </div>
                   <div>
                     <div className="text-xs text-muted mb-xs">Occurred</div>
-                    <div className="text-xs font-mono text-secondary">{new Date(incident.occurred_at).toLocaleString()}</div>
+                    <div className="text-xs text-secondary">{new Date(incident.occurred_at).toLocaleString()}</div>
                   </div>
                   <div>
                     <div className="text-xs text-muted mb-xs">Location</div>
-                    <div className="text-xs font-mono text-secondary">{incident.location}</div>
+                    <div className="text-xs text-secondary">{incident.location}</div>
                   </div>
                   <div>
                     <div className="text-xs text-muted mb-xs">Reported By</div>
-                    <div className="text-xs font-mono text-secondary">{incident.reported_by}</div>
+                    <div className="text-xs text-secondary">{incident.reported_by}</div>
                   </div>
                   <div>
                     <div className="text-xs text-muted mb-xs">Insurance Reports</div>
-                    <div className="text-xs font-mono text-secondary">{packets.length}</div>
+                    <div className="text-xs text-secondary">{packets.length}</div>
                   </div>
                   <div>
                     <div className="text-xs text-muted mb-xs">Evidence Files</div>
-                    <div className="text-xs font-mono text-secondary">{evidence.length || "None"}</div>
+                    <div className="text-xs text-secondary">{evidence.length || "None"}</div>
                   </div>
                 </div>
               </div>

@@ -213,7 +213,7 @@ export default function VenueTerminalPage() {
         ) : quote && quote.savings_annual > 0 ? (
           <div className="flex items-center gap-lg mb-xl p-lg" style={{ background: "rgba(212,255,0,0.05)", border: "1px solid rgba(212,255,0,0.2)", borderRadius: "var(--radius-lg)" }}>
             <div>
-              <div className="text-xs font-mono uppercase tracking-wide text-secondary mb-xs">Third Space saves you</div>
+              <div className="text-xs uppercase tracking-wide text-secondary mb-xs">Third Space saves you</div>
               <div className="text-4xl font-bold glow-text">${quote.savings_annual.toLocaleString()}<span className="text-xl text-secondary font-normal">/yr</span></div>
               <div className="text-xs font-mono text-secondary mt-xs">vs. market rate of ${quote.market_rate_annual.toLocaleString()} — {quote.savings_pct}% discount through evidence-first underwriting</div>
             </div>
@@ -222,7 +222,7 @@ export default function VenueTerminalPage() {
 
         <header className="page-header mb-xl">
           <div>
-            <div className="text-xs font-mono text-secondary uppercase tracking-wide mb-xs">
+            <div className="text-xs text-secondary uppercase tracking-wide mb-xs">
               Live Terminal
             </div>
             <h1 className="glow-text">{displayName}</h1>
@@ -334,7 +334,7 @@ export default function VenueTerminalPage() {
                 <div className="flex items-baseline gap-sm mb-xs">
                   <DollarSign size={22} className="text-accent" />
                   <span className="text-4xl font-bold text-primary glow-text">{quote.annual_premium?.toLocaleString()}</span>
-                  <span className="text-secondary font-mono text-xs uppercase">/ Year</span>
+                  <span className="text-secondary text-xs">/ Year</span>
                 </div>
                 <div className="flex items-baseline gap-xs mb-md">
                   <span className="text-xl font-mono text-secondary">${quote.monthly_premium?.toLocaleString()}</span>
@@ -343,12 +343,12 @@ export default function VenueTerminalPage() {
                 {quote.savings_annual > 0 && (
                   <div className="p-sm mb-md rounded" style={{ background: "rgba(212,255,0,0.06)", border: "1px solid rgba(212,255,0,0.2)" }}>
                     <div className="flex justify-between items-center">
-                      <span className="text-xs font-mono text-secondary uppercase">Market Rate</span>
+                      <span className="text-xs text-secondary uppercase">Market Rate</span>
                       <span className="text-xs font-mono text-secondary line-through">${quote.market_rate_annual?.toLocaleString()}/yr</span>
                     </div>
                     <div className="flex justify-between items-center mt-xs">
-                      <span className="text-xs font-mono text-accent uppercase font-bold">You Save</span>
-                      <span className="text-sm font-mono text-accent font-bold">${quote.savings_annual?.toLocaleString()}/yr ({quote.savings_pct}%)</span>
+                      <span className="text-xs text-accent font-bold">You Save</span>
+                      <span className="text-sm text-accent font-bold">${quote.savings_annual?.toLocaleString()}/yr ({quote.savings_pct}%)</span>
                     </div>
                   </div>
                 )}

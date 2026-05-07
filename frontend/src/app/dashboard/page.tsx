@@ -200,7 +200,7 @@ export default function DashboardPage() {
       {/* Broker: venue portfolio grid */}
       {isBroker && (
         <>
-          <h2 className="text-xs uppercase tracking-wide text-secondary mb-lg font-mono">
+          <h2 className="text-xs uppercase tracking-wide text-secondary mb-lg">
             Portfolio — {portfolioVenues.length} Venues
           </h2>
           <div className="stagger-children" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(440px, 1fr))', gap: 'var(--space-md)' }}>
@@ -218,12 +218,12 @@ export default function DashboardPage() {
             <div className="card highlight">
               <h2 className="text-xl mb-sm font-display uppercase">Risk Profile</h2>
               <div className="flex justify-between items-center mb-md pb-md border-b border-subtle">
-                <div className="text-xl font-bold font-mono px-3 py-1 rounded" style={{ border: `1px solid ${TIER_COLOR[riskScore.tier]}`, color: TIER_COLOR[riskScore.tier] }}>
-                  TIER {riskScore.tier}
+                <div className="text-xl font-bold px-3 py-1 rounded" style={{ border: `1px solid ${TIER_COLOR[riskScore.tier]}`, color: TIER_COLOR[riskScore.tier] }}>
+                  Tier {riskScore.tier}
                 </div>
                 <div className="flex items-baseline gap-sm glow-text">
                   <span className="text-5xl font-bold text-primary">{riskScore.total_score}</span>
-                  <span className="text-secondary font-mono">/ 100</span>
+                  <span className="text-secondary">/ 100</span>
                 </div>
               </div>
               <div className="flex flex-col gap-md">
@@ -233,7 +233,7 @@ export default function DashboardPage() {
                     <div className="flex-1 capacity-bar bg-dark">
                       <div className="capacity-fill" style={{ width: `${data.score}%`, background: TIER_COLOR[riskScore.tier] }} />
                     </div>
-                    <span className="text-sm font-mono text-secondary" style={{ width: "40px", textAlign: "right" }}>{data.score}</span>
+                    <span className="text-sm text-secondary" style={{ width: "40px", textAlign: "right" }}>{data.score}</span>
                   </div>
                 ))}
               </div>
@@ -245,17 +245,17 @@ export default function DashboardPage() {
               <h2 className="text-xl mb-sm font-display uppercase text-accent">Premium Quote</h2>
               <div className="flex justify-between items-center mb-md">
                 <span className="text-md uppercase tracking-wide text-secondary">{quote.venue_type.replace("_", " ")}</span>
-                <span className="text-sm font-bold font-mono px-2 py-1 bg-surface-elevated rounded" style={{ color: TIER_COLOR[quote.tier] }}>{quote.tier} TIER</span>
+                <span className="text-sm font-bold px-2 py-1 bg-surface-elevated rounded" style={{ color: TIER_COLOR[quote.tier] }}>{quote.tier} Tier</span>
               </div>
               <div className="flex flex-col gap-md border-t border-subtle pt-md">
                 <div className="flex items-baseline gap-sm">
                   <DollarSign size={28} className="text-accent" />
                   <span className="text-4xl font-bold text-primary glow-text">{quote.annual_premium.toLocaleString()}</span>
-                  <span className="text-secondary font-mono uppercase text-xs">/ Year</span>
+                  <span className="text-secondary text-xs">/ yr</span>
                 </div>
                 <div className="flex items-baseline gap-xs">
-                  <span className="text-xl font-semibold text-secondary font-mono">${quote.monthly_premium.toLocaleString()}</span>
-                  <span className="text-xs text-muted uppercase tracking-wide">/ Month</span>
+                  <span className="text-xl font-semibold text-secondary">${quote.monthly_premium.toLocaleString()}</span>
+                  <span className="text-xs text-muted">/ mo</span>
                 </div>
               </div>
             </div>
@@ -267,7 +267,7 @@ export default function DashboardPage() {
               <div className="p-md rounded-lg bg-base border border-subtle mb-lg">
                 <div className="flex justify-between mb-sm">
                   <span className="text-xs uppercase tracking-wide text-muted">Current Capacity</span>
-                  <span className="text-xl font-mono text-primary glow-text">
+                  <span className="text-xl font-display text-primary">
                     {liveState.current_capacity} <span className="text-secondary text-sm">/ {liveState.max_capacity}</span>
                   </span>
                 </div>
@@ -279,7 +279,7 @@ export default function DashboardPage() {
               <div className="grid grid-cols-2 gap-sm">
                 {liveState.infrastructure?.map((item, i) => (
                   <div key={i} className={`p-sm rounded border flex items-center justify-between ${item.is_degraded ? "border-warning bg-warning-dim text-warning" : "border-success bg-[rgba(212,255,0,0.05)] text-success"}`}>
-                    <span className="text-xs font-semibold uppercase tracking-wide">{item.name}</span>
+                    <span className="text-xs font-semibold">{item.name.replace(/_/g, ' ').replace(/\[.*?\]/g, '').trim()}</span>
                     <div className={`w-[8px] h-[8px] rounded-full ${item.is_degraded ? "bg-warning" : "bg-success"}`} style={{ boxShadow: item.is_degraded ? '0 0 8px var(--state-warning)' : '0 0 8px var(--state-success)' }} />
                   </div>
                 ))}
@@ -306,8 +306,8 @@ function VenuePortfolioCard({ venue }: { venue: PortfolioVenue }) {
         {/* Header row */}
         <div className="flex justify-between items-start mb-md">
           <div className="flex-1 min-w-0">
-            <div className="text-xxs uppercase tracking-wide font-mono mb-xs" style={{ color: tierColor }}>{venue.venue_type}</div>
-            <h3 className="text-xl font-bold font-display uppercase" style={{ marginBottom: '4px', lineHeight: 1.1 }}>{venue.name}</h3>
+            <div className="text-xxs uppercase tracking-wide mb-xs" style={{ color: tierColor }}>{venue.venue_type}</div>
+            <h3 className="text-xl font-bold font-display" style={{ marginBottom: '4px', lineHeight: 1.1 }}>{venue.name}</h3>
             {venue.address && (
               <p className="flex items-center gap-xs text-xs text-secondary" style={{ marginTop: '4px' }}>
                 <MapPin size={11} /> {venue.address}
@@ -315,12 +315,12 @@ function VenuePortfolioCard({ venue }: { venue: PortfolioVenue }) {
             )}
           </div>
           <div className="flex flex-col items-end gap-xs ml-md">
-            <div className="font-mono font-bold px-2 py-1 text-sm" style={{ border: `1px solid ${tierColor}`, color: tierColor, borderRadius: 'var(--radius-sm)' }}>
-              TIER {venue.tier}
+            <div className="font-bold px-2 py-1 text-sm" style={{ border: `1px solid ${tierColor}`, color: tierColor, borderRadius: 'var(--radius-sm)' }}>
+              Tier {venue.tier}
             </div>
             <div className="flex items-baseline gap-xs">
               <span className="text-3xl font-bold" style={{ color: tierColor, lineHeight: 1 }}>{venue.total_score}</span>
-              <span className="text-xs text-secondary font-mono">/ 100</span>
+              <span className="text-xs text-secondary">/ 100</span>
             </div>
           </div>
         </div>
@@ -328,8 +328,8 @@ function VenuePortfolioCard({ venue }: { venue: PortfolioVenue }) {
         {/* Capacity bar */}
         <div className="mb-md">
           <div className="flex justify-between mb-xs">
-            <span className="text-xxs font-mono uppercase text-secondary">Live Capacity</span>
-            <span className="text-xs font-mono" style={{ color: capacityColor }}>
+            <span className="text-xxs uppercase text-secondary">Live Capacity</span>
+            <span className="text-xs" style={{ color: capacityColor }}>
               {venue.current_capacity} <span className="text-secondary">/ {venue.capacity.toLocaleString()}</span>
             </span>
           </div>
@@ -341,16 +341,16 @@ function VenuePortfolioCard({ venue }: { venue: PortfolioVenue }) {
         {/* Footer row */}
         <div className="flex items-center justify-between pt-sm border-t border-subtle">
           <div className="flex gap-md">
-            <span className="text-xxs font-mono text-secondary">
+            <span className="text-xxs text-secondary">
               {venue.current_carrier}
             </span>
-            <span className="text-xxs font-mono text-secondary">
+            <span className="text-xxs text-secondary">
               Renewal {venue.renewal_date}
             </span>
           </div>
           <div className="flex items-center gap-sm">
             {venue.has_degraded_infra && (
-              <span className="flex items-center gap-xs text-xxs font-mono text-warning">
+              <span className="flex items-center gap-xs text-xxs text-warning">
                 <WifiOff size={10} /> Degraded
               </span>
             )}
