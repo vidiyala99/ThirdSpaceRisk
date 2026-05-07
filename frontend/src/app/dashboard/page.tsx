@@ -170,18 +170,20 @@ export default function DashboardPage() {
             </div>
           </div>
         </div>
-        <div className="card bento-card">
-          <div className="flex gap-md items-center">
-            <div className="stat-icon" style={{ background: 'rgba(255, 0, 85, 0.1)', color: 'var(--brand-tertiary)' }}>
-              <AlertTriangle size={24} />
-            </div>
-            <div className="flex flex-col gap-xs">
-              <span className="text-xs uppercase tracking-wide text-muted">Open Incidents</span>
-              <span className="text-2xl font-bold text-error">{stats.incidents}</span>
-              <span className="text-xs text-muted">Across portfolio</span>
+        <Link href="/incidents" style={{ textDecoration: "none" }}>
+          <div className="card bento-card" style={{ cursor: "pointer" }}>
+            <div className="flex gap-md items-center">
+              <div className="stat-icon" style={{ background: 'rgba(255, 0, 85, 0.1)', color: 'var(--brand-tertiary)' }}>
+                <AlertTriangle size={24} />
+              </div>
+              <div className="flex flex-col gap-xs">
+                <span className="text-xs uppercase tracking-wide text-muted">Open Incidents</span>
+                <span className="text-2xl font-bold text-error">{stats.incidents}</span>
+                <span className="text-xs text-muted">Across portfolio</span>
+              </div>
             </div>
           </div>
-        </div>
+        </Link>
         <div className="card bento-card">
           <div className="flex gap-md items-center">
             <div className="stat-icon" style={{ background: 'rgba(0, 240, 255, 0.1)', color: 'var(--brand-secondary)' }}>

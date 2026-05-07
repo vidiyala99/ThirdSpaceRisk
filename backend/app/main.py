@@ -70,6 +70,13 @@ def list_venues() -> list[dict]:
     return [{"id": venue_id, **venue} for venue_id, venue in VENUES.items()]
 
 
+@app.get("/api/venues/{venue_id}")
+def get_venue(venue_id: str) -> dict:
+    if venue_id not in VENUES:
+        raise HTTPException(status_code=404, detail="Venue not found")
+    return {"id": venue_id, **VENUES[venue_id]}
+
+
 @app.get("/api/venues/count")
 def venue_count() -> dict:
     return {"count": len(VENUES)}
@@ -135,6 +142,25 @@ def list_incidents(
         )
         for record in records
     ]
+
+
+@app.get("/api/incidents/{incident_id}", response_model=Incident)
+def get_incident(incident_id: str, session: Session = Depends(get_session)) -> Incident:
+    record = session.get(IncidentRecord, incident_id)
+    if record is None:
+        raise HTTPException(status_code=404, detail="Incident not found")
+    return Incident(
+        id=record.id,
+        venue_id=record.venue_id,
+        occurred_at=record.occurred_at,
+        location=record.location,
+        summary=record.summary,
+        reported_by=record.reported_by,
+        injury_observed=record.injury_observed,
+        police_called=record.police_called,
+        ems_called=record.ems_called,
+        status=record.status,
+    )
 
 
 @app.patch("/api/incidents/{incident_id}/status", status_code=200)

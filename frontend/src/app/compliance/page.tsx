@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useTenantId, useAuth } from "@/contexts/AuthContext";
 import { toastSuccess, toastError } from "@/lib/toast";
@@ -21,7 +21,6 @@ export default function CompliancePage() {
   const [complianceItems, setComplianceItems] = useState<ComplianceItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploadingId, setUploadingId] = useState<string | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!isSignedIn) {
@@ -77,9 +76,8 @@ export default function CompliancePage() {
       console.error(error);
     } finally {
       setUploadingId(null);
-      if (fileInputRef.current) {
-        fileInputRef.current.value = "";
-      }
+      const input = document.getElementById(`upload-${itemId}`) as HTMLInputElement | null;
+      if (input) input.value = "";
     }
   };
 
@@ -136,16 +134,16 @@ export default function CompliancePage() {
               </div>
               <div className="compliance-actions">
                 <input
-                  ref={fileInputRef}
                   type="file"
                   accept="video/*,image/*,application/pdf"
                   className="visually-hidden"
+                  id={`upload-${item.id}`}
                   onChange={(e) => handleUpload(item.id, e)}
                 />
-                <button
-                  className="btn btn-secondary"
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={uploadingId === item.id}
+                <label
+                  htmlFor={`upload-${item.id}`}
+                  className={`btn btn-secondary${uploadingId === item.id ? " disabled" : ""}`}
+                  style={{ cursor: uploadingId === item.id ? "not-allowed" : "pointer" }}
                 >
                   {uploadingId === item.id ? (
                     <>
@@ -158,7 +156,7 @@ export default function CompliancePage() {
                       Upload Evidence
                     </>
                   )}
-                </button>
+                </label>
               </div>
             </div>
           ))}

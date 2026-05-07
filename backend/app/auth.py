@@ -84,7 +84,7 @@ USERS_DB = {
         "password_hash": create_password_hash("demo123"),
         "name": "Alex Chen",
         "role": "broker",
-        "tenant_id": "ts_001",
+        "tenant_id": None,
     },
     "user_002": {
         "id": "user_002",

@@ -22,7 +22,7 @@ interface AppShellProps {
 const navItems = [
   { href: "/dashboard", label: "Portfolio", icon: LayoutDashboard },
   { href: "/underwriter", label: "Packet Review", icon: FileSearch, roles: ["broker", "admin"] },
-  { href: "/terminal", label: "Venue Risk", icon: Activity },
+  { href: "/terminal", label: "Live Terminal", icon: Activity, roles: ["venue_operator"] },
   { href: "/venues", label: "Venues", icon: Building2, roles: ["broker", "admin"] },
   { href: "/incidents", label: "Incidents", icon: AlertTriangle },
   { href: "/compliance", label: "Compliance", icon: CheckSquare },
