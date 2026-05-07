@@ -1,7 +1,8 @@
 # Third Space Risk Engine: Architecture v2
 
 **Date:** 2026-05-07
-**Version:** v2.0
+**Last Updated:** 2026-05-07 (post-session)
+**Version:** v2.1
 **Status:** Current system + near-term roadmap
 **Audience:** Engineering, interview review
 
@@ -40,11 +41,13 @@ Venue
   └── IncidentRecord
         ├── IncidentEvaluation       (agent output, legacy)
         ├── EvidenceFile             (uploaded photos/video/docs)
+        │     └── EvidenceAnalysis   (vision agent output per file)
         ├── UnderwritingPacket       (versioned risk packet)
         │     ├── CitationRecord     (source → claim links)
         │     ├── ReviewDecision     (underwriter decision)
         │     └── AuditEvent        (immutable event log)
         └── SourceRecord             (normalized evidence registry)
+              └── venue_id="*"       (shared policy sources, all venues)
 
 RubricVersion                        (versioned scoring rules)
 ```
@@ -53,9 +56,9 @@ RubricVersion                        (versioned scoring rules)
 
 | Resource | Endpoints |
 |----------|-----------|
-| Venues | GET /api/venues, GET /api/venues/{id}, GET /api/portfolio |
+| Venues | GET/POST /api/venues, GET /api/venues/{id}, GET /api/portfolio |
 | Incidents | GET/POST /api/venues/{id}/incidents, GET /api/incidents, GET /api/incidents/{id} |
-| Evidence | POST/GET /api/incidents/{id}/evidence, GET /api/evidence/{id}/file |
+| Evidence | POST/GET /api/incidents/{id}/evidence, GET /api/evidence/{id}/file, GET /api/incidents/{id}/evidence-analysis |
 | Packets | GET /api/packets, GET /api/packets/{id}, GET /api/incidents/{id}/packets |
 | Review | POST /api/packets/{id}/review-decisions, GET /api/packets/{id}/audit-events |
 | Live state | GET /api/venues/{id}/live, GET /api/venues/{id}/risk-score, GET /api/venues/{id}/quote |
@@ -96,16 +99,17 @@ PacketSnapshot          ← immutable snapshot with hash, citations, rubric vers
 
 ---
 
-## 3. Planned: Two-Phase Packet with Vision Pipeline
+## 3. Two-Phase Packet with Vision Pipeline (Shipped)
 
-### 3.1 The Problem
+### 3.1 Overview
 
-When a venue operator submits an incident with photos or video, the current system:
-- Generates a text-based packet instantly ✓
+When a venue operator submits an incident with photos or video, the system:
+- Generates a text-based packet instantly (Phase 1) ✓
 - Stores the uploaded files on disk ✓
-- Never reads the files in the agent pipeline ✗
+- Processes images/video asynchronously via vision agents (Phase 2) ✓
+- Updates the packet with visual findings and corroboration status ✓
 
-The vision content is the most valuable evidence — it corroborates or contradicts the written report and gives underwriters something concrete to act on.
+The vision content corroborates or contradicts the written report and gives underwriters concrete evidence to act on.
 
 ### 3.2 Two-Phase Architecture
 
@@ -254,12 +258,12 @@ The system is built to be LLM-ready without requiring LLM calls to function. Eac
 
 | Agent | Stub (current) | LLM version |
 |-------|---------------|-------------|
-| RiskEvaluatorAgent | Keyword + flag heuristics | Claude claude-sonnet-4-6 with policy context |
-| UnderwriterMemoAgent | Template-based prose | Claude claude-sonnet-4-6 drafting from citations |
-| VisionAgent | Realistic stub output | Claude Vision API |
-| VideoAgent | Stub keyframe analysis | ffmpeg → Claude Vision per frame |
+| RiskEvaluatorAgent | Keyword + flag heuristics, severity varies by incident type + flags | Claude claude-sonnet-4-6 with policy context |
+| UnderwriterMemoAgent | Risk-type-specific analytical templates with open questions | Claude claude-sonnet-4-6 drafting from citations |
+| VisionAgent | Realistic stub — varies confidence delta by injury/police/EMS flags | Claude Vision API |
+| VideoAgent | Stub keyframe analysis with timeline reconstruction | ffmpeg → Claude Vision per frame |
 | AudioAgent | Not implemented | Whisper transcription → text agent |
-| CorroborationAgent | Not implemented | Compares vision output vs incident text |
+| CorroborationAgent | Deterministic — compares vision findings vs incident flags, returns CONSISTENT/PARTIAL/CONTRADICTED | Full LLM semantic comparison |
 
 Provider switching requires changing one function per agent, not the architecture.
 
@@ -280,13 +284,19 @@ Provider switching requires changing one function per agent, not the architectur
 ## 8. Phased Roadmap
 
 ### Phase 1 (current) — Demo-grade, production-shaped
-- ✅ Incident reporting with evidence upload
+- ✅ Incident reporting with evidence upload (files + footage links)
 - ✅ Two-role portal (operator + broker/underwriter)
 - ✅ Agent pipeline with deterministic stubs
 - ✅ Reports queue with review decisions
 - ✅ Audit trail and packet versioning
-- 🔲 Vision pipeline (Phase 2 packet update, async)
-- 🔲 Corroboration agent
+- ✅ Vision pipeline — two-phase packet (text instant, vision async)
+- ✅ Corroboration agent — CONSISTENT / PARTIAL / CONTRADICTED
+- ✅ Shared knowledge sources (venue_id="*") for cross-venue citations
+- ✅ Venue creation API with full onboarding form
+- ✅ Risk-type-specific analytical memos
+- ✅ Dynamic confidence scoring by incident severity + flags
+- ✅ Startup backfill — all incidents get packets on boot
+- ✅ Premium dark SaaS UI (Cormorant Garamond + DM Sans)
 
 ### Phase 2 — LLM-backed agents
 - Wire real Claude API calls behind existing interfaces
