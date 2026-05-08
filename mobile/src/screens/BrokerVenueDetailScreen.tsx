@@ -161,7 +161,7 @@ export function BrokerVenueDetailScreen({ route, navigation }: any) {
                 <Text style={styles.savingsValue}>${(quote.market_rate_annual ?? 0).toLocaleString()}/yr</Text>
               </View>
               <View style={styles.savingsRow}>
-                <Text style={[styles.savingsLabel, { color: '#c8f000' }]}>YOU SAVE</Text>
+                <Text style={[styles.savingsLabel, { color: '#c8f000' }]}>CLIENT SAVES</Text>
                 <Text style={[styles.savingsValue, { color: '#c8f000', fontWeight: '700' }]}>
                   ${savingsAnnual.toLocaleString()}/yr ({quote.savings_pct}%)
                 </Text>

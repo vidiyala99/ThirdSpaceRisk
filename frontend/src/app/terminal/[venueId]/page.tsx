@@ -353,7 +353,7 @@ export default function VenueTerminalPage() {
                       <span className="text-xs font-mono text-secondary line-through">${quote.market_rate_annual?.toLocaleString()}/yr</span>
                     </div>
                     <div className="flex justify-between items-center mt-xs">
-                      <span className="text-xs text-accent font-bold">You Save</span>
+                      <span className="text-xs text-accent font-bold">{isOperator ? "You Save" : "Client Saves"}</span>
                       <span className="text-sm text-accent font-bold">${quote.savings_annual?.toLocaleString()}/yr ({quote.savings_pct}%)</span>
                     </div>
                   </div>
