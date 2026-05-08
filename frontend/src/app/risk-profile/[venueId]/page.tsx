@@ -114,9 +114,7 @@ export default function RiskProfilePage() {
   const needsAttention = [...poorFactors, ...moderateFactors];
 
   const savingsAnnual = quoteData?.savings_annual ?? 0;
-  const nextTierSavings = tier === "B" ? Math.round((quoteData?.market_rate_annual ?? 0) * 0.1) :
-                          tier === "C" ? Math.round((quoteData?.market_rate_annual ?? 0) * 0.2) :
-                          tier === "D" ? Math.round((quoteData?.market_rate_annual ?? 0) * 0.3) : 0;
+  const hasImprovementHeadroom = ["B", "C", "D"].includes(tier);
 
   const backHref = isBroker ? `/terminal/${venueId}` : "/dashboard";
 
@@ -288,10 +286,10 @@ export default function RiskProfilePage() {
                     <span className="text-sm font-bold font-mono" style={{ color: "var(--brand-primary)" }}>-${savingsAnnual.toLocaleString()}/yr saved</span>
                   </div>
                 )}
-                {!isBroker && nextTierSavings > 0 && (
+                {!isBroker && hasImprovementHeadroom && (
                   <div className="mt-sm p-md" style={{ background: "rgba(212,255,0,0.05)", border: "1px solid rgba(212,255,0,0.2)", borderRadius: "var(--radius-sm)" }}>
                     <p className="text-xs text-secondary" style={{ lineHeight: 1.6 }}>
-                      <span style={{ color: "var(--brand-primary)", fontWeight: 600 }}>Improvement opportunity:</span> Reaching the next tier could save an additional ~${nextTierSavings.toLocaleString()}/yr at renewal.
+                      <span style={{ color: "var(--brand-primary)", fontWeight: 600 }}>Improvement opportunity:</span> Moving up a tier typically reduces your annual premium. Address the factors flagged above and we'll provide a personalized estimate at renewal.
                     </p>
                   </div>
                 )}

@@ -34,10 +34,14 @@ export function AppShell({ children }: AppShellProps) {
   const tenantId = useTenantId();
   const [mobileOpen, setMobileOpen] = useState(false);
 
-  const navItems = [
+  // Operators with no tenant_id (mid-onboarding) shouldn't see a Live Terminal
+  // link at all — better than silently routing them to someone else's venue.
+  const navItems: Array<{ href: string; label: string; icon: typeof LayoutDashboard; roles?: string[] }> = [
     { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
     { href: "/underwriter", label: "Reports", icon: FileSearch, roles: ["broker", "admin"] },
-    { href: `/terminal/${tenantId ?? "elsewhere-brooklyn"}`, label: "Live Terminal", icon: Activity, roles: ["venue_operator"] },
+    ...(tenantId
+      ? [{ href: `/terminal/${tenantId}`, label: "Live Terminal", icon: Activity, roles: ["venue_operator"] }]
+      : []),
     { href: "/venues", label: "Venues", icon: Building2, roles: ["broker", "admin", "venue_operator"] },
     { href: "/incidents", label: "Incidents", icon: AlertTriangle },
     { href: "/compliance", label: "Compliance", icon: CheckSquare },

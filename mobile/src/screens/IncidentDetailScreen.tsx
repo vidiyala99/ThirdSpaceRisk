@@ -135,7 +135,7 @@ export function IncidentDetailScreen({ route, navigation }: any) {
       </View>
 
       {/* Status Actions (operators only) */}
-      {isBroker && transitions.length > 0 && (
+      {!isBroker && transitions.length > 0 && (
         <View style={styles.actionsRow}>
           {transitions.map(t => (
             <Pressable

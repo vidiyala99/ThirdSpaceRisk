@@ -48,8 +48,6 @@ export default function IncidentsPage() {
     ems_called: false,
   });
   const [evidenceFiles, setEvidenceFiles] = useState<File[]>([]);
-  const [evidenceLinks, setEvidenceLinks] = useState<string[]>([]);
-  const [linkInput, setLinkInput] = useState("");
   const [venues, setVenues] = useState<Array<{ id: string; name: string }>>([]);
   const [selectedVenueId, setSelectedVenueId] = useState<string>("");
 
@@ -71,10 +69,17 @@ export default function IncidentsPage() {
 
   useEffect(() => {
     async function fetchIncidents() {
+      // Operator without a tenant_id (mid-onboarding) — show empty state instead
+      // of silently fetching some other venue's incidents.
+      if (!isBroker && !tenantId) {
+        setIncidents([]);
+        setLoading(false);
+        return;
+      }
       try {
         const url = isBroker
           ? `${API_URL}/api/incidents`
-          : `${API_URL}/api/venues/${tenantId ?? "elsewhere-brooklyn"}/incidents`;
+          : `${API_URL}/api/venues/${tenantId}/incidents`;
         const res = await fetch(url);
         if (res.ok) {
           const data = await res.json();
@@ -121,14 +126,9 @@ export default function IncidentsPage() {
           return fetch(`${API_URL}/api/incidents/${created.incident.id}/evidence`, { method: "POST", body: fd });
         }));
       }
-      toastSuccess(evidenceLinks.length > 0
-        ? "Incident reported. Linked footage will be reviewed within 24–48 hours."
-        : "Incident reported successfully"
-      );
+      toastSuccess("Incident reported successfully");
       setShowForm(false);
       setEvidenceFiles([]);
-      setEvidenceLinks([]);
-      setLinkInput("");
       setFormData({ occurred_at: "", location: "", summary: "", reported_by: "", injury_observed: false, police_called: false, ems_called: false });
       const updated = await fetch(isBroker ? `${API_URL}/api/incidents` : `${API_URL}/api/venues/${venueId}/incidents`);
       if (updated.ok) {
@@ -212,7 +212,7 @@ export default function IncidentsPage() {
       {showForm && (
         <div
           className="incident-modal-backdrop"
-          onClick={(e) => { if (e.target === e.currentTarget) { setShowForm(false); setEvidenceFiles([]); setEvidenceLinks([]); setLinkInput(""); } }}
+          onClick={(e) => { if (e.target === e.currentTarget) { setShowForm(false); setEvidenceFiles([]); } }}
         >
         <form onSubmit={handleSubmit} className="incident-form animate-fade-in" style={{ width: "100%", maxWidth: 760, maxHeight: "90vh", overflowY: "auto", margin: 0 }}>
           <div className="incident-form-header">
@@ -312,49 +312,8 @@ export default function IncidentsPage() {
             </div>
           </div>
 
-          {/* Link alternative for large footage */}
-          <div className="form-group">
-            <label className="form-label">Share a footage link (for CC or large videos)</label>
-            <div className="flex gap-sm">
-              <input
-                type="url"
-                inputMode="url"
-                className="input-field flex-1"
-                placeholder="e.g. Google Drive, Dropbox, NVR portal link..."
-                value={linkInput}
-                onChange={(e) => setLinkInput(e.target.value)}
-              />
-              <button
-                type="button"
-                className="btn btn-secondary"
-                onClick={() => {
-                  if (!linkInput.trim()) return;
-                  setEvidenceLinks(prev => [...prev, linkInput.trim()]);
-                  setLinkInput("");
-                }}
-              >
-                Add
-              </button>
-            </div>
-            {evidenceLinks.length > 0 && (
-              <div className="flex flex-col gap-xs mt-sm">
-                {evidenceLinks.map((link, i) => (
-                  <div key={i} className="flex items-center justify-between text-xs font-mono px-sm py-xs" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-sm)" }}>
-                    <span className="text-secondary truncate flex-1 mr-sm">{link}</span>
-                    <button type="button" onClick={() => setEvidenceLinks(prev => prev.filter((_, idx) => idx !== i))} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-secondary)" }}>×</button>
-                  </div>
-                ))}
-              </div>
-            )}
-            {evidenceLinks.length > 0 && (
-              <p className="text-xs text-secondary mt-xs" style={{ color: "var(--state-warning)" }}>
-                Linked footage will be reviewed manually — allow 24–48 hours for analysis to complete.
-              </p>
-            )}
-          </div>
-
           <div className="form-actions">
-            <button type="button" className="btn btn-ghost" onClick={() => { setShowForm(false); setEvidenceFiles([]); setEvidenceLinks([]); setLinkInput(""); }}>Cancel</button>
+            <button type="button" className="btn btn-ghost" onClick={() => { setShowForm(false); setEvidenceFiles([]); }}>Cancel</button>
             <button type="submit" className="btn btn-primary" disabled={submitting}>{submitting ? "Submitting..." : "Submit Report"}</button>
           </div>
         </form>

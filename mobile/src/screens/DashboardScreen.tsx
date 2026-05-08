@@ -34,6 +34,14 @@ interface PremiumQuote {
   tier: string;
   annual_premium: number;
   monthly_premium: number;
+  savings_annual?: number;
+  market_rate_annual?: number;
+  savings_pct?: number;
+}
+
+interface VenueSummary {
+  id: string;
+  name: string;
 }
 
 export function DashboardScreen({ navigation }: any) {
@@ -44,17 +52,53 @@ export function DashboardScreen({ navigation }: any) {
   const [openIncidents, setOpenIncidents] = useState<number>(0);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-
   const [fetchError, setFetchError] = useState<string | null>(null);
 
+  // Multi-venue support: which venue's data we're currently viewing.
+  // Defaults to the operator's primary venue (tenant_id) and can be switched
+  // via the chip row when the operator has added extras.
+  const [selectedVenueId, setSelectedVenueId] = useState<string | null>(null);
+  const [venuesList, setVenuesList] = useState<VenueSummary[]>([]);
+
+  const extraIdsKey = (user?.extra_venue_ids ?? []).join(',');
+
+  // Initial selection — once the user has loaded, target their primary venue.
+  useEffect(() => {
+    if (!selectedVenueId && user?.tenant_id) setSelectedVenueId(user.tenant_id);
+  }, [user?.tenant_id, selectedVenueId]);
+
+  // Load chip-row labels (primary + each extra). Extras can fail (deleted on
+  // another device) — skip those silently.
+  useEffect(() => {
+    let cancelled = false;
+    async function loadVenueList() {
+      if (!user?.tenant_id) return;
+      const ids = [user.tenant_id, ...(user.extra_venue_ids ?? [])];
+      const results = await Promise.all(
+        ids.map(async (id): Promise<VenueSummary | null> => {
+          try {
+            const v = await api.request<{ id?: string; name?: string }>(`/api/venues/${id}`);
+            return { id, name: v.name ?? id };
+          } catch {
+            return null;
+          }
+        })
+      );
+      if (cancelled) return;
+      setVenuesList(results.filter((v): v is VenueSummary => v != null));
+    }
+    loadVenueList();
+    return () => { cancelled = true; };
+  }, [user?.tenant_id, extraIdsKey]);
+
   const fetchData = useCallback(async () => {
-    if (!user?.tenant_id) return;
+    if (!selectedVenueId) return;
     setFetchError(null);
     try {
       const [risk, quote, incidents] = await Promise.all([
-        api.request<any>(`/api/venues/${user.tenant_id}/risk-score`),
-        api.request<any>(`/api/venues/${user.tenant_id}/quote`),
-        api.request<any[]>(`/api/venues/${user.tenant_id}/incidents?status=open`),
+        api.request<any>(`/api/venues/${selectedVenueId}/risk-score`),
+        api.request<any>(`/api/venues/${selectedVenueId}/quote`),
+        api.request<any[]>(`/api/venues/${selectedVenueId}/incidents?status=open`),
       ]);
 
       // Normalize factors to plain numbers so they never reach JSX as objects
@@ -77,6 +121,10 @@ export function DashboardScreen({ navigation }: any) {
       // 404 means the venue hasn't been set up yet — not a real error
       if (msg.includes('404') || msg.toLowerCase().includes('venue not found') || msg.includes('not found')) {
         setFetchError(null);
+        // Clear stale data so we don't show another venue's risk while viewing this one.
+        setRiskData(null);
+        setQuoteData(null);
+        setOpenIncidents(0);
       } else {
         setFetchError(msg || 'Failed to load venue data');
       }
@@ -84,7 +132,7 @@ export function DashboardScreen({ navigation }: any) {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [user?.tenant_id]);
+  }, [selectedVenueId]);
 
   useEffect(() => {
     fetchData();
@@ -94,6 +142,12 @@ export function DashboardScreen({ navigation }: any) {
     setLoading(true);
     fetchData();
   }, [fetchData]));
+
+  function handleSelectVenue(venueId: string) {
+    if (venueId === selectedVenueId) return;
+    setSelectedVenueId(venueId);
+    setLoading(true);
+  }
 
   function onRefresh() {
     setRefreshing(true);
@@ -156,12 +210,43 @@ export function DashboardScreen({ navigation }: any) {
         </View>
       </View>
 
+      {/* Venue switcher — only render when the operator has more than one venue */}
+      {venuesList.length > 1 && (
+        <View style={styles.venueSwitcher}>
+          <Text style={styles.venueSwitcherLabel}>VIEWING</Text>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.chipRow}
+          >
+            {venuesList.map((v) => {
+              const active = v.id === selectedVenueId;
+              return (
+                <Pressable
+                  key={v.id}
+                  onPress={() => handleSelectVenue(v.id)}
+                  style={({ pressed }) => [
+                    styles.chip,
+                    active && styles.chipActive,
+                    pressed && { opacity: 0.7 },
+                  ]}
+                >
+                  <Text style={[styles.chipText, active && styles.chipTextActive]} numberOfLines={1}>
+                    {v.name}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </ScrollView>
+        </View>
+      )}
+
       {/* Savings hero */}
       {quoteData && (quoteData.savings_annual ?? 0) > 0 && (
         <View style={styles.savingsCard}>
           <Text style={styles.savingsEyebrow}>THIRD SPACE SAVES YOU</Text>
           <Text style={styles.savingsAmount}>
-            ${quoteData.savings_annual.toLocaleString()}
+            ${(quoteData.savings_annual ?? 0).toLocaleString()}
             <Text style={styles.savingsPerYear}>/yr</Text>
           </Text>
           <Text style={styles.savingsSub}>
@@ -172,10 +257,10 @@ export function DashboardScreen({ navigation }: any) {
 
       {/* Stats bar */}
       <View style={styles.statsRow}>
-        {/* Your Venue */}
-        <Pressable style={styles.statCard} onPress={() => navigation.navigate('Live')}>
-          <Text style={styles.statEyebrow}>{riskData ? 'YOUR VENUE' : 'YOUR VENUES'}</Text>
-          <Text style={styles.statValue}>{riskData ? 1 : 0}</Text>
+        {/* Your Venue(s) */}
+        <Pressable style={styles.statCard} onPress={() => navigation.navigate('Venues')}>
+          <Text style={styles.statEyebrow}>{venuesList.length === 1 ? 'YOUR VENUE' : 'YOUR VENUES'}</Text>
+          <Text style={styles.statValue}>{venuesList.length}</Text>
         </Pressable>
 
         {/* Open Incidents */}
@@ -391,6 +476,46 @@ const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 19,
     fontFamily: 'DMSans_400Regular',
+  },
+
+  // Venue switcher
+  venueSwitcher: {
+    marginBottom: 20,
+    gap: 8,
+  },
+  venueSwitcherLabel: {
+    color: '#4a4f65',
+    fontSize: 9,
+    fontWeight: '700',
+    letterSpacing: 2,
+    fontFamily: 'JetBrainsMono_700Bold',
+  },
+  chipRow: {
+    gap: 8,
+    paddingRight: 16,
+  },
+  chip: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 18,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: '#0d0f1c',
+    maxWidth: 220,
+  },
+  chipActive: {
+    borderColor: '#c8f000',
+    backgroundColor: 'rgba(200,240,0,0.08)',
+  },
+  chipText: {
+    color: '#8b90a8',
+    fontSize: 13,
+    fontWeight: '600',
+    fontFamily: 'DMSans_400Regular',
+  },
+  chipTextActive: {
+    color: '#c8f000',
+    fontWeight: '700',
   },
 
   // Stats bar

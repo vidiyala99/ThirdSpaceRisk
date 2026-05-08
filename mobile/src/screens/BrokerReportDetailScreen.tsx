@@ -24,7 +24,7 @@ const CORROBORATION_COLOR: Record<string, string> = {
 
 export function BrokerReportDetailScreen({ route, navigation }: any) {
   const { packetId } = route.params;
-  const { signOut } = useAuth();
+  const { signOut, user } = useAuth();
   const insets = useSafeAreaInsets();
 
   const [packet, setPacket] = useState<any>(null);
@@ -62,7 +62,7 @@ export function BrokerReportDetailScreen({ route, navigation }: any) {
     try {
       await api.request(`/api/packets/${packet.id}/review-decisions`, {
         method: 'POST',
-        body: JSON.stringify({ reviewer_id: 'uw-demo-reviewer', decision: dec, notes: notes || null }),
+        body: JSON.stringify({ reviewer_id: user?.id ?? 'unknown', decision: dec, notes: notes || null }),
       });
       setDecisionMade(dec);
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);

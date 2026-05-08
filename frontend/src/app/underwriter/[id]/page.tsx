@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+import { useAuth } from "@/contexts/AuthContext";
 import { AlertTriangle, ArrowLeft, CheckCircle2, ClipboardCheck, LockKeyhole, RefreshCw, ShieldCheck } from "lucide-react";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
@@ -45,6 +46,7 @@ const SEVERITY_COLOR: Record<string, string> = {
 export default function ReportDetailPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
+  const { user } = useAuth();
   const [packet, setPacket] = useState<Packet | null>(null);
   const [incident, setIncident] = useState<Incident | null>(null);
   const [visionAnalysis, setVisionAnalysis] = useState<{ status: string; analyses: any[] } | null>(null);
@@ -52,6 +54,15 @@ export default function ReportDetailPage() {
   const [submitting, setSubmitting] = useState(false);
   const [decision, setDecision] = useState<DecisionRecord | null>(null);
   const [notes, setNotes] = useState("");
+  const [checkedQuestions, setCheckedQuestions] = useState<Set<number>>(new Set());
+
+  const toggleQuestion = (i: number) => {
+    setCheckedQuestions((prev) => {
+      const next = new Set(prev);
+      if (next.has(i)) next.delete(i); else next.add(i);
+      return next;
+    });
+  };
 
   useEffect(() => {
     async function load() {
@@ -80,7 +91,7 @@ export default function ReportDetailPage() {
       const res = await fetch(`${API_URL}/api/packets/${packet.id}/review-decisions`, {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ reviewer_id: "uw-demo-reviewer", decision: dec, notes: notes || null }),
+        body: JSON.stringify({ reviewer_id: user?.id ?? "unknown", decision: dec, notes: notes || null }),
       });
       if (res.ok) {
         const result = await res.json();
@@ -195,12 +206,25 @@ export default function ReportDetailPage() {
               <div>
                 <p className="text-xs uppercase tracking-wide text-secondary mb-md">Open Questions</p>
                 <div className="flex flex-col gap-sm">
-                  {packet.memo.open_questions!.map((q, i) => (
-                    <label key={i} className="flex items-start gap-sm cursor-pointer">
-                      <input type="checkbox" className="mt-1" />
-                      <span className="text-sm text-secondary">{q}</span>
-                    </label>
-                  ))}
+                  {packet.memo.open_questions!.map((q, i) => {
+                    const checked = checkedQuestions.has(i);
+                    return (
+                      <label key={i} className="flex items-start gap-sm cursor-pointer">
+                        <input
+                          type="checkbox"
+                          className="mt-1"
+                          checked={checked}
+                          onChange={() => toggleQuestion(i)}
+                        />
+                        <span
+                          className="text-sm text-secondary"
+                          style={checked ? { textDecoration: "line-through", opacity: 0.6 } : undefined}
+                        >
+                          {q}
+                        </span>
+                      </label>
+                    );
+                  })}
                 </div>
               </div>
             )}

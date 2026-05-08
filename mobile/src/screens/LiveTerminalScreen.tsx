@@ -248,7 +248,7 @@ export function LiveTerminalScreen({ navigation }: any) {
       <View style={styles.card}>
         <Text style={styles.sectionEyebrow}>COMPLIANCE QUEUE</Text>
         {data.compliance_queue.length === 0 ? (
-          <Text style={styles.complianceClear}>{'>'} Compliance{'\n'}No pending actions. You're all clear.</Text>
+          <Text style={styles.complianceClear}>{'>'} All clear{'\n'}No pending compliance actions.</Text>
         ) : (
           data.compliance_queue.map((item, i) => (
             <View key={item.id || i} style={[styles.queueRow, { borderLeftColor: PRIORITY_COLOR[item.priority] ?? '#4a4f65' }]}>
