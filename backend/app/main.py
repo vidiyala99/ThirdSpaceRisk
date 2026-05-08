@@ -15,7 +15,7 @@ from app.agents.vision_agent import analyze_image, analyze_video_keyframes
 from app.agents.corroboration_agent import corroborate
 from app.schemas import Incident, IncidentCreate, IncidentFlowResponse, LiveVenueState, StreamEvent
 from app.seed_data import KNOWLEDGE_SOURCES, SEED_INCIDENTS, STREAM_EVENTS, VENUES
-from app.database import create_db_and_tables, get_session
+from app.database import create_db_and_tables, get_session, engine
 from app.live_state import live_state_manager
 from app.models import AuditEvent, EvidenceAnalysis, EvidenceFile, IncidentRecord, ReviewDecision, SourceRecord, UnderwritingPacket, Venue, UserRecord
 from app.packet_core import create_packet_snapshot, record_review_decision, record_packet_opened
