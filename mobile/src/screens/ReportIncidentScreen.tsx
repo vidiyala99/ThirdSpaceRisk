@@ -50,7 +50,7 @@ export function ReportIncidentScreen() {
     police_called: false,
     ems_called: false,
   });
-  const [occurredAt, setOccurredAt] = useState<Date>(new Date());
+  const [occurredAt, setOccurredAt] = useState<Date | null>(null);
   // Android needs a two-step picker: date first, then time
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
@@ -76,7 +76,7 @@ export function ReportIncidentScreen() {
       setShowDatePicker(false);
       if (event.type === 'set' && selected) {
         // Preserve existing time, just update date portion
-        const next = new Date(occurredAt);
+        const next = new Date(occurredAt ?? new Date());
         next.setFullYear(selected.getFullYear(), selected.getMonth(), selected.getDate());
         setOccurredAt(next);
         // Now show the time picker
@@ -91,7 +91,7 @@ export function ReportIncidentScreen() {
   function onTimeChange(event: DateTimePickerEvent, selected?: Date) {
     setShowTimePicker(false);
     if (event.type === 'set' && selected) {
-      const next = new Date(occurredAt);
+      const next = new Date(occurredAt ?? new Date());
       next.setHours(selected.getHours(), selected.getMinutes(), 0, 0);
       setOccurredAt(next);
     }
@@ -131,7 +131,7 @@ export function ReportIncidentScreen() {
         method: 'POST',
         body: JSON.stringify({
           ...form,
-          occurred_at: occurredAt.toISOString(),
+          occurred_at: (occurredAt ?? new Date()).toISOString(),
           footage_links: allLinks,
         }),
       });
@@ -152,7 +152,7 @@ export function ReportIncidentScreen() {
         police_called: false,
         ems_called: false,
       });
-      setOccurredAt(new Date());
+      setOccurredAt(null);
       setImages([]);
       setFootageLink('');
       setEvidenceLinks([]);
@@ -187,7 +187,9 @@ export function ReportIncidentScreen() {
             style={({ pressed }) => [styles.input, styles.dateTimeField, pressed && styles.dateTimeFieldPressed]}
             onPress={onPressDateTimeField}
           >
-            <Text style={styles.dateTimeText}>{formatDateTime(occurredAt)}</Text>
+            <Text style={[styles.dateTimeText, !occurredAt && { color: '#2e3247' }]}>
+              {occurredAt ? formatDateTime(occurredAt) : 'mm/dd/yy hh:mm:ss'}
+            </Text>
             <Text style={styles.dateTimeChevron}>›</Text>
           </Pressable>
 
@@ -195,7 +197,7 @@ export function ReportIncidentScreen() {
           {showDatePicker && Platform.OS === 'ios' && (
             <View style={styles.iosPickerCard}>
               <DateTimePicker
-                value={occurredAt}
+                value={occurredAt ?? new Date()}
                 mode="datetime"
                 display="spinner"
                 onChange={(event, selected) => {
@@ -213,7 +215,7 @@ export function ReportIncidentScreen() {
           {/* Android: date step */}
           {showDatePicker && Platform.OS === 'android' && (
             <DateTimePicker
-              value={occurredAt}
+              value={occurredAt ?? new Date()}
               mode="date"
               display="default"
               onChange={onDateChange}
@@ -223,7 +225,7 @@ export function ReportIncidentScreen() {
           {/* Android: time step */}
           {showTimePicker && Platform.OS === 'android' && (
             <DateTimePicker
-              value={occurredAt}
+              value={occurredAt ?? new Date()}
               mode="time"
               display="default"
               is24Hour
