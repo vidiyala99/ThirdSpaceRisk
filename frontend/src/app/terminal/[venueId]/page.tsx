@@ -374,7 +374,7 @@ export default function VenueTerminalPage() {
                 )}
               </div>
             </section>
-            </div>{/* end left column */}
+            </div>
 
             {/* Right column: Premium + Coverage + Infrastructure */}
             <div className="flex flex-col gap-lg">
@@ -458,8 +458,8 @@ export default function VenueTerminalPage() {
                   )}
                 </div>
               </section>
-            </div>{/* end right column */}
-          </div>{/* end merged grid */}
+            </div>
+          </div>
         ) : null}
 
       </div>
