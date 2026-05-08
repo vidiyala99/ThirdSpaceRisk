@@ -187,8 +187,30 @@ export function DashboardScreen({ navigation }: any) {
         </View>
       </View>
 
-      {/* Empty state for new venue operators */}
-      {!riskData && !quoteData && (
+      {/* Error state — venue exists but data failed to load */}
+      {!riskData && !quoteData && fetchError && (
+        <View style={styles.errorCard}>
+          <View style={styles.errorIconRow}>
+            <View style={styles.errorIconBadge}>
+              <Text style={styles.errorIconText}>!</Text>
+            </View>
+            <Text style={styles.errorEyebrow}>FAILED TO LOAD</Text>
+          </View>
+          <Text style={styles.errorHeading}>Couldn't load venue data</Text>
+          <Text style={styles.errorBody}>
+            Your venue is set up but we hit a snag fetching your risk profile. This is usually temporary.
+          </Text>
+          <Pressable
+            style={({ pressed }) => [styles.retryBtn, pressed && { opacity: 0.8 }]}
+            onPress={() => { setLoading(true); fetchData(); }}
+          >
+            <Text style={styles.retryBtnText}>Try again →</Text>
+          </Pressable>
+        </View>
+      )}
+
+      {/* Empty state — no venue set up yet */}
+      {!riskData && !quoteData && !fetchError && (
         <Pressable
           style={({ pressed }) => [styles.emptyCard, pressed && { opacity: 0.8 }]}
           onPress={() => navigation.navigate('VenueSetup')}
@@ -198,9 +220,6 @@ export function DashboardScreen({ navigation }: any) {
           <Text style={styles.emptyBody}>
             Tap to add your venue details and generate your first risk profile and premium quote.
           </Text>
-          {fetchError && (
-            <Text style={styles.emptyError}>{fetchError}</Text>
-          )}
           <Text style={styles.emptyAction}>Get started →</Text>
         </Pressable>
       )}
@@ -420,6 +439,75 @@ const styles = StyleSheet.create({
     fontFamily: 'JetBrainsMono_700Bold',
   },
 
+  // Error state
+  errorCard: {
+    backgroundColor: 'rgba(255,69,87,0.06)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,69,87,0.2)',
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 12,
+    gap: 10,
+  },
+  errorIconRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  errorIconBadge: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: 'rgba(255,69,87,0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,69,87,0.3)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  errorIconText: {
+    color: '#ff4557',
+    fontSize: 14,
+    fontWeight: '800',
+    fontFamily: 'JetBrainsMono_700Bold',
+    lineHeight: 16,
+  },
+  errorEyebrow: {
+    color: '#ff4557',
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 2,
+    fontFamily: 'JetBrainsMono_700Bold',
+  },
+  errorHeading: {
+    color: '#eeeef5',
+    fontSize: 18,
+    fontWeight: '700',
+    letterSpacing: -0.5,
+    fontFamily: 'CormorantGaramond_700Bold',
+  },
+  errorBody: {
+    color: '#8b90a8',
+    fontSize: 13,
+    lineHeight: 20,
+    fontFamily: 'DMSans_400Regular',
+  },
+  retryBtn: {
+    alignSelf: 'flex-start',
+    borderWidth: 1,
+    borderColor: 'rgba(255,69,87,0.35)',
+    borderRadius: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    marginTop: 2,
+  },
+  retryBtnText: {
+    color: '#ff4557',
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: 1,
+    fontFamily: 'JetBrainsMono_700Bold',
+  },
+
   // Empty state
   emptyCard: {
     backgroundColor: '#0d0f1c',
@@ -449,12 +537,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 20,
     fontFamily: 'DMSans_400Regular',
-  },
-  emptyError: {
-    color: '#ff4557',
-    fontSize: 11,
-    fontFamily: 'JetBrainsMono_400Regular',
-    marginTop: 4,
   },
   emptyAction: {
     color: '#c8f000',
