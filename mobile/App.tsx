@@ -8,7 +8,7 @@ import { useFonts } from 'expo-font';
 
 import {
   CormorantGaramond_700Bold,
-  CormorantGaramond_600SemiBoldItalic,
+  CormorantGaramond_600SemiBold_Italic,
 } from '@expo-google-fonts/cormorant-garamond';
 
 import {
@@ -46,7 +46,7 @@ function RootNavigator() {
 export default function App() {
   const [fontsLoaded] = useFonts({
     CormorantGaramond_700Bold,
-    CormorantGaramond_600SemiBoldItalic,
+    CormorantGaramond_600SemiBold_Italic,
     DMSans_400Regular,
     DMSans_500Medium,
     DMSans_600SemiBold,

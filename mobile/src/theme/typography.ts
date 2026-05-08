@@ -10,7 +10,7 @@
 export const Fonts = {
   // Display — editorial headings (wordmark, hero, venue names)
   displayBold:    'CormorantGaramond_700Bold',
-  displayItalic:  'CormorantGaramond_600SemiBoldItalic',
+  displayItalic:  'CormorantGaramond_600SemiBold_Italic',
 
   // Body — all UI text, labels, buttons
   sansRegular:    'DMSans_400Regular',
