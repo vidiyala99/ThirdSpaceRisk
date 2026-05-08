@@ -14,6 +14,8 @@ import { CapacityBar } from '../components/CapacityBar';
 interface InfraItem {
   name: string;
   status: string;
+  detail?: string;
+  is_degraded?: boolean;
 }
 
 interface QueueItem {
@@ -73,11 +75,15 @@ export function LiveTerminalScreen() {
         infra = raw.infrastructure.map((item: any) => ({
           name: String(item.name ?? ''),
           status: String(item.status ?? ''),
+          detail: item.detail ? String(item.detail) : undefined,
+          is_degraded: Boolean(item.is_degraded),
         }));
       } else if (raw.infrastructure && typeof raw.infrastructure === 'object') {
         infra = Object.entries(raw.infrastructure).map(([key, val]: [string, any]) => ({
           name: typeof val === 'object' ? String(val.name ?? key) : key,
           status: typeof val === 'object' ? String(val.status ?? val) : String(val),
+          detail: typeof val === 'object' && val.detail ? String(val.detail) : undefined,
+          is_degraded: typeof val === 'object' ? Boolean(val.is_degraded) : false,
         }));
       }
       // Normalize compliance queue — API uses title/severity, UI uses action/priority
@@ -132,6 +138,17 @@ export function LiveTerminalScreen() {
         </View>
       </View>
 
+      {/* Savings hero — operator value prop */}
+      {quoteData?.savings_annual > 0 && (
+        <View style={styles.savingsCard}>
+          <Text style={styles.savingsEyebrow}>THIRD SPACE SAVES YOU</Text>
+          <Text style={styles.savingsAmount}>${quoteData.savings_annual.toLocaleString()}<Text style={styles.savingsPerYear}>/yr</Text></Text>
+          <Text style={styles.savingsSub}>
+            vs. market rate of ${quoteData.market_rate_annual?.toLocaleString()} — {quoteData.savings_pct}% discount through evidence-first underwriting
+          </Text>
+        </View>
+      )}
+
       {/* Risk Score + Premium */}
       {riskData && (
         <View style={styles.statsRow}>
@@ -171,15 +188,22 @@ export function LiveTerminalScreen() {
 
       {data.infrastructure.length > 0 && (
         <View style={styles.card}>
-          <Text style={styles.sectionEyebrow}>INFRASTRUCTURE</Text>
+          <Text style={styles.sectionEyebrow}>INFRASTRUCTURE SYNC</Text>
+          {data.infrastructure.some(i => i.is_degraded) && (
+            <View style={styles.degradedWarning}>
+              <Text style={styles.degradedWarningText}>⚠ Degraded systems weaken your claims defense. Upload footage or repair feeds before your next event.</Text>
+            </View>
+          )}
           {data.infrastructure.map((item, i) => {
             const statusLower = item.status.toLowerCase();
-            const dotColor = STATUS_DOT[statusLower] ?? '#4a4f65';
+            const dotColor = item.is_degraded ? '#ff9500' : (STATUS_DOT[statusLower] ?? '#4a4f65');
             return (
-              <View key={i} style={styles.infraRow}>
+              <View key={i} style={[styles.infraRow, item.is_degraded && styles.infraRowDegraded]}>
                 <View style={[styles.infraDot, { backgroundColor: dotColor }]} />
-                <Text style={styles.infraName}>{item.name.replace(/_/g, ' ')}</Text>
-                <Text style={[styles.infraStatus, { color: dotColor }]}>{item.status.toUpperCase()}</Text>
+                <Text style={styles.infraName}>{item.name}</Text>
+                <Text style={[styles.infraStatus, { color: dotColor }]}>
+                  {item.detail ? `${item.status.toUpperCase()} [${item.detail}]` : item.status.toUpperCase()}
+                </Text>
               </View>
             );
           })}
@@ -199,6 +223,26 @@ export function LiveTerminalScreen() {
               </View>
             </View>
           ))}
+        </View>
+      )}
+
+      {/* Coverage breakdown */}
+      {quoteData?.coverage_breakdown && (
+        <View style={styles.card}>
+          <Text style={styles.sectionEyebrow}>COVERAGE</Text>
+          {Object.entries(quoteData.coverage_breakdown).map(([key, val]: [string, any]) => {
+            const isIncluded = val.included === true;
+            const isOptional = val.optional === true;
+            const label = key.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase());
+            const statusText = isIncluded ? 'INCLUDED' : isOptional ? 'OPTIONAL' : '—';
+            const statusColor = isIncluded ? '#c8f000' : '#4a4f65';
+            return (
+              <View key={key} style={styles.coverageRow}>
+                <Text style={styles.coverageName}>{label}</Text>
+                <Text style={[styles.coverageStatus, { color: statusColor }]}>{statusText}</Text>
+              </View>
+            );
+          })}
         </View>
       )}
     </ScrollView>
@@ -227,6 +271,40 @@ const styles = StyleSheet.create({
   liveDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#c8f000' },
   liveText: { color: '#c8f000', fontSize: 10, fontWeight: '700', letterSpacing: 1.5, fontFamily: 'JetBrainsMono_700Bold' },
   signOut: { color: '#8b90a8', fontSize: 10, fontWeight: '700', letterSpacing: 1.5, fontFamily: 'JetBrainsMono_700Bold' },
+
+  savingsCard: {
+    backgroundColor: 'rgba(200,240,0,0.05)',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(200,240,0,0.2)',
+    borderRadius: 14,
+    padding: 16,
+    gap: 6,
+  },
+  savingsEyebrow: { color: '#8b90a8', fontSize: 10, fontWeight: '700', letterSpacing: 2, fontFamily: 'JetBrainsMono_700Bold' },
+  savingsAmount: { color: '#c8f000', fontSize: 36, fontWeight: '800', letterSpacing: -1, fontFamily: 'JetBrainsMono_700Bold' },
+  savingsPerYear: { color: '#8b90a8', fontSize: 16, fontWeight: '400', fontFamily: 'DMSans_400Regular' },
+  savingsSub: { color: '#8b90a8', fontSize: 12, lineHeight: 18, fontFamily: 'JetBrainsMono_400Regular' },
+
+  degradedWarning: {
+    backgroundColor: 'rgba(255,149,0,0.08)',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255,149,0,0.3)',
+    borderRadius: 8,
+    padding: 10,
+  },
+  degradedWarningText: { color: '#ff9500', fontSize: 12, lineHeight: 17, fontFamily: 'JetBrainsMono_400Regular' },
+  infraRowDegraded: { backgroundColor: 'rgba(255,149,0,0.04)', borderRadius: 6, paddingHorizontal: 6 },
+
+  coverageRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 10,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: 'rgba(255,255,255,0.05)',
+  },
+  coverageName: { color: '#8b90a8', fontSize: 14, fontFamily: 'DMSans_400Regular' },
+  coverageStatus: { fontSize: 11, fontWeight: '700', letterSpacing: 1, fontFamily: 'JetBrainsMono_700Bold' },
 
   statsRow: { flexDirection: 'row', gap: 10 },
   statCard: {
