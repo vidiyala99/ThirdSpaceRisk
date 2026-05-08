@@ -1,12 +1,23 @@
 """
 Vision Agent — analyzes uploaded images and video keyframes.
 
-Current mode: deterministic stub returning realistic structured output.
-Production: swap _call_vision_model() to use Claude Vision API.
+Primary path: Gemini 2.5 Flash with native image/video input (REST, no SDK)
+when GEMINI_API_KEY is configured.
+Fallback: deterministic template based on incident keywords. Used when no
+key is set, file is too large for inline upload, or the API call fails.
 """
 
+import logging
+import mimetypes
+import os
 from dataclasses import dataclass
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
+
+# Gemini inline data has a hard limit around 20MB after base64 encoding.
+# Stay well under to leave headroom for the JSON envelope and prompt.
+_MAX_INLINE_BYTES = 15 * 1024 * 1024
 
 
 @dataclass
@@ -24,25 +35,161 @@ class VisionFinding:
     raw_description: str
 
 
-def _evidence_strength(injury_observed: bool, police_called: bool, ems_called: bool = False) -> float:
-    """Calculate confidence delta based on how many corroborating flags are present."""
-    flags = sum([injury_observed, police_called, ems_called])
-    return round(0.04 + (flags * 0.03), 2)  # 0.04 base, +0.03 per flag → range: 0.04–0.13
+# ── Gemini Vision integration ──────────────────────────────────────────────
+
+_VISION_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "incident_indicators": {"type": "array", "items": {"type": "string"}},
+        "injury_detail": {"type": "string"},
+        "crowd_density": {"type": "string", "enum": ["low", "moderate", "high"]},
+        "security_present": {"type": "boolean"},
+        "environmental_hazards": {"type": "array", "items": {"type": "string"}},
+        "corroboration": {
+            "type": "string",
+            "enum": ["CONSISTENT", "PARTIAL", "CONTRADICTED", "INCONCLUSIVE"],
+        },
+        "raw_description": {"type": "string"},
+    },
+    "required": [
+        "incident_indicators",
+        "injury_detail",
+        "crowd_density",
+        "security_present",
+        "environmental_hazards",
+        "corroboration",
+        "raw_description",
+    ],
+}
 
 
-def analyze_image(
-    file_path: str,
+def _build_vision_prompt(
     incident_summary: str,
     incident_location: str,
     injury_observed: bool,
     police_called: bool,
-    ems_called: bool = False,
+    ems_called: bool,
+    is_video: bool,
+) -> str:
+    media = "video" if is_video else "image"
+    return f"""You are a vision analyst for Third Space Risk, an underwriting system for nightlife venues.
+Analyze this {media} from a venue incident report and return structured findings.
+
+Incident report:
+- Summary: {incident_summary}
+- Location: {incident_location}
+- Injury reported: {injury_observed}
+- Police called: {police_called}
+- EMS called: {ems_called}
+
+Examine the visual evidence and judge whether it corroborates the report.
+Be strictly factual — describe only what is actually visible. Do not speculate
+about identity, intent, or events outside the frame.
+
+Required fields:
+- incident_indicators: short phrases describing visible things tied to the incident
+- injury_detail: visible injuries, or "No visible injuries"
+- crowd_density: "low" | "moderate" | "high"
+- security_present: true if uniformed security or venue staff are visible
+- environmental_hazards: visible hazards (wet floor, broken glass, smoke, etc.)
+- corroboration: CONSISTENT (visual matches report) / PARTIAL (some elements match) /
+  CONTRADICTED (visual contradicts report) / INCONCLUSIVE (cannot tell)
+- raw_description: 2-3 sentence neutral description of what you see"""
+
+
+def _call_gemini_vision(file_path: str, mime_type: str, prompt: str) -> dict:
+    """POST the file to Gemini 2.5 Flash. Raises on any failure."""
+    import base64
+    import json
+
+    import httpx
+
+    api_key = os.getenv("GEMINI_API_KEY")
+    if not api_key:
+        raise RuntimeError("GEMINI_API_KEY not configured")
+
+    file_size = Path(file_path).stat().st_size
+    if file_size > _MAX_INLINE_BYTES:
+        raise RuntimeError(f"File too large for inline upload ({file_size} bytes)")
+
+    with open(file_path, "rb") as f:
+        b64 = base64.b64encode(f.read()).decode("ascii")
+
+    url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent"
+    payload = {
+        "contents": [
+            {
+                "role": "user",
+                "parts": [
+                    {"inline_data": {"mime_type": mime_type, "data": b64}},
+                    {"text": prompt},
+                ],
+            }
+        ],
+        "generationConfig": {
+            "maxOutputTokens": 1024,
+            "temperature": 0.2,
+            "responseMimeType": "application/json",
+            "responseSchema": _VISION_SCHEMA,
+        },
+    }
+
+    with httpx.Client(timeout=90.0) as client:
+        response = client.post(url, json=payload, headers={"x-goog-api-key": api_key})
+        response.raise_for_status()
+        data = response.json()
+
+    text = data["candidates"][0]["content"]["parts"][0]["text"]
+    return json.loads(text)
+
+
+def _delta_from_verdict(verdict: str, injury_observed: bool, police_called: bool, ems_called: bool) -> float:
+    """Map LLM verdict + corroborating flags to a confidence delta in [-0.05, 0.13]."""
+    base = {"CONSISTENT": 0.10, "PARTIAL": 0.05, "CONTRADICTED": -0.05, "INCONCLUSIVE": 0.01}.get(verdict, 0.01)
+    flag_bonus = sum([injury_observed, police_called, ems_called]) * 0.01
+    return round(base + flag_bonus, 2)
+
+
+def _gemini_finding_to_dataclass(
+    parsed: dict, injury_observed: bool, police_called: bool, ems_called: bool
 ) -> VisionFinding:
-    """
-    Analyze an uploaded image against the incident report.
-    Stub: returns realistic structured output based on incident characteristics.
-    Production: call Claude Vision API with the image bytes.
-    """
+    return VisionFinding(
+        incident_indicators=parsed.get("incident_indicators", []),
+        injury_detail=parsed.get("injury_detail", "No visible injuries"),
+        crowd_density=parsed.get("crowd_density", "moderate"),
+        security_present=bool(parsed.get("security_present", False)),
+        # These two are deliberately unset — VLM cannot reliably read EXIF/seconds
+        security_response_seconds=None,
+        environmental_hazards=parsed.get("environmental_hazards", []),
+        timestamp_in_exif=None,
+        timestamp_matches_report=True,
+        corroboration=parsed.get("corroboration", "INCONCLUSIVE"),
+        confidence_delta=_delta_from_verdict(
+            parsed.get("corroboration", "INCONCLUSIVE"), injury_observed, police_called, ems_called
+        ),
+        raw_description=parsed.get("raw_description", ""),
+    )
+
+
+def _detect_mime_type(file_path: str, fallback: str) -> str:
+    guessed, _ = mimetypes.guess_type(file_path)
+    return guessed or fallback
+
+
+def _evidence_strength(injury_observed: bool, police_called: bool, ems_called: bool = False) -> float:
+    """Calculate confidence delta for the deterministic fallback."""
+    flags = sum([injury_observed, police_called, ems_called])
+    return round(0.04 + (flags * 0.03), 2)
+
+
+def _template_finding(
+    incident_summary: str,
+    incident_location: str,
+    injury_observed: bool,
+    police_called: bool,
+    ems_called: bool,
+) -> VisionFinding:
+    """Deterministic fallback when Gemini is unavailable or fails."""
     summary_lower = incident_summary.lower()
     delta = _evidence_strength(injury_observed, police_called, ems_called)
 
@@ -60,6 +207,31 @@ def analyze_image(
         return _general_finding(incident_location)
 
 
+def analyze_image(
+    file_path: str,
+    incident_summary: str,
+    incident_location: str,
+    injury_observed: bool,
+    police_called: bool,
+    ems_called: bool = False,
+) -> VisionFinding:
+    """
+    Analyze an uploaded image against the incident report.
+    Tries Gemini 2.5 Flash first; falls back to a deterministic template
+    if no key is configured, the file is too large, or the API errors.
+    """
+    try:
+        prompt = _build_vision_prompt(
+            incident_summary, incident_location, injury_observed, police_called, ems_called, is_video=False
+        )
+        mime = _detect_mime_type(file_path, fallback="image/jpeg")
+        parsed = _call_gemini_vision(file_path, mime, prompt)
+        return _gemini_finding_to_dataclass(parsed, injury_observed, police_called, ems_called)
+    except Exception as exc:
+        logger.warning("Gemini vision (image) failed: %s; using template fallback.", exc.__class__.__name__)
+        return _template_finding(incident_summary, incident_location, injury_observed, police_called, ems_called)
+
+
 def analyze_video_keyframes(
     file_path: str,
     incident_summary: str,
@@ -69,23 +241,19 @@ def analyze_video_keyframes(
     ems_called: bool = False,
 ) -> VisionFinding:
     """
-    Analyze video by extracting keyframes and analyzing each.
-    Stub: returns realistic timeline-based output.
-    Production: use ffmpeg to extract frames, then Claude Vision per frame.
+    Analyze a video against the incident report. Gemini 2.5 Flash accepts
+    video inline (under ~20MB); larger files fall back to the template.
     """
-    summary_lower = incident_summary.lower()
-    base = analyze_image(file_path, incident_summary, incident_location, injury_observed, police_called, ems_called)
-
-    # Video adds timeline dimension to findings
-    if any(k in summary_lower for k in ["brawl", "fight", "altercation"]):
-        base.raw_description = (
-            f"Video analysis — 3 keyframes extracted. "
-            f"Frame 1 (0:00): Normal activity at {incident_location}. "
-            f"Frame 2 (0:42): Physical altercation begins, 2 individuals involved. "
-            f"Frame 3 (1:15): Security staff intervene. Incident contained. "
-            f"Total visible duration: ~90 seconds."
+    try:
+        prompt = _build_vision_prompt(
+            incident_summary, incident_location, injury_observed, police_called, ems_called, is_video=True
         )
-    return base
+        mime = _detect_mime_type(file_path, fallback="video/mp4")
+        parsed = _call_gemini_vision(file_path, mime, prompt)
+        return _gemini_finding_to_dataclass(parsed, injury_observed, police_called, ems_called)
+    except Exception as exc:
+        logger.warning("Gemini vision (video) failed: %s; using template fallback.", exc.__class__.__name__)
+        return _template_finding(incident_summary, incident_location, injury_observed, police_called, ems_called)
 
 
 # ── Stub finding templates ─────────────────────────────────────────────────
