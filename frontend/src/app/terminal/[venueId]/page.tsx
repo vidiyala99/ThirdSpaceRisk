@@ -387,7 +387,7 @@ export default function VenueTerminalPage() {
           </div>
         ) : null}
 
-        <div className="grid grid-cols-2 gap-2xl">
+        <div className="grid grid-cols-2 gap-2xl items-start">
           {/* Compliance Queue */}
           <section>
             <div className="flex justify-between items-center border-b border-subtle pb-md mb-lg" style={{ borderColor: (liveState.compliance_queue?.length ?? 0) > 0 ? "rgba(255,60,60,0.3)" : undefined }}>
