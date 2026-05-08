@@ -97,22 +97,31 @@ async def lifespan(app: FastAPI):
             if not session.get(Venue, venue_id):
                 session.add(Venue(id=venue_id, name=venue_data["name"]))
         session.commit()
-        # Rehydrate USERS_DB from persisted user records
-        from app.auth import USERS_DB, _user_record_to_dict, USER_COUNTER
+        # Seed demo users into DB if not already present
+        from app.auth import DEMO_USERS, create_password_hash
         import app.auth as _auth
-        db_users = session.exec(select(UserRecord)).all()
-        max_counter = 3
-        for u in db_users:
-            if u.id not in USERS_DB:
-                USERS_DB[u.id] = _user_record_to_dict(u)
-                print(f"[REHYDRATE] Loaded user {u.id} from DB")
+        for demo in DEMO_USERS:
+            if not session.get(UserRecord, demo["id"]):
+                session.add(UserRecord(
+                    id=demo["id"],
+                    email=demo["email"],
+                    password_hash=create_password_hash(demo["password"]),
+                    name=demo["name"],
+                    role=demo["role"],
+                    tenant_id=demo["tenant_id"],
+                ))
+        session.commit()
+        # Sync USER_COUNTER to highest persisted user number
+        all_users = session.exec(select(UserRecord)).all()
+        max_counter = len(DEMO_USERS) + 1
+        for u in all_users:
             try:
                 num = int(u.id.split("_")[1])
                 if num >= max_counter:
                     max_counter = num + 1
             except Exception:
                 pass
-        _auth.USER_COUNTER = max(max_counter, _auth.USER_COUNTER)
+        _auth.USER_COUNTER = max_counter
 
         # Rehydrate VENUES from any API-created venues stored in the DB
         import json as _json
