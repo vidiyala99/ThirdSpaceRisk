@@ -11,6 +11,7 @@ import { IncidentsStack } from './IncidentsStack';
 
 // Broker screens
 import { BrokerReportsScreen } from '../screens/BrokerReportsScreen';
+import { BrokerComplianceScreen } from '../screens/BrokerComplianceScreen';
 import { PortfolioStack } from './PortfolioStack';
 
 const Tab = createBottomTabNavigator();
@@ -23,9 +24,10 @@ const VENUE_ICONS: Record<string, { active: string; inactive: string }> = {
 };
 
 const BROKER_ICONS: Record<string, { active: string; inactive: string }> = {
-  Portfolio: { active: '◈', inactive: '◇' },
-  Reports:   { active: '⊞', inactive: '⊟' },
-  Incidents: { active: '◉', inactive: '○' },
+  Portfolio:   { active: '◈', inactive: '◇' },
+  Reports:     { active: '⊞', inactive: '⊟' },
+  Incidents:   { active: '◉', inactive: '○' },
+  Compliance:  { active: '✓', inactive: '○' },
 };
 
 function TabIcon({ name, focused, isReport }: { name: string; focused: boolean; isReport?: boolean }) {
@@ -101,6 +103,7 @@ function BrokerTabs() {
       <Tab.Screen name="Portfolio" component={PortfolioStack} />
       <Tab.Screen name="Reports" component={BrokerReportsScreen} />
       <Tab.Screen name="Incidents" component={IncidentsStack} />
+      <Tab.Screen name="Compliance" component={BrokerComplianceScreen} />
     </Tab.Navigator>
   );
 }
