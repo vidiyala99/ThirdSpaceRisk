@@ -100,7 +100,7 @@ function BrokerTabs() {
     })}>
       <Tab.Screen name="Portfolio" component={PortfolioStack} />
       <Tab.Screen name="Reports" component={BrokerReportsScreen} />
-      <Tab.Screen name="Incidents" component={IncidentListScreen} />
+      <Tab.Screen name="Incidents" component={IncidentsStack} />
     </Tab.Navigator>
   );
 }

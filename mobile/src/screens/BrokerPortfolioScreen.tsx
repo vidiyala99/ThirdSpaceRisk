@@ -19,16 +19,32 @@ const TIER_COLOR: Record<string, string> = {
   D: '#ff4557',
 };
 
+interface PortfolioVenue {
+  id: string;
+  name: string;
+  venue_type: string;
+  address: string;
+  capacity: number;
+  current_capacity: number;
+  renewal_date: string;
+  current_carrier: string;
+  tier: string;
+  total_score: number;
+  open_incidents: number;
+  compliance_actions: number;
+  has_degraded_infra: boolean;
+}
+
 export function BrokerPortfolioScreen({ navigation }: any) {
   const { user, signOut } = useAuth();
   const insets = useSafeAreaInsets();
-  const [venues, setVenues] = useState<any[]>([]);
+  const [venues, setVenues] = useState<PortfolioVenue[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
   const fetchPortfolio = useCallback(async () => {
     try {
-      const data = await api.request<any[]>('/api/portfolio');
+      const data = await api.request<PortfolioVenue[]>('/api/portfolio');
       setVenues(data);
     } catch {
       // keep stale
@@ -49,13 +65,12 @@ export function BrokerPortfolioScreen({ navigation }: any) {
   }
 
   const totalVenues = venues.length;
-  const avgScore = venues.length
-    ? Math.round(venues.reduce((s, v) => s + (v.risk_score?.total_score ?? 0), 0) / venues.length)
-    : 0;
-  const pendingReviews = venues.reduce((s, v) => s + (v.open_incident_count ?? 0), 0);
+  const openIncidents = venues.reduce((s, v) => s + (v.open_incidents ?? 0), 0);
+  const complianceActions = venues.reduce((s, v) => s + (v.compliance_actions ?? 0), 0);
 
   return (
     <View style={styles.root}>
+      {/* Header */}
       <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
         <View>
           <Text style={styles.name}>{user?.name}</Text>
@@ -64,20 +79,21 @@ export function BrokerPortfolioScreen({ navigation }: any) {
         <Text style={styles.signOut} onPress={signOut} accessibilityRole="button">SIGN OUT</Text>
       </View>
 
+      {/* Stats bar: 3 cards */}
       <View style={styles.statsRow}>
         <View style={styles.statCard}>
           <Text style={styles.statNum}>{totalVenues}</Text>
-          <Text style={styles.statLabel}>VENUES</Text>
+          <Text style={styles.statLabel}>TOTAL VENUES</Text>
         </View>
         <View style={styles.statCard}>
-          <Text style={[styles.statNum, { color: '#c8f000' }]}>{avgScore}</Text>
-          <Text style={styles.statLabel}>AVG SCORE</Text>
-        </View>
-        <View style={styles.statCard}>
-          <Text style={[styles.statNum, { color: pendingReviews > 0 ? '#ff9500' : '#c8f000' }]}>
-            {pendingReviews}
+          <Text style={[styles.statNum, openIncidents > 0 && styles.statNumRed]}>
+            {openIncidents}
           </Text>
-          <Text style={styles.statLabel}>OPEN INC.</Text>
+          <Text style={styles.statLabel}>OPEN INCIDENTS</Text>
+        </View>
+        <View style={styles.statCard}>
+          <Text style={styles.statNum}>{complianceActions}</Text>
+          <Text style={styles.statLabel}>COMPLIANCE ACTIONS</Text>
         </View>
       </View>
 
@@ -85,50 +101,107 @@ export function BrokerPortfolioScreen({ navigation }: any) {
 
       <FlatList
         data={venues}
-        keyExtractor={item => item.venue_id ?? item.id}
+        keyExtractor={item => item.id}
         contentContainerStyle={styles.list}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchPortfolio(); }} tintColor="#c8f000" />}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={() => { setRefreshing(true); fetchPortfolio(); }}
+            tintColor="#c8f000"
+          />
+        }
         renderItem={({ item }) => {
-          const tier = item.risk_score?.tier ?? item.tier ?? '—';
-          const score = item.risk_score?.total_score ?? item.total_score ?? 0;
+          const tier = item.tier ?? '—';
+          const score = item.total_score ?? 0;
           const tierColor = TIER_COLOR[tier] ?? '#4a4f65';
-          const capacity = item.live?.current_capacity ?? 0;
-          const maxCapacity = item.live?.max_capacity ?? 0;
-          const capacityPct = maxCapacity > 0 ? capacity / maxCapacity : 0;
+          const capacity = item.current_capacity ?? 0;
+          const maxCapacity = item.capacity ?? 0;
+          const capacityPct = maxCapacity > 0 ? Math.min(capacity / maxCapacity, 1) : 0;
+          const capacityBarColor =
+            capacityPct > 0.85 ? '#ff4557' : capacityPct > 0.6 ? '#ff9500' : '#c8f000';
+
+          const venueTypeLabel = (item.venue_type ?? '').replace(/_/g, ' ').toUpperCase();
 
           return (
             <Pressable
-              style={({ pressed }) => [styles.venueCard, { borderLeftColor: tierColor }, pressed && { opacity: 0.75 }]}
-              onPress={() => navigation.navigate('VenueDetail', { venueId: item.venue_id ?? item.id, venueName: item.name ?? item.venue_id })}
+              style={({ pressed }) => [
+                styles.venueCard,
+                { borderLeftColor: tierColor },
+                pressed && { opacity: 0.75 },
+              ]}
+              onPress={() =>
+                navigation.navigate('VenueDetail', {
+                  venueId: item.id,
+                  venueName: item.name ?? item.id,
+                })
+              }
             >
-              <View style={styles.venueHeader}>
-                <View style={styles.venueInfo}>
-                  <Text style={styles.venueName}>{item.name ?? item.venue_id}</Text>
-                  <Text style={styles.venueType}>{(item.venue_type ?? '').replace(/_/g, ' ').toUpperCase()}</Text>
-                </View>
-                <View style={styles.tierBadge}>
-                  <Text style={[styles.tierLetter, { color: tierColor }]}>{tier}</Text>
-                  <Text style={[styles.tierScore, { color: tierColor }]}>{score}</Text>
+              {/* Venue type label */}
+              <Text style={[styles.venueTypeLabel, { color: tierColor }]}>
+                {venueTypeLabel}
+              </Text>
+
+              {/* Venue name */}
+              <Text style={styles.venueName}>{item.name}</Text>
+
+              {/* Address */}
+              {!!item.address && (
+                <Text style={styles.venueAddress} numberOfLines={1}>
+                  · {item.address}
+                </Text>
+              )}
+
+              {/* Score row */}
+              <View style={styles.scoreRow}>
+                <Text style={styles.scoreLarge}>
+                  <Text style={{ color: '#eeeef5' }}>{score}</Text>
+                  <Text style={styles.scoreOf}>/100</Text>
+                </Text>
+                <View style={[styles.tierPill, { borderColor: tierColor }]}>
+                  <Text style={[styles.tierPillText, { color: tierColor }]}>Tier {tier}</Text>
                 </View>
               </View>
 
+              {/* Live capacity */}
               {maxCapacity > 0 && (
-                <View style={styles.capacityRow}>
-                  <View style={styles.capacityTrack}>
-                    <View style={[styles.capacityFill, {
-                      width: `${capacityPct * 100}%` as any,
-                      backgroundColor: capacityPct > 0.85 ? '#ff4557' : capacityPct > 0.6 ? '#ff9500' : '#c8f000',
-                    }]} />
+                <View style={styles.capacitySection}>
+                  <View style={styles.capacityLabelRow}>
+                    <Text style={styles.capacityHeading}>LIVE CAPACITY</Text>
+                    <Text style={styles.capacityNumbers}>{capacity} / {maxCapacity}</Text>
                   </View>
-                  <Text style={styles.capacityLabel}>{capacity} / {maxCapacity} pax</Text>
+                  <View style={styles.capacityTrack}>
+                    <View
+                      style={[
+                        styles.capacityFill,
+                        {
+                          width: `${capacityPct * 100}%` as any,
+                          backgroundColor: capacityBarColor,
+                        },
+                      ]}
+                    />
+                  </View>
                 </View>
               )}
 
-              {(item.open_incident_count ?? 0) > 0 && (
-                <View style={styles.incidentPill}>
-                  <Text style={styles.incidentPillText}>{item.open_incident_count} open incident{item.open_incident_count > 1 ? 's' : ''}</Text>
+              {/* Bottom row: carrier · renewal | degraded infra | open incidents pill */}
+              <View style={styles.bottomRow}>
+                <Text style={styles.bottomMeta} numberOfLines={1}>
+                  {item.current_carrier ? item.current_carrier : '—'}
+                  {item.renewal_date ? ` · ${item.renewal_date}` : ''}
+                </Text>
+                <View style={styles.bottomRight}>
+                  {item.has_degraded_infra && (
+                    <Text style={styles.degradedTag}>DEGRADED INFRA</Text>
+                  )}
+                  {(item.open_incidents ?? 0) > 0 && (
+                    <View style={styles.incidentPill}>
+                      <Text style={styles.incidentPillText}>
+                        {item.open_incidents} OPEN →
+                      </Text>
+                    </View>
+                  )}
                 </View>
-              )}
+              </View>
             </Pressable>
           );
         }}
@@ -147,6 +220,7 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: '#07080f' },
   centered: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#07080f' },
 
+  // Header
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -159,6 +233,7 @@ const styles = StyleSheet.create({
   role: { color: '#4a4f65', fontSize: 10, fontWeight: '700', letterSpacing: 2, marginTop: 4 },
   signOut: { color: '#2e3247', fontSize: 10, fontWeight: '700', letterSpacing: 1.5, paddingTop: 6 },
 
+  // Stats bar
   statsRow: { flexDirection: 'row', gap: 10, paddingHorizontal: 20, marginBottom: 24 },
   statCard: {
     flex: 1,
@@ -171,8 +246,10 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   statNum: { color: '#eeeef5', fontSize: 28, fontWeight: '800', letterSpacing: -1 },
-  statLabel: { color: '#4a4f65', fontSize: 9, fontWeight: '700', letterSpacing: 1.5 },
+  statNumRed: { color: '#ff4557' },
+  statLabel: { color: '#4a4f65', fontSize: 9, fontWeight: '700', letterSpacing: 1.5, textAlign: 'center' },
 
+  // Section eyebrow
   sectionEyebrow: {
     color: '#4a4f65',
     fontSize: 10,
@@ -182,7 +259,10 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
 
+  // Venue list
   list: { paddingHorizontal: 20, paddingBottom: 40, gap: 10 },
+
+  // Venue card
   venueCard: {
     backgroundColor: '#0d0f1c',
     borderRadius: 14,
@@ -190,37 +270,123 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255,255,255,0.07)',
     borderLeftWidth: 3,
     padding: 16,
-    gap: 10,
+    gap: 6,
   },
-  venueHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
-  venueInfo: { flex: 1, gap: 3 },
-  venueName: { color: '#eeeef5', fontSize: 16, fontWeight: '700' },
-  venueType: { color: '#4a4f65', fontSize: 10, fontWeight: '600', letterSpacing: 1 },
-  tierBadge: { alignItems: 'flex-end', gap: 0 },
-  tierLetter: { fontSize: 32, fontWeight: '800', letterSpacing: -1, lineHeight: 32 },
-  tierScore: { fontSize: 12, fontWeight: '700', letterSpacing: 0.5 },
 
-  capacityRow: { gap: 6 },
+  venueTypeLabel: {
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 1.5,
+    textTransform: 'uppercase',
+  },
+  venueName: {
+    color: '#eeeef5',
+    fontSize: 18,
+    fontWeight: '700',
+    letterSpacing: -0.3,
+  },
+  venueAddress: {
+    color: '#4a4f65',
+    fontSize: 11,
+    marginTop: -2,
+  },
+
+  // Score row
+  scoreRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginTop: 4,
+  },
+  scoreLarge: {
+    fontSize: 32,
+    fontWeight: '800',
+    letterSpacing: -1,
+    color: '#eeeef5',
+  },
+  scoreOf: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#4a4f65',
+  },
+  tierPill: {
+    borderWidth: 1,
+    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
+  tierPillText: {
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+  },
+
+  // Capacity
+  capacitySection: { gap: 6, marginTop: 2 },
+  capacityLabelRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  capacityHeading: {
+    color: '#4a4f65',
+    fontSize: 9,
+    fontWeight: '700',
+    letterSpacing: 1.5,
+  },
+  capacityNumbers: {
+    color: '#eeeef5',
+    fontSize: 12,
+    fontWeight: '600',
+  },
   capacityTrack: {
-    height: 3,
+    height: 4,
     backgroundColor: 'rgba(255,255,255,0.06)',
     borderRadius: 2,
     overflow: 'hidden',
   },
   capacityFill: { height: '100%', borderRadius: 2 },
-  capacityLabel: { color: '#4a4f65', fontSize: 11 },
 
+  // Bottom row
+  bottomRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 4,
+    gap: 8,
+  },
+  bottomMeta: {
+    flex: 1,
+    color: '#4a4f65',
+    fontSize: 11,
+  },
+  bottomRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  degradedTag: {
+    color: '#ff9500',
+    fontSize: 9,
+    fontWeight: '700',
+    letterSpacing: 1,
+  },
   incidentPill: {
-    alignSelf: 'flex-start',
-    backgroundColor: 'rgba(255,149,0,0.1)',
+    backgroundColor: 'rgba(255,69,87,0.12)',
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(255,149,0,0.3)',
+    borderColor: 'rgba(255,69,87,0.35)',
     borderRadius: 5,
-    paddingHorizontal: 8,
+    paddingHorizontal: 7,
     paddingVertical: 3,
   },
-  incidentPillText: { color: '#ff9500', fontSize: 10, fontWeight: '700', letterSpacing: 0.5 },
+  incidentPillText: {
+    color: '#ff4557',
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+  },
 
+  // Empty state
   empty: { alignItems: 'center', paddingTop: 80, gap: 8 },
   emptyTitle: { color: '#eeeef5', fontSize: 18, fontWeight: '700' },
   emptySub: { color: '#4a4f65', fontSize: 14 },

@@ -42,7 +42,7 @@ export function IncidentDetailScreen({ route, navigation }: any) {
   const { incidentId } = route.params;
   const { user } = useAuth();
   const insets = useSafeAreaInsets();
-  const isOperator = user?.role === 'venue_operator';
+  const isBroker = user?.role === 'broker' || user?.role === 'admin';
 
   const [incident, setIncident] = useState<any>(null);
   const [packets, setPackets] = useState<any[]>([]);
@@ -132,7 +132,7 @@ export function IncidentDetailScreen({ route, navigation }: any) {
       </View>
 
       {/* Status Actions (operators only) */}
-      {isOperator && transitions.length > 0 && (
+      {isBroker && transitions.length > 0 && (
         <View style={styles.actionsRow}>
           {transitions.map(t => (
             <Pressable

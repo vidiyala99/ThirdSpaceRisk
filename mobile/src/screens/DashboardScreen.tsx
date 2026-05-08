@@ -19,31 +19,54 @@ const TIER_COLOR: Record<string, string> = {
   D: '#ff4557',
 };
 
+interface RiskScore {
+  venue_id: string;
+  total_score: number;
+  tier: string;
+  factors: Record<string, number>;
+}
+
+interface PremiumQuote {
+  venue_id: string;
+  venue_type: string;
+  tier: string;
+  annual_premium: number;
+  monthly_premium: number;
+}
+
 export function DashboardScreen() {
   const { user, signOut } = useAuth();
   const insets = useSafeAreaInsets();
-  const [riskData, setRiskData] = useState<any>(null);
-  const [quoteData, setQuoteData] = useState<any>(null);
+  const [riskData, setRiskData] = useState<RiskScore | null>(null);
+  const [quoteData, setQuoteData] = useState<PremiumQuote | null>(null);
+  const [openIncidents, setOpenIncidents] = useState<number>(0);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
   const fetchData = useCallback(async () => {
     if (!user?.tenant_id) return;
     try {
-      const [risk, quote] = await Promise.all([
+      const [risk, quote, incidents] = await Promise.all([
         api.request<any>(`/api/venues/${user.tenant_id}/risk-score`),
         api.request<any>(`/api/venues/${user.tenant_id}/quote`),
+        api.request<any[]>(`/api/venues/${user.tenant_id}/incidents?status=open`),
       ]);
+
       // Normalize factors to plain numbers so they never reach JSX as objects
       if (risk?.factors) {
         const normalized: Record<string, number> = {};
         for (const [k, v] of Object.entries(risk.factors)) {
-          normalized[k] = typeof v === 'object' && v !== null ? Number((v as any).score ?? 0) : Number(v);
+          normalized[k] =
+            typeof v === 'object' && v !== null
+              ? Number((v as any).score ?? 0)
+              : Number(v);
         }
         risk.factors = normalized;
       }
+
       setRiskData(risk);
       setQuoteData(quote);
+      setOpenIncidents(Array.isArray(incidents) ? incidents.length : 0);
     } catch {
       // data stays stale
     } finally {
@@ -52,34 +75,26 @@ export function DashboardScreen() {
     }
   }, [user?.tenant_id]);
 
-  useEffect(() => { fetchData(); }, [fetchData]);
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
   function onRefresh() {
     setRefreshing(true);
     fetchData();
   }
 
+  // Broker / admin: simplified redirect message
   if (user?.role === 'broker' || user?.role === 'admin') {
     return (
-      <View style={styles.root}>
-        <View style={styles.content}>
-          <View style={styles.header}>
-            <View>
-              <Text style={styles.venueName}>{user.name}</Text>
-              <Text style={styles.venueLabel}>BROKER · THIRDSPACE RISK</Text>
-            </View>
-            <Text style={styles.signOut} onPress={signOut} accessibilityRole="button">SIGN OUT</Text>
-          </View>
-          <View style={[styles.tierCard, { borderColor: 'rgba(200,240,0,0.15)' }]}>
-            <Text style={styles.sectionEyebrow}>PORTFOLIO ACCESS</Text>
-            <Text style={[styles.tierGlyph, { color: '#c8f000', fontSize: 48, lineHeight: 56 }]}>
-              Broker Portal
-            </Text>
-            <Text style={{ color: '#4a4f65', fontSize: 13, marginTop: 4 }}>
-              Use the web portal to access the full portfolio, reports queue, and underwriting packets.
-            </Text>
-          </View>
-        </View>
+      <View style={[styles.root, styles.centered]}>
+        <Text style={styles.brokerHeading}>Portfolio View</Text>
+        <Text style={styles.brokerBody}>
+          Use Portfolio tab to view all venues.
+        </Text>
+        <Text style={styles.signOut} onPress={signOut} accessibilityRole="button">
+          SIGN OUT
+        </Text>
       </View>
     );
   }
@@ -94,60 +109,127 @@ export function DashboardScreen() {
 
   const tier = riskData?.tier ?? '—';
   const score = riskData?.total_score ?? 0;
-  const factors: Record<string, any> = riskData?.factors ?? {};
+  const factors: Record<string, number> = riskData?.factors ?? {};
   const tierColor = TIER_COLOR[tier] ?? '#4a4f65';
 
   return (
     <ScrollView
       style={styles.root}
-      contentContainerStyle={[styles.content, { paddingTop: insets.top + 12 }]}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#c8f000" />}
+      contentContainerStyle={[styles.content, { paddingTop: insets.top + 16 }]}
+      refreshControl={
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={onRefresh}
+          tintColor="#c8f000"
+        />
+      }
     >
-      <View style={styles.header}>
-        <View>
-          <Text style={styles.venueName}>{user?.name ?? 'Operator'}</Text>
-          <Text style={styles.venueLabel}>RISK OPERATIONS</Text>
-        </View>
-        <Text style={styles.signOut} onPress={signOut} accessibilityRole="button">SIGN OUT</Text>
+      {/* Hero heading */}
+      <View style={styles.heroSection}>
+        <Text style={styles.heroHeading}>
+          Operational{' '}
+          <Text style={styles.heroAccent}>Defense</Text>
+        </Text>
+        <Text style={styles.heroSubtitle}>
+          Your operational data — your defense against premium hikes
+        </Text>
       </View>
 
-      <View style={[styles.tierCard, { borderColor: `${tierColor}22` }]}>
-        <Text style={styles.sectionEyebrow}>RISK TIER</Text>
-        <View style={styles.tierRow}>
-          <Text style={[styles.tierGlyph, { color: tierColor }]}>{tier}</Text>
-          <View style={styles.tierMeta}>
-            <Text style={[styles.tierScore, { color: tierColor }]}>{score}</Text>
-            <Text style={styles.tierScoreMax}>/100</Text>
+      {/* Stats bar */}
+      <View style={styles.statsRow}>
+        {/* Your Venue */}
+        <View style={styles.statCard}>
+          <Text style={styles.statEyebrow}>YOUR VENUE</Text>
+          <Text style={styles.statValue}>1</Text>
+        </View>
+
+        {/* Open Incidents */}
+        <View style={styles.statCard}>
+          <Text style={styles.statEyebrow}>OPEN INCIDENTS</Text>
+          <Text style={[styles.statValue, openIncidents > 0 && styles.statError]}>
+            {openIncidents}
+          </Text>
+        </View>
+
+        {/* Compliance Actions */}
+        <View style={styles.statCard}>
+          <Text style={styles.statEyebrow}>COMPLIANCE</Text>
+          <Text style={styles.statValue}>0</Text>
+        </View>
+      </View>
+
+      {/* Risk Profile card */}
+      {riskData && (
+        <View style={[styles.card, { borderColor: `${tierColor}22` }]}>
+          <Text style={styles.sectionEyebrow}>RISK PROFILE</Text>
+
+          {/* Tier badge + score */}
+          <View style={styles.riskHeaderRow}>
+            <View style={[styles.tierBadge, { borderColor: tierColor }]}>
+              <Text style={[styles.tierBadgeText, { color: tierColor }]}>
+                Tier {tier}
+              </Text>
+            </View>
+            <View style={styles.scoreGroup}>
+              <Text style={[styles.scoreValue, { color: tierColor }]}>{score}</Text>
+              <Text style={styles.scoreMax}> / 100</Text>
+            </View>
           </View>
-        </View>
-      </View>
 
+          {/* Factor bars */}
+          {Object.keys(factors).length > 0 && (
+            <View style={styles.factorList}>
+              {Object.entries(factors).map(([key, val]) => (
+                <CapacityBar
+                  key={key}
+                  label={key.replace(/_/g, ' ').toUpperCase()}
+                  value={Number(val)}
+                  max={100}
+                  invertScale
+                />
+              ))}
+            </View>
+          )}
+        </View>
+      )}
+
+      {/* Premium Quote card */}
       {quoteData && (
-        <View style={styles.card}>
-          <Text style={styles.sectionEyebrow}>ANNUAL PREMIUM</Text>
+        <View style={[styles.card, styles.quoteCard]}>
+          <View style={styles.quoteHeader}>
+            <Text style={styles.sectionEyebrow}>PREMIUM QUOTE</Text>
+            <View
+              style={[
+                styles.tierBadge,
+                { borderColor: TIER_COLOR[quoteData.tier] ?? '#4a4f65' },
+              ]}
+            >
+              <Text
+                style={[
+                  styles.tierBadgeText,
+                  { color: TIER_COLOR[quoteData.tier] ?? '#4a4f65' },
+                ]}
+              >
+                {quoteData.tier} Tier
+              </Text>
+            </View>
+          </View>
+
+          <Text style={styles.venueTypeLabel}>
+            {quoteData.venue_type.replace(/_/g, ' ').toUpperCase()}
+          </Text>
+
           <Text style={styles.premiumAmount}>
             ${quoteData.annual_premium?.toLocaleString() ?? '—'}
           </Text>
           <Text style={styles.premiumSub}>
-            ${quoteData.monthly_premium?.toLocaleString() ?? '—'} / month
+            / year
           </Text>
-        </View>
-      )}
 
-      {Object.keys(factors).length > 0 && (
-        <View style={styles.card}>
-          <Text style={styles.sectionEyebrow}>RISK FACTORS</Text>
-          <View style={styles.factorList}>
-            {Object.entries(factors).map(([key, val]) => (
-              <CapacityBar
-                key={key}
-                label={key.replace(/_/g, ' ').toUpperCase()}
-                value={Number(val)}
-                max={100}
-                invertScale
-              />
-            ))}
-          </View>
+          <Text style={styles.premiumMonthly}>
+            ${quoteData.monthly_premium?.toLocaleString() ?? '—'}
+            <Text style={styles.premiumMonthlySub}> / month</Text>
+          </Text>
         </View>
       )}
     </ScrollView>
@@ -156,35 +238,96 @@ export function DashboardScreen() {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: '#07080f' },
-  content: { paddingHorizontal: 20, paddingBottom: 24 },
-  centered: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#07080f' },
+  content: { paddingHorizontal: 20, paddingBottom: 32 },
+  centered: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#07080f',
+    paddingHorizontal: 24,
+  },
 
-  header: {
+  // Broker fallback
+  brokerHeading: {
+    color: '#eeeef5',
+    fontSize: 22,
+    fontWeight: '700',
+    letterSpacing: -0.5,
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  brokerBody: {
+    color: '#4a4f65',
+    fontSize: 13,
+    textAlign: 'center',
+    lineHeight: 20,
+    marginBottom: 24,
+  },
+  signOut: {
+    color: '#2e3247',
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 1.5,
+    paddingTop: 4,
+  },
+
+  // Hero
+  heroSection: {
+    marginBottom: 24,
+  },
+  heroHeading: {
+    color: '#eeeef5',
+    fontSize: 32,
+    fontWeight: '800',
+    letterSpacing: -1,
+    lineHeight: 38,
+    marginBottom: 8,
+  },
+  heroAccent: {
+    color: '#c8f000',
+  },
+  heroSubtitle: {
+    color: '#4a4f65',
+    fontSize: 13,
+    lineHeight: 19,
+  },
+
+  // Stats bar
+  statsRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 32,
+    gap: 10,
+    marginBottom: 16,
   },
-  venueName: { color: '#eeeef5', fontSize: 22, fontWeight: '700', letterSpacing: -0.5 },
-  venueLabel: { color: '#4a4f65', fontSize: 10, fontWeight: '700', letterSpacing: 2, marginTop: 4 },
-  signOut: { color: '#2e3247', fontSize: 10, fontWeight: '700', letterSpacing: 1.5, paddingTop: 6 },
-
-  tierCard: {
-    backgroundColor: '#0d0f1c',
-    borderWidth: 1,
-    borderRadius: 16,
-    padding: 20,
-    marginBottom: 12,
-  },
-  tierRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 16, marginTop: 8 },
-  tierGlyph: { fontSize: 96, fontWeight: '800', letterSpacing: -4, lineHeight: 96 },
-  tierMeta: { flexDirection: 'row', alignItems: 'flex-end', gap: 2, paddingBottom: 10 },
-  tierScore: { fontSize: 32, fontWeight: '700', letterSpacing: -1 },
-  tierScoreMax: { color: '#4a4f65', fontSize: 16, fontWeight: '500', paddingBottom: 2 },
-
-  card: {
+  statCard: {
+    flex: 1,
     backgroundColor: '#0d0f1c',
     borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255,255,255,0.07)',
+    borderRadius: 14,
+    padding: 14,
+    alignItems: 'flex-start',
+  },
+  statEyebrow: {
+    color: '#4a4f65',
+    fontSize: 8,
+    fontWeight: '700',
+    letterSpacing: 1.5,
+    marginBottom: 6,
+  },
+  statValue: {
+    color: '#eeeef5',
+    fontSize: 24,
+    fontWeight: '800',
+    letterSpacing: -0.5,
+  },
+  statError: {
+    color: '#ff4557',
+  },
+
+  // Shared card
+  card: {
+    backgroundColor: '#0d0f1c',
+    borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.07)',
     borderRadius: 16,
     padding: 20,
@@ -195,11 +338,86 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '700',
     letterSpacing: 2,
-    marginBottom: 12,
+    marginBottom: 14,
   },
 
-  premiumAmount: { color: '#eeeef5', fontSize: 36, fontWeight: '800', letterSpacing: -1 },
-  premiumSub: { color: '#4a4f65', fontSize: 13, marginTop: 4 },
-
+  // Risk profile
+  riskHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingBottom: 16,
+    marginBottom: 16,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: 'rgba(255,255,255,0.07)',
+  },
+  tierBadge: {
+    borderWidth: 1,
+    borderRadius: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+  },
+  tierBadgeText: {
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+  },
+  scoreGroup: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+  },
+  scoreValue: {
+    fontSize: 48,
+    fontWeight: '800',
+    letterSpacing: -2,
+    lineHeight: 52,
+  },
+  scoreMax: {
+    color: '#4a4f65',
+    fontSize: 16,
+    fontWeight: '500',
+    paddingBottom: 6,
+  },
   factorList: { gap: 16 },
+
+  // Quote card
+  quoteCard: {
+    borderColor: 'rgba(200,240,0,0.15)',
+  },
+  quoteHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  venueTypeLabel: {
+    color: '#4a4f65',
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 1.5,
+    marginBottom: 12,
+  },
+  premiumAmount: {
+    color: '#eeeef5',
+    fontSize: 40,
+    fontWeight: '800',
+    letterSpacing: -1.5,
+    lineHeight: 44,
+  },
+  premiumSub: {
+    color: '#4a4f65',
+    fontSize: 12,
+    marginBottom: 10,
+  },
+  premiumMonthly: {
+    color: '#eeeef5',
+    fontSize: 20,
+    fontWeight: '600',
+    letterSpacing: -0.5,
+  },
+  premiumMonthlySub: {
+    color: '#4a4f65',
+    fontSize: 13,
+    fontWeight: '400',
+  },
 });
