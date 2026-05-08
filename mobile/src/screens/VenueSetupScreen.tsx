@@ -48,7 +48,7 @@ export function VenueSetupScreen({ navigation }: any) {
     }
     setLoading(true);
     try {
-      const result = await api.request<{ id: string }>('/api/venues', {
+      await api.request<{ id: string }>('/api/venues', {
         method: 'POST',
         body: JSON.stringify({
           id: tenantId,
@@ -60,7 +60,7 @@ export function VenueSetupScreen({ navigation }: any) {
         }),
       });
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      navigation.navigate('DashboardHome', { venueCreatedAt: Date.now(), venueId: result.id });
+      navigation.goBack();
     } catch (e: any) {
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       Alert.alert('Failed to create venue', e.message ?? 'Something went wrong');

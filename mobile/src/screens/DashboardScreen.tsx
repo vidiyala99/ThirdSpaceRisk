@@ -36,7 +36,7 @@ interface PremiumQuote {
   monthly_premium: number;
 }
 
-export function DashboardScreen({ navigation, route }: any) {
+export function DashboardScreen({ navigation }: any) {
   const { user, signOut } = useAuth();
   const insets = useSafeAreaInsets();
   const [riskData, setRiskData] = useState<RiskScore | null>(null);
@@ -84,12 +84,10 @@ export function DashboardScreen({ navigation, route }: any) {
     fetchData();
   }, [fetchData]);
 
-  useEffect(() => {
-    if (route?.params?.venueCreatedAt) {
-      setLoading(true);
-      fetchData();
-    }
-  }, [route?.params?.venueCreatedAt]);
+  useFocusEffect(useCallback(() => {
+    if (!riskData) setLoading(true);
+    fetchData();
+  }, [fetchData]));
 
   function onRefresh() {
     setRefreshing(true);

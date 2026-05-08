@@ -166,6 +166,40 @@ def health() -> dict[str, str]:
     return {"status": "ok"}
 
 
+def _resolve_venue(venue_id: str, session: Session) -> dict:
+    """Return venue data from in-memory dict or DB, caching the result. Raises 404 if not found."""
+    if venue_id in VENUES:
+        return VENUES[venue_id]
+    import json as _json
+    db_venue = session.get(Venue, venue_id)
+    if not db_venue:
+        raise HTTPException(status_code=404, detail="Venue not found")
+    if db_venue.venue_data:
+        try:
+            venue_data = _json.loads(db_venue.venue_data)
+            VENUES[venue_id] = venue_data
+            return venue_data
+        except Exception:
+            pass
+    # DB record exists but no venue_data (created before persistence fix) — use defaults
+    venue_data = {
+        "name": db_venue.name,
+        "capacity": 300,
+        "venue_type": "bar",
+        "address": "",
+        "current_carrier": "Surplus Lines",
+        "renewal_date": "2027-01-01",
+        "incident_count": 0,
+        "compliance_items": 0,
+        "security_level": "medium",
+        "years_in_operation": 1,
+        "prior_carrier": "Surplus Lines",
+        "infrastructure": [],
+    }
+    VENUES[venue_id] = venue_data
+    return venue_data
+
+
 @app.get("/api/venues")
 def list_venues(session: Session = Depends(get_session)) -> list[dict]:
     result = [{"id": venue_id, **venue} for venue_id, venue in VENUES.items()]
@@ -185,7 +219,7 @@ def create_venue(payload: dict, session: Session = Depends(get_session)) -> dict
     if not name:
         raise HTTPException(status_code=400, detail="Venue name is required")
     venue_id = payload.get("id") or re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
-    if venue_id in VENUES:
+    if venue_id in VENUES or session.get(Venue, venue_id):
         raise HTTPException(status_code=409, detail="A venue with this name already exists")
     venue_data = {
         "name": name,
@@ -214,10 +248,9 @@ def create_venue(payload: dict, session: Session = Depends(get_session)) -> dict
 
 
 @app.get("/api/venues/{venue_id}")
-def get_venue(venue_id: str) -> dict:
-    if venue_id not in VENUES:
-        raise HTTPException(status_code=404, detail="Venue not found")
-    return {"id": venue_id, **VENUES[venue_id]}
+def get_venue(venue_id: str, session: Session = Depends(get_session)) -> dict:
+    venue = _resolve_venue(venue_id, session)
+    return {"id": venue_id, **venue}
 
 
 @app.get("/api/venues/count")
@@ -261,8 +294,7 @@ def list_incidents(
     status: str | None = Query(default=None, description="Filter by status: open | under_review | closed"),
     session: Session = Depends(get_session),
 ) -> list[Incident]:
-    if venue_id not in VENUES:
-        raise HTTPException(status_code=404, detail="Venue not found")
+    _resolve_venue(venue_id, session)
 
     query = select(IncidentRecord).where(IncidentRecord.venue_id == venue_id)
     if status:
@@ -730,18 +762,14 @@ def get_live_state(venue_id: str) -> LiveVenueState:
 
 
 @app.get("/api/venues/{venue_id}/risk-score")
-def get_venue_risk_score(venue_id: str) -> dict:
-    if venue_id not in VENUES:
-        raise HTTPException(status_code=404, detail="Venue not found")
-
+def get_venue_risk_score(venue_id: str, session: Session = Depends(get_session)) -> dict:
+    _resolve_venue(venue_id, session)
     return get_risk_score(venue_id, VENUES)
 
 
 @app.get("/api/venues/{venue_id}/quote")
-def get_venue_quote(venue_id: str) -> dict:
-    if venue_id not in VENUES:
-        raise HTTPException(status_code=404, detail="Venue not found")
-
+def get_venue_quote(venue_id: str, session: Session = Depends(get_session)) -> dict:
+    _resolve_venue(venue_id, session)
     return get_premium_quote(venue_id, VENUES)
 
 
