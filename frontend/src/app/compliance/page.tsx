@@ -1,10 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useTenantId, useAuth, useRole } from "@/contexts/AuthContext";
 import { toastSuccess, toastError } from "@/lib/toast";
-import { CheckSquare, Upload, Clock, AlertCircle } from "lucide-react";
+import { CheckSquare, Upload, Clock, AlertCircle, X } from "lucide-react";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
 
@@ -23,16 +23,26 @@ interface VenueWithCompliance {
 
 export default function CompliancePage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { isSignedIn, isLoaded } = useAuth();
   const role = useRole();
   const tenantId = useTenantId();
   const isBroker = role === "broker" || role === "admin";
 
-  // Operator state
+  // ?venue=<id> scopes the page to a single venue's queue (operator-style
+  // detail view) regardless of role. Set by sidebar navigation from a
+  // venue's /terminal page or by the dashboard Compliance stat card.
+  const filterVenueId = searchParams.get("venue");
+  const [filterVenueName, setFilterVenueName] = useState<string | null>(null);
+
+  // Effective venue id used by the queue/upload paths
+  const detailVenueId = filterVenueId ?? (!isBroker ? tenantId : null);
+
+  // Operator/detail state
   const [complianceItems, setComplianceItems] = useState<ComplianceItem[]>([]);
   const [uploadingId, setUploadingId] = useState<string | null>(null);
 
-  // Broker state
+  // Broker portfolio state (only when no ?venue filter)
   const [brokerVenues, setBrokerVenues] = useState<VenueWithCompliance[]>([]);
 
   const [loading, setLoading] = useState(true);
@@ -44,19 +54,25 @@ export default function CompliancePage() {
   useEffect(() => {
     async function fetchCompliance() {
       try {
-        if (isBroker) {
-          const res = await fetch(`${API_URL}/api/portfolio`);
-          if (res.ok) {
-            const venues: VenueWithCompliance[] = await res.json();
-            setBrokerVenues(venues.filter(v => (v.compliance_actions ?? 0) > 0));
-          }
-        } else {
-          if (!tenantId) { setComplianceItems([]); return; }
-          const res = await fetch(`${API_URL}/api/venues/${tenantId}/live`);
+        // Detail view (single venue) — used when ?venue is set OR for operators
+        if (detailVenueId) {
+          const res = await fetch(`${API_URL}/api/venues/${detailVenueId}/live`);
           if (res.ok) {
             const state = await res.json();
             setComplianceItems(state.compliance_queue || []);
+          } else {
+            setComplianceItems([]);
           }
+        } else if (isBroker) {
+          // Broker portfolio summary
+          const res = await fetch(`${API_URL}/api/portfolio`);
+          if (res.ok) {
+            const venues: VenueWithCompliance[] = await res.json();
+            setBrokerVenues(venues.filter((v) => (v.compliance_actions ?? 0) > 0));
+          }
+        } else {
+          // Operator without tenant_id (mid-onboarding)
+          setComplianceItems([]);
         }
       } catch (error) {
         console.error("Failed to fetch compliance:", error);
@@ -65,16 +81,27 @@ export default function CompliancePage() {
       }
     }
     if (isLoaded && isSignedIn) fetchCompliance();
-  }, [tenantId, isBroker, isLoaded, isSignedIn]);
+  }, [detailVenueId, isBroker, isLoaded, isSignedIn]);
+
+  // Look up filter venue name for the chip
+  useEffect(() => {
+    if (!filterVenueId) { setFilterVenueName(null); return; }
+    let cancelled = false;
+    fetch(`${API_URL}/api/venues/${filterVenueId}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => { if (!cancelled) setFilterVenueName(data?.name ?? filterVenueId); })
+      .catch(() => { if (!cancelled) setFilterVenueName(filterVenueId); });
+    return () => { cancelled = true; };
+  }, [filterVenueId]);
 
   const handleUpload = async (itemId: string, event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (!file || !tenantId) return;
+    if (!file || !detailVenueId) return;
     setUploadingId(itemId);
     try {
       const formData = new FormData();
       formData.append("file", file);
-      const res = await fetch(`${API_URL}/api/venues/${tenantId}/compliance/${itemId}/upload`, {
+      const res = await fetch(`${API_URL}/api/venues/${detailVenueId}/compliance/${itemId}/upload`, {
         method: "POST",
         body: formData,
       });
@@ -94,47 +121,51 @@ export default function CompliancePage() {
     return <div className="page-loading"><div className="loading-spinner" /></div>;
   }
 
+  const showDetailView = !!detailVenueId;
+
   return (
     <div className="theme-venue page">
       <header className="page-header">
         <div>
           <h1>Compliance</h1>
           <p className="page-subtitle">
-            {isBroker
-              ? "Pending compliance actions across your nightlife portfolio"
-              : "Complete pending compliance actions to maintain coverage"}
+            {filterVenueId
+              ? `Compliance queue for ${filterVenueName ?? filterVenueId}`
+              : isBroker
+                ? "Pending compliance actions across your nightlife portfolio"
+                : "Complete pending compliance actions to maintain coverage"}
           </p>
         </div>
       </header>
 
-      {isBroker ? (
-        // Broker view — all venues with pending compliance actions
-        brokerVenues.length === 0 ? (
-          <div className="empty-state">
-            <div className="empty-icon"><CheckSquare size={48} /></div>
-            <h2>All Clear</h2>
-            <p>No pending compliance actions across portfolio.</p>
-          </div>
-        ) : (
-          <div className="flex flex-col gap-lg">
-            {brokerVenues.map((venue) => (
-              <div key={venue.venue_id} className="card">
-                <div className="flex items-center justify-between mb-md">
-                  <div>
-                    <div className="text-xxs uppercase tracking-wide text-secondary mb-xs">{venue.venue_type?.replace(/_/g, " ")}</div>
-                    <h3 className="text-lg font-bold">{venue.name ?? venue.venue_id}</h3>
-                  </div>
-                  <span className="text-2xl font-bold" style={{ color: "var(--state-warning)" }}>
-                    {venue.compliance_actions}
-                    <span className="text-xs text-secondary ml-xs">pending</span>
-                  </span>
-                </div>
-              </div>
-            ))}
-          </div>
-        )
-      ) : (
-        // Operator view — their venue's compliance queue
+      {filterVenueId && (
+        <div className="mb-lg" style={{ display: "flex", alignItems: "center", gap: "var(--space-sm)" }}>
+          <span className="text-xs uppercase tracking-wide text-muted font-mono">Filtered by</span>
+          <button
+            onClick={() => router.push("/compliance")}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "6px",
+              padding: "4px 10px",
+              borderRadius: "14px",
+              border: "1px solid var(--brand-primary)",
+              background: "rgba(212,255,0,0.08)",
+              color: "var(--brand-primary)",
+              fontSize: "0.75rem",
+              fontWeight: 600,
+              cursor: "pointer",
+            }}
+            title="Clear filter"
+          >
+            {filterVenueName ?? filterVenueId}
+            <X size={12} />
+          </button>
+        </div>
+      )}
+
+      {showDetailView ? (
+        // Detail view — single venue's compliance queue (operator default OR ?venue= filter)
         complianceItems.length === 0 ? (
           <div className="empty-state">
             <div className="empty-icon"><CheckSquare size={48} /></div>
@@ -180,6 +211,44 @@ export default function CompliancePage() {
             ))}
           </div>
         )
+      ) : isBroker ? (
+        // Broker portfolio summary — venues with pending compliance actions
+        brokerVenues.length === 0 ? (
+          <div className="empty-state">
+            <div className="empty-icon"><CheckSquare size={48} /></div>
+            <h2>All Clear</h2>
+            <p>No pending compliance actions across portfolio.</p>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-lg">
+            {brokerVenues.map((venue) => (
+              <div
+                key={venue.venue_id}
+                className="card"
+                style={{ cursor: "pointer" }}
+                onClick={() => router.push(`/compliance?venue=${encodeURIComponent(venue.venue_id)}`)}
+              >
+                <div className="flex items-center justify-between mb-md">
+                  <div>
+                    <div className="text-xxs uppercase tracking-wide text-secondary mb-xs">{venue.venue_type?.replace(/_/g, " ")}</div>
+                    <h3 className="text-lg font-bold">{venue.name ?? venue.venue_id}</h3>
+                  </div>
+                  <span className="text-2xl font-bold" style={{ color: "var(--state-warning)" }}>
+                    {venue.compliance_actions}
+                    <span className="text-xs text-secondary ml-xs">pending</span>
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        )
+      ) : (
+        // Operator without tenant_id (mid-onboarding)
+        <div className="empty-state">
+          <div className="empty-icon"><CheckSquare size={48} /></div>
+          <h2>No Venue Yet</h2>
+          <p>Set up your venue first to see compliance actions.</p>
+        </div>
       )}
     </div>
   );

@@ -34,13 +34,17 @@ export function AppShell({ children }: AppShellProps) {
   const tenantId = useTenantId();
   const [mobileOpen, setMobileOpen] = useState(false);
 
-  // When the user is viewing a specific venue's terminal, the Incidents link
-  // should keep that context so they don't get bounced to a global view.
+  // When the user is viewing a specific venue's terminal, the Incidents and
+  // Compliance links should keep that venue context so they don't get bounced
+  // to a global view.
   const terminalVenueMatch = pathname?.match(/^\/terminal\/([^/]+)/);
   const contextVenueId = terminalVenueMatch?.[1];
   const incidentsHref = contextVenueId
     ? `/incidents?venue=${encodeURIComponent(contextVenueId)}`
     : "/incidents";
+  const complianceHref = contextVenueId
+    ? `/compliance?venue=${encodeURIComponent(contextVenueId)}`
+    : "/compliance";
 
   // Operators with no tenant_id (mid-onboarding) shouldn't see a Live Terminal
   // link at all — better than silently routing them to someone else's venue.
@@ -52,7 +56,7 @@ export function AppShell({ children }: AppShellProps) {
       : []),
     { href: "/venues", label: "Venues", icon: Building2, roles: ["broker", "admin", "venue_operator"] },
     { href: incidentsHref, label: "Incidents", icon: AlertTriangle },
-    { href: "/compliance", label: "Compliance", icon: CheckSquare },
+    { href: complianceHref, label: "Compliance", icon: CheckSquare },
   ];
 
   const filteredNav = navItems.filter(
