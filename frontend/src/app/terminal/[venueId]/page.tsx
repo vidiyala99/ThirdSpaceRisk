@@ -295,8 +295,9 @@ export default function VenueTerminalPage() {
             </div>
           </div>
         ) : riskScore && quote ? (
-          <div className="grid grid-cols-2 gap-lg mb-xl stagger-children">
-            {/* Risk & Tier */}
+          <div className="grid grid-cols-2 gap-lg stagger-children">
+            {/* Left column: Risk Profile + Compliance Queue */}
+            <div className="flex flex-col gap-lg">
             <Link href={`/risk-profile/${venueId}`} style={{ textDecoration: "none" }}>
             <div className="card highlight" style={{ cursor: "pointer" }}>
               <div className="flex justify-between items-start mb-md">
@@ -333,7 +334,49 @@ export default function VenueTerminalPage() {
             </div>
             </Link>
 
-            {/* Premium & Coverage */}
+            {/* Compliance Queue — bottom of left column */}
+            <section>
+              <div className="flex justify-between items-center border-b border-subtle pb-md mb-md" style={{ borderColor: (liveState.compliance_queue?.length ?? 0) > 0 ? "rgba(255,60,60,0.3)" : undefined }}>
+                <h3 className="text-lg font-semibold uppercase font-display">Compliance Queue</h3>
+                {(liveState.compliance_queue?.length ?? 0) > 0 && (
+                  <span className="badge badge-error">URGENT</span>
+                )}
+              </div>
+              <div className="flex flex-col gap-lg">
+                {(liveState.compliance_queue?.length ?? 0) === 0 ? (
+                  <TerminalEmpty
+                    label="Compliance"
+                    message="No pending actions. You're all clear."
+                  />
+                ) : (
+                  liveState.compliance_queue?.map((item: any) => (
+                    <div key={item.id} className="card bento-card" style={{ borderColor: "rgba(255,60,60,0.25)" }}>
+                      <h4 className="text-sm font-bold uppercase mb-md font-mono text-accent">{item.id}</h4>
+                      <p className="text-sm mb-xl text-secondary">{item.description}</p>
+                      <div className="relative">
+                        <input
+                          type="file"
+                          accept="video/*,image/*"
+                          onChange={(e) => handleUpload(item.id, e)}
+                          className="visually-hidden"
+                          id={`upload-${item.id}`}
+                        />
+                        <label htmlFor={`upload-${item.id}`} className="btn btn-secondary">
+                          <Upload size={16} />
+                          {uploadingId === item.id ? "Uploading..." : "Upload Evidence"}
+                        </label>
+                      </div>
+                      {uploadError && uploadingId !== item.id && (
+                        <p className="text-sm text-error mt-sm">{uploadError}</p>
+                      )}
+                    </div>
+                  ))
+                )}
+              </div>
+            </section>
+            </div>{/* end left column */}
+
+            {/* Right column: Premium + Coverage + Infrastructure */}
             <div className="flex flex-col gap-lg">
               <div className="card border-accent">
                 <div className="text-xs uppercase tracking-wide text-secondary font-mono mb-md">Premium</div>
@@ -383,85 +426,41 @@ export default function VenueTerminalPage() {
                   ))}
                 </div>
               </div>
-            </div>
-          </div>
+
+              <section>
+                <div className="border-b border-subtle pb-md mb-lg">
+                  <h3 className="text-lg font-semibold uppercase font-display">Infrastructure Sync</h3>
+                </div>
+                {liveState.infrastructure?.some((i: any) => i.is_degraded) && (
+                  <div className="mb-md p-sm text-xs font-mono" style={{ background: "rgba(255,153,0,0.08)", border: "1px solid rgba(255,153,0,0.3)", borderRadius: "var(--radius-sm)", color: "var(--state-warning)" }}>
+                    <AlertTriangle size={12} style={{ display: "inline", marginRight: 4 }} />
+                    Degraded systems weaken your claims defense. Upload footage or repair feeds before your next event.
+                  </div>
+                )}
+                <div className="flex flex-col gap-sm stagger-children">
+                  {(liveState.infrastructure?.length ?? 0) === 0 ? (
+                    <TerminalEmpty
+                      label="Infrastructure"
+                      message="No systems reporting. Check device connectivity."
+                    />
+                  ) : (
+                    liveState.infrastructure?.map((item: any, i: number) => (
+                      <div
+                        key={i}
+                        className={`flex justify-between items-center p-md border rounded ${item.is_degraded ? "border-warning bg-warning-dim text-warning" : "border-subtle"}`}
+                      >
+                        <span className="font-mono text-sm">{item.name}</span>
+                        <span className={`font-mono text-sm ${item.is_degraded ? "text-warning" : "text-accent"}`}>
+                          {item.status} {item.detail}
+                        </span>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </section>
+            </div>{/* end right column */}
+          </div>{/* end merged grid */}
         ) : null}
-
-        <div className="grid grid-cols-2 gap-2xl items-start">
-          {/* Compliance Queue */}
-          <section>
-            <div className="flex justify-between items-center border-b border-subtle pb-md mb-md" style={{ borderColor: (liveState.compliance_queue?.length ?? 0) > 0 ? "rgba(255,60,60,0.3)" : undefined }}>
-              <h3 className="text-lg font-semibold uppercase font-display">Compliance Queue</h3>
-              {(liveState.compliance_queue?.length ?? 0) > 0 && (
-                <span className="badge badge-error">URGENT</span>
-              )}
-            </div>
-            <div className="flex flex-col gap-lg">
-              {(liveState.compliance_queue?.length ?? 0) === 0 ? (
-                <TerminalEmpty
-                  label="Compliance"
-                  message="No pending actions. You're all clear."
-                />
-              ) : (
-                liveState.compliance_queue?.map((item: any) => (
-                  <div key={item.id} className="card bento-card" style={{ borderColor: "rgba(255,60,60,0.25)" }}>
-                    <h4 className="text-sm font-bold uppercase mb-md font-mono text-accent">{item.id}</h4>
-                    <p className="text-sm mb-xl text-secondary">{item.description}</p>
-                    <div className="relative">
-                      <input
-                        type="file"
-                        accept="video/*,image/*"
-                        onChange={(e) => handleUpload(item.id, e)}
-                        className="visually-hidden"
-                        id={`upload-${item.id}`}
-                      />
-                      <label htmlFor={`upload-${item.id}`} className="btn btn-secondary">
-                        <Upload size={16} />
-                        {uploadingId === item.id ? "Uploading..." : "Upload Evidence"}
-                      </label>
-                    </div>
-                    {uploadError && uploadingId !== item.id && (
-                      <p className="text-sm text-error mt-sm">{uploadError}</p>
-                    )}
-                  </div>
-                ))
-              )}
-            </div>
-          </section>
-
-          {/* Infrastructure */}
-          <section>
-            <div className="border-b border-subtle pb-md mb-lg">
-              <h3 className="text-lg font-semibold uppercase font-display">Infrastructure Sync</h3>
-            </div>
-            {liveState.infrastructure?.some((i: any) => i.is_degraded) && (
-              <div className="mb-md p-sm text-xs font-mono" style={{ background: "rgba(255,153,0,0.08)", border: "1px solid rgba(255,153,0,0.3)", borderRadius: "var(--radius-sm)", color: "var(--state-warning)" }}>
-                <AlertTriangle size={12} style={{ display: "inline", marginRight: 4 }} />
-                Degraded systems weaken your claims defense. Upload footage or repair feeds before your next event.
-              </div>
-            )}
-            <div className="flex flex-col gap-sm stagger-children">
-              {(liveState.infrastructure?.length ?? 0) === 0 ? (
-                <TerminalEmpty
-                  label="Infrastructure"
-                  message="No systems reporting. Check device connectivity."
-                />
-              ) : (
-                liveState.infrastructure?.map((item: any, i: number) => (
-                  <div
-                    key={i}
-                    className={`flex justify-between items-center p-md border rounded ${item.is_degraded ? "border-warning bg-warning-dim text-warning" : "border-subtle"}`}
-                  >
-                    <span className="font-mono text-sm">{item.name}</span>
-                    <span className={`font-mono text-sm ${item.is_degraded ? "text-warning" : "text-accent"}`}>
-                      {item.status} {item.detail}
-                    </span>
-                  </div>
-                ))
-              )}
-            </div>
-          </section>
-        </div>
 
       </div>
     </>
