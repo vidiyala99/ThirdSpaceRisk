@@ -217,7 +217,11 @@ export default function DashboardPage() {
       {!isBroker && (
         <div className="grid grid-cols-2 gap-lg mb-xl">
           {riskScore && (
-            <div className="card highlight">
+            <Link href={`/risk-profile/${tenantId ?? "elsewhere-brooklyn"}`} style={{ textDecoration: "none" }}>
+            <div className="card highlight" style={{ cursor: "pointer" }}
+              onMouseEnter={e => (e.currentTarget as HTMLElement).style.borderColor = TIER_COLOR[riskScore.tier]}
+              onMouseLeave={e => (e.currentTarget as HTMLElement).style.borderColor = ""}
+            >
               <h2 className="text-xl mb-sm font-display uppercase">Risk Profile</h2>
               <div className="flex justify-between items-center mb-md pb-md border-b border-subtle">
                 <div className="text-xl font-bold px-3 py-1 rounded" style={{ border: `1px solid ${TIER_COLOR[riskScore.tier]}`, color: TIER_COLOR[riskScore.tier] }}>
@@ -239,7 +243,9 @@ export default function DashboardPage() {
                   </div>
                 ))}
               </div>
+              <p className="text-xs text-secondary mt-md font-mono">→ View full risk analysis</p>
             </div>
+            </Link>
           )}
 
           {quote && (

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+import Link from "next/link";
 import { useAuth, useRole } from "@/contexts/AuthContext";
 import { Upload, AlertTriangle, ShieldCheck, DollarSign, TrendingUp, Calendar, Zap } from "lucide-react";
 
@@ -296,7 +297,8 @@ export default function VenueTerminalPage() {
         ) : riskScore && quote ? (
           <div className="grid grid-cols-2 gap-lg mb-xl stagger-children">
             {/* Risk & Tier */}
-            <div className="card highlight">
+            <Link href={`/risk-profile/${venueId}`} style={{ textDecoration: "none" }}>
+            <div className="card highlight" style={{ cursor: "pointer" }}>
               <div className="flex justify-between items-start mb-md">
                 <div>
                   <div className="text-xs uppercase tracking-wide text-secondary font-mono mb-xs">Risk Profile</div>
@@ -327,7 +329,9 @@ export default function VenueTerminalPage() {
                   </div>
                 ))}
               </div>
+              <p className="text-xs text-secondary mt-md font-mono">→ View full risk analysis</p>
             </div>
+            </Link>
 
             {/* Premium & Coverage */}
             <div className="flex flex-col gap-lg">
