@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth, useRole } from "@/contexts/AuthContext";
 import { Upload, AlertTriangle, ShieldCheck, DollarSign, TrendingUp, Calendar, Zap } from "lucide-react";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
@@ -83,6 +83,8 @@ export default function VenueTerminalPage() {
   const { venueId } = useParams() as { venueId: string };
   const router = useRouter();
   const { isSignedIn, isLoaded } = useAuth();
+  const role = useRole();
+  const isOperator = role === "venue_operator";
 
   const [liveState, setLiveState] = useState(makeFallback(venueId));
   const [venueInfo, setVenueInfo] = useState<{ name: string } | null>(null);
@@ -201,8 +203,8 @@ export default function VenueTerminalPage() {
 
       <div className="theme-venue min-h-screen p-xl">
 
-        {/* Savings hero */}
-        {insightLoading ? (
+        {/* Savings hero — operators only */}
+        {isOperator && insightLoading ? (
           <div className="flex items-center gap-lg mb-xl p-lg" style={{ border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-lg)" }}>
             <div className="flex flex-col gap-sm flex-1">
               <SkeletonBlock width="180px" height="0.75rem" />
@@ -210,7 +212,7 @@ export default function VenueTerminalPage() {
               <SkeletonBlock width="340px" height="0.75rem" />
             </div>
           </div>
-        ) : quote && quote.savings_annual > 0 ? (
+        ) : isOperator && quote && quote.savings_annual > 0 ? (
           <div className="flex items-center gap-lg mb-xl p-lg" style={{ background: "rgba(212,255,0,0.05)", border: "1px solid rgba(212,255,0,0.2)", borderRadius: "var(--radius-lg)" }}>
             <div>
               <div className="text-xs uppercase tracking-wide text-secondary mb-xs">Third Space saves you</div>
