@@ -27,8 +27,10 @@ const VENUE_TYPES = [
   'lounge',
 ];
 
-export function VenueSetupScreen({ navigation }: any) {
+export function VenueSetupScreen({ navigation, route }: any) {
   const { user } = useAuth();
+  // isExtra=true means this is an additional venue (not the primary tenant_id one)
+  const isExtra = route?.params?.onCreated != null;
   const [name, setName] = useState('');
   const [address, setAddress] = useState('');
   const [capacity, setCapacity] = useState('');
@@ -41,24 +43,30 @@ export function VenueSetupScreen({ navigation }: any) {
       Alert.alert('Missing info', 'Venue name is required');
       return;
     }
-    const tenantId = user?.tenant_id;
-    if (!tenantId) {
-      Alert.alert('Error', 'No venue ID found. Please sign out and sign back in.');
-      return;
+    if (!isExtra) {
+      const tenantId = user?.tenant_id;
+      if (!tenantId) {
+        Alert.alert('Error', 'No venue ID found. Please sign out and sign back in.');
+        return;
+      }
     }
     setLoading(true);
     try {
-      await api.request<{ id: string }>('/api/venues', {
+      const body: Record<string, any> = {
+        name: name.trim(),
+        address: address.trim(),
+        capacity: capacity ? parseInt(capacity, 10) : 300,
+        venue_type: venueType,
+        years_in_operation: yearsInOp ? parseInt(yearsInOp, 10) : 1,
+      };
+      if (!isExtra) body.id = user?.tenant_id;
+      const result = await api.request<{ id: string }>('/api/venues', {
         method: 'POST',
-        body: JSON.stringify({
-          id: tenantId,
-          name: name.trim(),
-          address: address.trim(),
-          capacity: capacity ? parseInt(capacity, 10) : 300,
-          venue_type: venueType,
-          years_in_operation: yearsInOp ? parseInt(yearsInOp, 10) : 1,
-        }),
+        body: JSON.stringify(body),
       });
+      if (isExtra && route.params?.onCreated) {
+        await route.params.onCreated(result.id);
+      }
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       navigation.goBack();
     } catch (e: any) {

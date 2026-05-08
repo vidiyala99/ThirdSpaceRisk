@@ -8,6 +8,7 @@ import { ReportIncidentScreen } from '../screens/ReportIncidentScreen';
 import { DashboardStack } from './DashboardStack';
 import { IncidentsStack } from './IncidentsStack';
 import { LiveStack } from './LiveStack';
+import { VenuesScreen } from '../screens/VenuesScreen';
 
 // Broker screens
 import { BrokerComplianceScreen } from '../screens/BrokerComplianceScreen';
@@ -18,7 +19,8 @@ const Tab = createBottomTabNavigator();
 
 const VENUE_ICONS: Record<string, { active: string; inactive: string }> = {
   Dashboard: { active: '◈', inactive: '◇' },
-  Incidents: { active: '⊞', inactive: '⊟' },
+  Venues:    { active: '⊟', inactive: '⊞' },
+  Incidents: { active: '!', inactive: '!' },
   Report:    { active: '+', inactive: '+' },
   Live:      { active: '◉', inactive: '○' },
 };
@@ -85,6 +87,7 @@ function VenueOperatorTabs() {
       ),
     })}>
       <Tab.Screen name="Dashboard" component={DashboardStack} />
+      <Tab.Screen name="Venues" component={VenuesScreen} />
       <Tab.Screen name="Incidents" component={IncidentsStack} />
       <Tab.Screen name="Report" component={ReportIncidentScreen} />
       <Tab.Screen name="Live" component={LiveStack} />

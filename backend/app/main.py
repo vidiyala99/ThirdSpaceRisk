@@ -258,6 +258,27 @@ def venue_count() -> dict:
     return {"count": len(VENUES)}
 
 
+@app.patch("/api/venues/{venue_id}")
+def update_venue(venue_id: str, payload: dict, session: Session = Depends(get_session)) -> dict:
+    venue = _resolve_venue(venue_id, session)
+    editable = ["name", "address", "capacity", "venue_type", "years_in_operation", "security_level"]
+    for field in editable:
+        if field in payload:
+            value = payload[field]
+            if field in ("capacity", "years_in_operation"):
+                value = int(value)
+            venue[field] = value
+    VENUES[venue_id] = venue
+    import json as _json
+    db_venue = session.get(Venue, venue_id)
+    if db_venue:
+        db_venue.name = venue.get("name", db_venue.name)
+        db_venue.venue_data = _json.dumps(venue)
+        session.add(db_venue)
+        session.commit()
+    return {"id": venue_id, **venue}
+
+
 @app.get("/api/portfolio")
 def get_portfolio(session: Session = Depends(get_session)) -> list[dict]:
     """Single endpoint for broker portfolio view — all venues with scores + live state."""
