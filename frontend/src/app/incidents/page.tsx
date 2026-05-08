@@ -197,7 +197,7 @@ export default function IncidentsPage() {
         </div>
         {isBroker && (
           <span className="text-xs text-secondary">
-            Showing all venues · Read-only
+            Showing all venues
           </span>
         )}
       </div>
