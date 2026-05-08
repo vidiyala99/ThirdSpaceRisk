@@ -92,10 +92,15 @@ async def lifespan(app: FastAPI):
                 session.commit()
             except Exception:
                 pass  # Column already exists
-        # Seed venues
+        # Seed venues with full data so _resolve_venue has accurate info from DB
+        import json as _json
         for venue_id, venue_data in VENUES.items():
-            if not session.get(Venue, venue_id):
-                session.add(Venue(id=venue_id, name=venue_data["name"]))
+            existing = session.get(Venue, venue_id)
+            if not existing:
+                session.add(Venue(id=venue_id, name=venue_data["name"], venue_data=_json.dumps(venue_data)))
+            elif not existing.venue_data:
+                existing.venue_data = _json.dumps(venue_data)
+                session.add(existing)
         session.commit()
         # Seed demo users into DB if not already present
         from app.auth import DEMO_USERS, create_password_hash
