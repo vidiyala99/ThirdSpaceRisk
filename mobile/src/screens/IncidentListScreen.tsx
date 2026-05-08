@@ -61,9 +61,11 @@ export function IncidentListScreen({ navigation }: any) {
     <View style={styles.root}>
       <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
         <View style={styles.titleRow}>
-          <Text style={styles.title}>Incidents</Text>
-          <View style={styles.countBadge}>
-            <Text style={styles.countText}>{incidents.length}</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+            <Text style={styles.title}>Incidents</Text>
+            <View style={styles.countBadge}>
+              <Text style={styles.countText}>{incidents.length}</Text>
+            </View>
           </View>
           <Text style={styles.signOut} onPress={signOut}>SIGN OUT</Text>
         </View>
@@ -132,8 +134,8 @@ const styles = StyleSheet.create({
   centered: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#07080f' },
 
   header: { paddingHorizontal: 20, paddingBottom: 16, gap: 16 },
-  titleRow: { flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 },
-  signOut: { color: '#8b90a8', fontSize: 10, fontWeight: '700', letterSpacing: 1.5, marginLeft: 'auto' },
+  titleRow: { flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1, justifyContent: 'space-between' },
+  signOut: { color: '#8b90a8', fontSize: 10, fontWeight: '700', letterSpacing: 1.5 },
   title: { color: '#eeeef5', fontSize: 28, fontWeight: '800', letterSpacing: -0.5 },
   countBadge: {
     backgroundColor: 'rgba(200,240,0,0.12)',
