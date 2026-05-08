@@ -202,7 +202,7 @@ def _validate_citation(
     - Source must have content (excerpt in DB)
     Returns (validation_status, failure_reason).
     """
-    if source.venue_id != venue_id:
+    if source.venue_id != venue_id and source.venue_id != "*":
         return "invalid", f"source venue mismatch: {source.venue_id} != {venue_id}"
     if not excerpt or not excerpt.strip():
         return "invalid", "excerpt is empty"

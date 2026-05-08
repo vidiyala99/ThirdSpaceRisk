@@ -253,7 +253,7 @@ class UnderwritingPacketAgentRuntime:
         return UnderwritingMemo(
             summary=memo_output.summary,
             open_questions=memo_output.open_questions,
-            review_status=risk_signal.review_status,
+            review_status="draft",
             citations=citations,
         )
 

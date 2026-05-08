@@ -33,6 +33,7 @@ class DeterministicProvider(MemoProvider):
                 "Physical altercation creates liquor-liability and negligent-security exposure. "
                 "Key underwriting factors: security response time, staffing ratio at time of incident, "
                 "and whether the venue can demonstrate Duty of Care compliance. "
+                "This event requires underwriter review before coverage determination. "
                 "If police were called, obtain the report number for the claims file."
             ),
             "premises_liability": (

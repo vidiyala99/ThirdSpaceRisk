@@ -51,10 +51,12 @@ class RiskEvaluatorWorker(BaseWorker):
 
     async def _run(self, context: Dict[str, Any]) -> Dict[str, Any]:
         runtime = UnderwritingPacketAgentRuntime()
+        incident_data = context.get("incident_payload")
+        incident = IncidentCreate(**incident_data) if incident_data else None
         citations_data = context.get("retrieval", {}).get("citations", [])
         citations = [Citation(**c) for c in citations_data]
-        
-        risk_signal = runtime._run_risk_evaluator_agent(citations=citations)
+
+        risk_signal = runtime._run_risk_evaluator_agent(citations=citations, incident=incident)
         return {"risk_signal": risk_signal.model_dump()}
 
 class UnderwriterMemoWorker(BaseWorker):
@@ -62,11 +64,16 @@ class UnderwriterMemoWorker(BaseWorker):
         super().__init__("underwriter_memo_agent")
 
     async def _run(self, context: Dict[str, Any]) -> Dict[str, Any]:
+        from app.schemas import RiskSignal
         runtime = UnderwritingPacketAgentRuntime()
+        incident_data = context.get("incident_payload")
+        incident = IncidentCreate(**incident_data)
         citations_data = context.get("retrieval", {}).get("citations", [])
         citations = [Citation(**c) for c in citations_data]
-        
-        memo = runtime._run_underwriter_memo_agent(citations=citations)
+        risk_signal_data = context.get("risk_eval", {}).get("risk_signal", {})
+        risk_signal = RiskSignal(**risk_signal_data) if risk_signal_data else runtime._run_risk_evaluator_agent(citations=citations, incident=incident)
+
+        memo = runtime._run_underwriter_memo_agent(incident=incident, risk_signal=risk_signal, citations=citations)
         return {"underwriting_memo": memo.model_dump()}
 
 WORKER_REGISTRY = {
