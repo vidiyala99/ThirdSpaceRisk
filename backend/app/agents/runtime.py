@@ -242,14 +242,34 @@ class UnderwritingPacketAgentRuntime:
         risk_signal: RiskSignal,
         citations: list[Citation],
     ) -> UnderwritingMemo:
-        memo_output = self._memo_provider.draft_memo(
-            incident_summary=incident.summary,
-            incident_location=incident.location,
-            risk_type=risk_signal.type,
-            severity=risk_signal.severity,
-            confidence=risk_signal.confidence,
-            citation_excerpts=[c.excerpt for c in citations],
-        )
+        # Try the configured provider; fall back to deterministic so a transient
+        # LLM hiccup (network, rate limit, malformed JSON) never blocks an
+        # incident from getting a packet.
+        try:
+            memo_output = self._memo_provider.draft_memo(
+                incident_summary=incident.summary,
+                incident_location=incident.location,
+                risk_type=risk_signal.type,
+                severity=risk_signal.severity,
+                confidence=risk_signal.confidence,
+                citation_excerpts=[c.excerpt for c in citations],
+            )
+        except Exception as exc:
+            import logging
+            logging.warning(
+                "Memo provider %s failed (%s); falling back to deterministic.",
+                getattr(self._memo_provider, "provider_name", "unknown"),
+                exc.__class__.__name__,
+            )
+            from app.providers.deterministic import DeterministicProvider
+            memo_output = DeterministicProvider().draft_memo(
+                incident_summary=incident.summary,
+                incident_location=incident.location,
+                risk_type=risk_signal.type,
+                severity=risk_signal.severity,
+                confidence=risk_signal.confidence,
+                citation_excerpts=[c.excerpt for c in citations],
+            )
         return UnderwritingMemo(
             summary=memo_output.summary,
             open_questions=memo_output.open_questions,
