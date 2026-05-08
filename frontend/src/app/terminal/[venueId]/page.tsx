@@ -43,7 +43,7 @@ function SkeletonBlock({ width = "100%", height = "1rem", className = "" }: { wi
 
 function TerminalEmpty({ label, message }: { label: string; message: string }) {
   return (
-    <div className="flex flex-col gap-sm p-lg" style={{ fontFamily: "var(--font-mono)", color: "var(--text-muted)" }}>
+    <div className="flex flex-col gap-sm p-sm" style={{ fontFamily: "var(--font-mono)", color: "var(--text-muted)" }}>
       <div className="text-xs" style={{ color: "var(--brand-primary)", opacity: 0.7 }}>
         &gt; {label}
       </div>
@@ -390,7 +390,7 @@ export default function VenueTerminalPage() {
         <div className="grid grid-cols-2 gap-2xl items-start">
           {/* Compliance Queue */}
           <section>
-            <div className="flex justify-between items-center border-b border-subtle pb-md mb-lg" style={{ borderColor: (liveState.compliance_queue?.length ?? 0) > 0 ? "rgba(255,60,60,0.3)" : undefined }}>
+            <div className="flex justify-between items-center border-b border-subtle pb-md mb-md" style={{ borderColor: (liveState.compliance_queue?.length ?? 0) > 0 ? "rgba(255,60,60,0.3)" : undefined }}>
               <h3 className="text-lg font-semibold uppercase font-display">Compliance Queue</h3>
               {(liveState.compliance_queue?.length ?? 0) > 0 && (
                 <span className="badge badge-error">URGENT</span>
