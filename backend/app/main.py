@@ -253,12 +253,16 @@ def list_venues(session: Session = Depends(get_session)) -> list[dict]:
 
 @app.post("/api/venues", status_code=201)
 def create_venue(payload: dict, session: Session = Depends(get_session)) -> dict:
-    import re
+    import re, json as _json
     name = payload.get("name", "").strip()
     if not name:
         raise HTTPException(status_code=400, detail="Venue name is required")
-    venue_id = payload.get("id") or re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
-    if venue_id in VENUES or session.get(Venue, venue_id):
+    explicit_id = payload.get("id")
+    venue_id = explicit_id or re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
+    # Only block duplicates when the ID was auto-generated from the name.
+    # When an explicit ID is provided (operator's tenant_id), treat as upsert
+    # so that retrying venue setup after a prior attempt doesn't 409.
+    if not explicit_id and (venue_id in VENUES or session.get(Venue, venue_id)):
         raise HTTPException(status_code=409, detail="A venue with this name already exists")
     venue_data = {
         "name": name,
@@ -275,13 +279,12 @@ def create_venue(payload: dict, session: Session = Depends(get_session)) -> dict
         "infrastructure": [],
     }
     VENUES[venue_id] = venue_data
-    import json as _json
-    if not session.get(Venue, venue_id):
-        session.add(Venue(id=venue_id, name=name, venue_data=_json.dumps(venue_data)))
-    else:
-        db_venue = session.get(Venue, venue_id)
+    db_venue = session.get(Venue, venue_id)
+    if db_venue:
+        db_venue.name = name
         db_venue.venue_data = _json.dumps(venue_data)
-        session.add(db_venue)
+    else:
+        session.add(Venue(id=venue_id, name=name, venue_data=_json.dumps(venue_data)))
     session.commit()
     return {"id": venue_id, **venue_data}
 
