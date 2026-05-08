@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useTenantId, useAuth } from "@/contexts/AuthContext";
 import { toastSuccess, toastError } from "@/lib/toast";
 import { CheckSquare, Upload, Clock, AlertCircle, LogOut } from "lucide-react";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8002";
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
 
 interface ComplianceItem {
   id: string;
@@ -16,12 +16,11 @@ interface ComplianceItem {
 
 export default function CompliancePage() {
   const router = useRouter();
-  const { signOut, isSignedIn } = useAuth();
+  const { signOut, isSignedIn, isLoaded } = useAuth();
   const tenantId = useTenantId();
   const [complianceItems, setComplianceItems] = useState<ComplianceItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploadingId, setUploadingId] = useState<string | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!isSignedIn) {
@@ -77,9 +76,8 @@ export default function CompliancePage() {
       console.error(error);
     } finally {
       setUploadingId(null);
-      if (fileInputRef.current) {
-        fileInputRef.current.value = "";
-      }
+      const input = document.getElementById(`upload-${itemId}`) as HTMLInputElement | null;
+      if (input) input.value = "";
     }
   };
 
@@ -97,7 +95,7 @@ export default function CompliancePage() {
   }
 
   return (
-    <div className="page">
+    <div className="theme-venue page">
       <header className="page-header">
         <div>
           <h1>Compliance</h1>
@@ -105,10 +103,6 @@ export default function CompliancePage() {
             Complete pending compliance actions to maintain coverage
           </p>
         </div>
-        <button onClick={handleSignOut} className="btn btn-ghost">
-          <LogOut size={18} />
-          Sign Out
-        </button>
       </header>
 
       {complianceItems.length === 0 ? (
@@ -125,7 +119,7 @@ export default function CompliancePage() {
             <div key={item.id} className="compliance-card">
               <div className="compliance-header">
                 <AlertCircle size={18} />
-                <span>{item.id}</span>
+                <span>{item.description || item.id.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase())}</span>
               </div>
               <p className="compliance-desc">{item.description}</p>
               <div className="compliance-meta">
@@ -136,16 +130,16 @@ export default function CompliancePage() {
               </div>
               <div className="compliance-actions">
                 <input
-                  ref={fileInputRef}
                   type="file"
                   accept="video/*,image/*,application/pdf"
                   className="visually-hidden"
+                  id={`upload-${item.id}`}
                   onChange={(e) => handleUpload(item.id, e)}
                 />
-                <button
-                  className="btn btn-secondary"
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={uploadingId === item.id}
+                <label
+                  htmlFor={`upload-${item.id}`}
+                  className={`btn btn-secondary${uploadingId === item.id ? " disabled" : ""}`}
+                  style={{ cursor: uploadingId === item.id ? "not-allowed" : "pointer" }}
                 >
                   {uploadingId === item.id ? (
                     <>
@@ -158,7 +152,7 @@ export default function CompliancePage() {
                       Upload Evidence
                     </>
                   )}
-                </button>
+                </label>
               </div>
             </div>
           ))}

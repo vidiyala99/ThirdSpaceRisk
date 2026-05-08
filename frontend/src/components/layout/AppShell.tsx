@@ -1,38 +1,47 @@
 "use client";
 
-import { ReactNode } from "react";
+import { ReactNode, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { 
-  LayoutDashboard, 
-  Building2, 
-  AlertTriangle, 
-  CheckSquare, 
+import {
+  LayoutDashboard,
+  Building2,
+  AlertTriangle,
+  CheckSquare,
   FileSearch,
-  Settings,
-  LogOut
+  LogOut,
+  Activity,
+  Menu,
+  X,
 } from "lucide-react";
-import { useAuth, useRole } from "@/contexts/AuthContext";
+import { useAuth, useRole, useTenantId } from "@/contexts/AuthContext";
 
 interface AppShellProps {
   children: ReactNode;
 }
 
-const navItems = [
-  { href: "/dashboard", label: "Portfolio", icon: LayoutDashboard },
-  { href: "/underwriter", label: "Packet Review", icon: FileSearch, roles: ["broker", "admin"] },
-  { href: "/", label: "Venue Risk", icon: Building2 },
-  { href: "/venues", label: "Venues", icon: Building2, roles: ["broker", "admin"] },
-  { href: "/incidents", label: "Incidents", icon: AlertTriangle },
-  { href: "/compliance", label: "Compliance", icon: CheckSquare },
-  { href: "/settings", label: "Settings", icon: Settings },
-];
+const ROLE_LABELS: Record<string, string> = {
+  broker: "Broker",
+  admin: "Admin",
+  venue_operator: "Venue Operator",
+};
 
 export function AppShell({ children }: AppShellProps) {
   const pathname = usePathname();
   const router = useRouter();
   const { signOut, user } = useAuth();
   const role = useRole();
+  const tenantId = useTenantId();
+  const [mobileOpen, setMobileOpen] = useState(false);
+
+  const navItems = [
+    { href: "/dashboard", label: "Portfolio", icon: LayoutDashboard },
+    { href: "/underwriter", label: "Reports", icon: FileSearch, roles: ["broker", "admin"] },
+    { href: `/terminal/${tenantId ?? "elsewhere-brooklyn"}`, label: "Live Terminal", icon: Activity, roles: ["venue_operator"] },
+    { href: "/venues", label: "Venues", icon: Building2, roles: ["broker", "admin"] },
+    { href: "/incidents", label: "Incidents", icon: AlertTriangle },
+    { href: "/compliance", label: "Compliance", icon: CheckSquare },
+  ];
 
   const filteredNav = navItems.filter(
     (item) => !item.roles || item.roles.includes(role || "")
@@ -43,29 +52,29 @@ export function AppShell({ children }: AppShellProps) {
     router.push("/login");
   };
 
-  return (
-    <div className="app-shell">
-      <aside className="sidebar">
+  const sidebarContent = (
+    <>
         <div className="sidebar-brand">
           <h1>Third Space</h1>
           <p>Risk OS</p>
+          <span className="sidebar-mission">Keep venues alive.</span>
         </div>
 
         <div className="sidebar-user">
           <span className="user-name">{user?.name}</span>
-          <span className="user-role">{user?.role}</span>
+          <span className="user-role">{ROLE_LABELS[user?.role ?? ""] ?? user?.role}</span>
         </div>
 
         <nav className="sidebar-nav">
           {filteredNav.map((item) => {
             const Icon = item.icon;
             const isActive = pathname === item.href || pathname?.startsWith(item.href + "/");
-            
             return (
               <Link
                 key={item.href}
                 href={item.href}
                 className={`sidebar-nav-item ${isActive ? "active" : ""}`}
+                onClick={() => setMobileOpen(false)}
               >
                 <Icon size={18} />
                 <span>{item.label}</span>
@@ -80,6 +89,24 @@ export function AppShell({ children }: AppShellProps) {
             <span>Sign Out</span>
           </button>
         </div>
+    </>
+  );
+
+  return (
+    <div className="app-shell">
+      {/* Mobile nav bar */}
+      <div className="mobile-nav-bar">
+        <span className="brand">Third Space</span>
+        <button className="hamburger" onClick={() => setMobileOpen(o => !o)} aria-label="Menu">
+          {mobileOpen ? <X size={22} color="var(--text-primary)" /> : <Menu size={22} color="var(--text-primary)" />}
+        </button>
+      </div>
+
+      {/* Mobile overlay */}
+      {mobileOpen && <div className="sidebar-overlay" onClick={() => setMobileOpen(false)} />}
+
+      <aside className={`sidebar${mobileOpen ? " open" : ""}`}>
+        {sidebarContent}
       </aside>
 
       <main className="main-content">

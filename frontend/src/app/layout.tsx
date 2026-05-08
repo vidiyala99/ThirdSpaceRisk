@@ -1,25 +1,25 @@
 import "./styles.css";
-import { Inter, Space_Grotesk, JetBrains_Mono } from "next/font/google";
+import { DM_Sans, Cormorant_Garamond, JetBrains_Mono } from "next/font/google";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { Toaster } from "react-hot-toast";
 
-const inter = Inter({ subsets: ['latin'], variable: '--font-inter' })
-const spaceGrotesk = Space_Grotesk({ subsets: ['latin'], variable: '--font-space-grotesk' })
-const jetbrainsMono = JetBrains_Mono({ subsets: ['latin'], variable: '--font-jetbrains-mono' })
+const dmSans = DM_Sans({ subsets: ['latin'], variable: '--font-dm-sans', weight: ['300', '400', '500', '600', '700'] });
+const cormorant = Cormorant_Garamond({ subsets: ['latin'], variable: '--font-cormorant', weight: ['400', '500', '600', '700'] });
+const jetbrainsMono = JetBrains_Mono({ subsets: ['latin'], variable: '--font-jetbrains-mono', weight: ['400', '500'] });
 
 export const metadata = {
-  title: "Third Space Risk OS - Underwriter Console",
-  description: "Real-time venue evidence, review gates, and carrier-ready outputs for modern underwriting operations.",
+  title: "Third Space Risk OS",
+  description: "Evidence-first underwriting for nightlife venues.",
+};
+
+export const viewport = {
+  width: "device-width",
+  initialScale: 1,
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${inter.variable} ${spaceGrotesk.variable} ${jetbrainsMono.variable}`}>
-      <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link href="https://fonts.googleapis.com/css2?family=Syncopate:wght@400;700&display=swap" rel="stylesheet" />
-      </head>
+    <html lang="en" className={`${dmSans.variable} ${cormorant.variable} ${jetbrainsMono.variable}`}>
       <body>
         <AuthProvider>
           {children}
@@ -27,10 +27,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             position="top-right"
             toastOptions={{
               style: {
-                background: '#1a1a1a',
-                color: '#FFFFFF',
-                border: '1px solid rgba(255,255,255,0.15)',
-                borderRadius: '4px',
+                background: '#13151f',
+                color: '#eeeef5',
+                border: '1px solid rgba(255,255,255,0.08)',
+                borderRadius: '8px',
+                fontSize: '0.875rem',
+                fontFamily: 'var(--font-dm-sans)',
               },
             }}
           />

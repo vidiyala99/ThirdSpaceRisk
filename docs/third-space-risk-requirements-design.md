@@ -1,6 +1,6 @@
 # Third Space Risk Requirements and Design
 
-Last updated: 2026-05-03
+Last updated: 2026-05-05
 
 ## Purpose
 
@@ -292,97 +292,94 @@ Important CORS note:
 
 ### Product Requirements
 
-- Show how operational venue data can support underwriting and claims workflows.
-- Keep the demo focused on one strong scenario instead of a broad unfinished platform.
-- Make evidence visible and cited, not hidden behind generic AI output.
-- Preserve a clear distinction between:
-  - observed incident facts
-  - retrieved source evidence
-  - generated risk/memo/action outputs
-- Provide a local demo that can be run and explained quickly.
+- Show how operational venue data supports underwriting and claims defense workflows.
+- Support two primary personas: venue operators and brokers/underwriters.
+- Make evidence visible and cited — not hidden behind generic AI output.
+- Preserve a clear distinction between observed facts, source evidence, and generated outputs.
+- Demonstrate the full operational loop: live data → compliance action → evidence upload → claims defense.
+- Communicate the savings story: Third Space rate vs market rate, not just a risk score.
+- Provide a local demo that runs end-to-end without narration.
 
 ### Functional Requirements
 
-- User can open an underwriter dossier UI.
-- User can trigger the brawl incident flow.
-- Backend returns a structured review packet.
-- Review packet includes citations and timeline reconstruction.
-- Incident submissions are persisted.
-- Repeated demo submissions do not fail.
-- Backend exposes health and venue endpoints.
-- Event stream endpoint accepts high-volume event payloads asynchronously.
+**Broker/Underwriter flows:**
+- Portfolio dashboard showing all venues with tier, score, live capacity, open incidents per venue.
+- Packet Review (underwriter workbench) opens pre-loaded with the best scenario.
+- Lifecycle tabs: draft → processing → needs_review → approved → blocked.
+- Review Decision capture (Approve/Flag/Block) persisted to backend via audit trail.
+- AI engine label and proprietary underwriting signal visible.
+
+**Venue Operator flows:**
+- Venue Risk terminal shows live capacity, insurance profile (tier, score, premium, savings vs market), coverage breakdown, infrastructure sync.
+- Simulate Alert button injects a camera anomaly event synchronously, causing a compliance item to appear in the queue.
+- Compliance queue with file upload — resolving items removes them from the queue.
+- Incidents page with status lifecycle (open → under_review → closed), filter tabs, and close/review actions.
+
+**Shared:**
+- Role-based auth (broker, venue_operator) with hardcoded demo credentials.
+- Quick Demo Login button on the login page.
+- 5 seeded venues with differentiated risk scores, tiers, and infrastructure profiles.
+- Incident status field with `?status=open` filter on the incidents API.
+- All nav items functional — no dead ends.
 
 ### Non-Functional Requirements
 
-- Local setup should be simple enough to run before an interview.
-- Build and tests should pass without manual cleanup of generated pytest temp directories.
-- Frontend should render on desktop and mobile widths.
-- The demo should make mocked/synthetic data obvious enough for engineering clarity while still feeling credible as a product prototype.
+- Local setup runnable before an interview with two terminal commands.
+- Build (Next.js) and tests (pytest + node) pass without manual cleanup.
+- No Tailwind — custom CSS utility system in `styles.css`.
+- Frontend renders correctly at 1440px desktop width.
 
 ## Known Limitations
 
-- Only one synthetic venue exists.
-- Only one incident type is implemented.
-- Incident creation uses a hard-coded frontend payload.
-- Retrieval is keyword-based, not vector search or a production RAG system.
-- The underwriting memo is deterministic template logic, not LLM-generated output.
-- Product-facing agent contracts are loaded by deterministic runtime orchestration, but no LLM provider or prompt runner is wired into the packet flow.
-- No model eval suite or provider-backed fallback router exists yet.
-- Event stream ingestion logs simulated async processing instead of using a real queue.
-- SQLite database path is local and minimal.
-- No authentication or tenant isolation exists.
-- No API client abstraction exists on the frontend.
-- No frontend integration tests or browser visual regression tests exist.
-- The root `/` venue dashboard is static and disconnected from the backend.
-- Existing local logs, PID files, `.next`, `node_modules`, SQLite DB, and pytest temp files are runtime artifacts rather than product source.
+- Five synthetic venues; only Elsewhere Brooklyn has full underwriting packet data.
+- Incident creation in the underwriter uses a fixed demo payload.
+- Retrieval is keyword-based, not vector search.
+- The rubric engine is deterministic Python — no LLM calls in the packet flow.
+- No model eval suite or provider-backed fallback router.
+- SQLite for persistence — not production-grade.
+- Auth uses in-memory hardcoded users — no real JWT or session management.
+- No frontend integration tests or browser visual regression tests.
+- The Simulate Alert loop demonstrates the concept but uses an in-memory state manager, not a real event queue.
+- Stream events endpoint processes asynchronously via FastAPI BackgroundTasks, not Kafka or a real queue.
+- Venues page "Add Venue" shows an informational toast — venue onboarding is not implemented.
 
 ## Open Questions
 
 Product:
-
-- Who is the primary first user: underwriter, broker, venue operator, or internal Third Space team?
-- Should the strongest demo flow be underwriting review, claims defensibility, or venue risk operations?
-- What real venue systems matter most for ingestion: POS, ticketing, door counters, security logs, cameras, incident forms, staffing, or insurance documents?
-- What should be automated versus explicitly marked for human review?
-- What output would a carrier or broker actually trust enough to use?
+- How should the broker manage renewals and carrier relationships inside the product?
+- What carrier-facing outputs would actually move an underwriting decision?
+- Should claims defense exports be structured documents or API-accessible records?
 
 Technical:
+- When should RAG move from keyword to vector search?
+- Should the live state manager persist across server restarts (Redis/DB)?
+- Should the event injection endpoint remain a demo affordance or become a real ingestion path?
 
-- Should RAG move to ChromaDB or stay deterministic until real source data exists?
-- Should generated evaluations be stored as immutable snapshots or recalculated on demand?
-- Should incident IDs be server-generated UUIDs only, or should there also be human-readable incident numbers?
-- Should frontend types be generated from backend schemas?
-- Should the app use a real API client and loading/error state pattern before more routes are added?
+## Current Demo Flow
 
-Demo:
+Primary path for interview:
 
-- Which route should be the primary interview demo: `/underwriter` or `/`?
-- Should the static venue dashboard become a venue-operator workflow or remain a visual concept?
-- What is the shortest story that explains why this is not just a generic incident tracker?
-
-## Recommended Next Milestone
-
-Milestone: make the underwriter demo feel like a coherent product slice.
-
-Suggested requirements:
-
-1. Add a source-of-truth demo scenario document.
-2. Replace hard-coded frontend packet fallback duplication with shared fixtures or an API-backed initial state.
-3. Add a simple incident intake form or scenario selector.
-4. Add a persisted incident list endpoint and UI.
-5. Make citations clickable or expandable so evidence review is explicit.
-6. Add basic frontend API client helpers and response typing.
-7. Add one browser smoke test for `/underwriter`.
-8. Clean runtime artifacts into ignored/generated paths if this becomes a Git repo.
+1. `/login` — hit ⚡ QUICK DEMO LOGIN.
+2. `/dashboard` — portfolio view: 5 venues, differentiated tiers A/B/B/B/C.
+3. Click **Elsewhere Brooklyn** → `/terminal/elsewhere-brooklyn`:
+   - Risk Profile: Tier A, 93/100
+   - Premium: $8,400/yr vs market $12,000/yr — **saving $3,600/yr (30%)**
+   - Press **Simulate Alert** → camera anomaly injected → compliance item appears
+   - Upload evidence → compliance item resolves
+4. `/underwriter` (Packet Review):
+   - Pre-loaded with Delayed Brawl scenario
+   - 3-column: context rail, risk signal + memo + timeline, evidence index
+   - Press **REFRESH** → runs real backend flow → Review Decision panel appears
+   - Approve / Flag / Block recorded to audit trail
 
 ## Interview Talking Points
 
-- "I scoped the prototype around one credible workflow: a brawl at a live venue becoming an underwriting review packet."
-- "The important product idea is not incident logging by itself. It is connecting operational signals to insurance decisions with citations."
-- "I kept the first backend deterministic so the demo is explainable and testable. The RAG layer is intentionally simple right now."
-- "The architecture separates reported facts, source evidence, risk signal, action plan, timeline, and underwriting memo."
-- "The current limitations are clear: one venue, one scenario, mocked data, no auth, and simulated async ingestion. The next milestone is turning this from a demo packet into a small but coherent workflow."
-- "I added tests around the incident flow, including a regression for repeated submissions, because demo flows should not break after one click."
+- "Two personas, two aesthetics: the venue operator sees their live operational defense, the broker sees the underwriting intelligence layer."
+- "The savings story is a single number: $3,600/year saved at Elsewhere Brooklyn vs market rate, driven by evidence-first underwriting."
+- "The Simulate Alert button demonstrates the full loop in 30 seconds — camera anomaly, compliance action, evidence upload — without any narration."
+- "The rubric engine is deterministic and versioned. LLM-assisted drafting is Phase 2, after citation validation is reliable."
+- "Every generated packet has a review state. Every underwriter decision is recorded with a reason. That's the audit trail carriers need."
+- "I deliberately stopped before Postgres, Kafka, and real LLM calls. Those come after the source registry and human review loop are proven."
 
 ## Maintenance Notes
 

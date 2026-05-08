@@ -1,7 +1,8 @@
 from dataclasses import dataclass
 from pathlib import Path
 
-from app.rag import VenueKnowledgeBase
+from app.rag_v2 import SemanticKnowledgeBase as VenueKnowledgeBase
+from app.providers import MemoProvider, get_default_provider
 from app.schemas import ActionItem, Citation, IncidentCreate, RiskSignal, TimelineEvent, UnderwritingMemo
 
 
@@ -38,8 +39,13 @@ class UnderwritingPacketAgentResult:
 
 
 class UnderwritingPacketAgentRuntime:
-    def __init__(self, contracts_dir: Path | None = None):
+    def __init__(
+        self,
+        contracts_dir: Path | None = None,
+        memo_provider: MemoProvider | None = None,
+    ):
         self._contracts_dir = contracts_dir or Path(__file__).resolve().parent
+        self._memo_provider = memo_provider or get_default_provider()
 
     def execute(
         self,
@@ -63,7 +69,7 @@ class UnderwritingPacketAgentRuntime:
         )
         trace.append(self._trace_step("retrieval_agent", contracts))
 
-        risk_signal = self._run_risk_evaluator_agent(citations=citations)
+        risk_signal = self._run_risk_evaluator_agent(citations=citations, incident=incident)
         trace.append(self._trace_step("risk_evaluator_agent", contracts))
 
         action_plan = self._run_customer_action_agent()
@@ -76,7 +82,9 @@ class UnderwritingPacketAgentRuntime:
         )
         trace.append(self._trace_step("claims_timeline_agent", contracts))
 
-        underwriting_memo = self._run_underwriter_memo_agent(citations=citations)
+        underwriting_memo = self._run_underwriter_memo_agent(
+            incident=incident, risk_signal=risk_signal, citations=citations
+        )
         trace.append(self._trace_step("underwriter_memo_agent", contracts))
 
         return UnderwritingPacketAgentResult(
@@ -116,19 +124,75 @@ class UnderwritingPacketAgentRuntime:
         stream_events: list[dict],
     ) -> list[Citation]:
         knowledge_base = VenueKnowledgeBase(knowledge_sources, stream_events)
-        query = f"{incident.summary} {incident.location} brawl altercation security incident policy camera evidence"
+        summary_lower = incident.summary.lower()
+        # Build a type-aware query so retrieved citations actually match the incident
+        if any(k in summary_lower for k in ["brawl", "fight", "altercation", "assault", "force"]):
+            type_keywords = "altercation security response duty of care footage staff"
+        elif any(k in summary_lower for k in ["slip", "fell", "fall", "stairs"]):
+            type_keywords = "premises liability hazard wet floor signage inspection"
+        elif any(k in summary_lower for k in ["overdose", "unresponsive", "medical", "ems"]):
+            type_keywords = "medical emergency duty of care ems response negligence"
+        elif any(k in summary_lower for k in ["fire", "electrical", "smoke"]):
+            type_keywords = "property damage fire suppression equipment inspection liability"
+        elif any(k in summary_lower for k in ["liquor", "serving", "intoxicated", "cutoff"]):
+            type_keywords = "liquor liability dram shop over-service POS compliance"
+        elif any(k in summary_lower for k in ["vandal", "damage", "broken"]):
+            type_keywords = "property damage vandalism third-party liability"
+        else:
+            type_keywords = "incident report policy compliance documentation"
+        query = f"{incident.summary} {incident.location} {type_keywords}"
         return knowledge_base.retrieve(venue_id, query)
 
-    def _run_risk_evaluator_agent(self, *, citations: list[Citation]) -> RiskSignal:
+    def _run_risk_evaluator_agent(
+        self, *, citations: list[Citation], incident: IncidentCreate | None = None
+    ) -> RiskSignal:
+        injury = getattr(incident, "injury_observed", False) if incident else False
+        police = getattr(incident, "police_called", False) if incident else False
+        ems = getattr(incident, "ems_called", False) if incident else False
+        summary = (getattr(incident, "summary", "") or "").lower() if incident else ""
+
+        # Determine type from summary keywords
+        if any(k in summary for k in ["fire", "electrical"]):
+            incident_type, base_severity, base_confidence = "property_damage", "medium", 0.82
+        elif any(k in summary for k in ["overdose", "unresponsive", "hospital"]):
+            incident_type, base_severity, base_confidence = "medical_emergency", "critical", 0.94
+        elif any(k in summary for k in ["assault", "excessive force", "fight", "brawl", "fighting"]):
+            incident_type, base_severity, base_confidence = "altercation_event", "medium", 0.78
+        elif any(k in summary for k in ["slip", "fell", "fall", "stairs"]):
+            incident_type, base_severity, base_confidence = "premises_liability", "medium", 0.81
+        elif any(k in summary for k in ["serving", "liquor", "intoxicated", "cutoff", "dram"]):
+            incident_type, base_severity, base_confidence = "liquor_liability", "high", 0.91
+        elif any(k in summary for k in ["crowd", "surge", "faint"]):
+            incident_type, base_severity, base_confidence = "crowd_management", "high", 0.87
+        elif any(k in summary for k in ["vandal", "damage"]):
+            incident_type, base_severity, base_confidence = "property_damage", "low", 0.74
+        else:
+            incident_type, base_severity, base_confidence = "general_incident", "low", 0.70
+
+        # Escalate severity based on flags
+        severity_order = ["low", "medium", "high", "critical"]
+        severity = base_severity
+        if ems and severity_order.index(severity) < severity_order.index("critical"):
+            severity = severity_order[severity_order.index(severity) + 1]
+        if injury and police and severity_order.index(severity) < severity_order.index("high"):
+            severity = "high"
+        confidence = min(base_confidence + (0.04 if police else 0) + (0.03 if ems else 0), 0.99)
+
+        severity_explanations = {
+            "critical": "Multiple aggravating factors present. Immediate carrier escalation and legal hold recommended.",
+            "high": "Significant liability exposure identified. Evidence preservation and underwriter review required.",
+            "medium": "Moderate exposure detected. Staffing and capacity controls may mitigate premium impact if evidence is preserved.",
+            "low": "Limited liability exposure. Standard documentation and follow-up recommended.",
+        }
+
+        review_status = "approved" if severity == "low" else "needs_review"
+
         return RiskSignal(
-            type="altercation_event",
-            severity="medium",
-            confidence=0.78,
-            explanation=(
-                "A brawl creates liquor-liability and claims-defense exposure, but available "
-                "streaming context indicates the venue was under capacity and had security staffed."
-            ),
-            review_status="needs_review",
+            type=incident_type,
+            severity=severity,
+            confidence=round(confidence, 2),
+            explanation=severity_explanations[severity],
+            review_status=review_status,
             citations=citations,
         )
 
@@ -171,19 +235,25 @@ class UnderwritingPacketAgentRuntime:
         )
         return claims_timeline
 
-    def _run_underwriter_memo_agent(self, *, citations: list[Citation]) -> UnderwritingMemo:
+    def _run_underwriter_memo_agent(
+        self,
+        *,
+        incident: IncidentCreate,
+        risk_signal: RiskSignal,
+        citations: list[Citation],
+    ) -> UnderwritingMemo:
+        memo_output = self._memo_provider.draft_memo(
+            incident_summary=incident.summary,
+            incident_location=incident.location,
+            risk_type=risk_signal.type,
+            severity=risk_signal.severity,
+            confidence=risk_signal.confidence,
+            citation_excerpts=[c.excerpt for c in citations],
+        )
         return UnderwritingMemo(
-            summary=(
-                "Brawl incident at rear bar requires underwriter review. Current evidence shows "
-                "the incident was logged promptly, camera metadata identified the relevant clip "
-                "window, and staffing/capacity controls may mitigate the underwriting impact."
-            ),
-            open_questions=[
-                "Was service stopped for the involved patrons before removal?",
-                "Were witness names and contact details collected before close?",
-                "Has the rear-bar clip been reviewed and preserved?",
-            ],
-            review_status="draft",
+            summary=memo_output.summary,
+            open_questions=memo_output.open_questions,
+            review_status=risk_signal.review_status,
             citations=citations,
         )
 

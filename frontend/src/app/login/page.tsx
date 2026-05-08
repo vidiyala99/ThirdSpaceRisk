@@ -147,10 +147,50 @@ export default function LoginPage() {
           </form>
 
           <div className="login-footer">
-            <p className="demo-note">
-              <Sparkles size={14} />
-              Demo: broker@thirdspace.risk / demo123
-            </p>
+            <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
+              <button
+                type="button"
+                onClick={() => {
+                  setEmail("broker@thirdspace.risk");
+                  setPassword("demo123");
+                  setTimeout(() => {
+                    (document.querySelector("form") as HTMLFormElement)?.requestSubmit();
+                  }, 50);
+                }}
+                style={{
+                  flex: 1, padding: '10px', background: 'rgba(212,255,0,0.08)',
+                  border: '1px solid rgba(212,255,0,0.3)', borderRadius: '8px',
+                  color: 'var(--brand-primary)', fontFamily: 'var(--font-body)',
+                  fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer',
+                }}
+              >
+                ⚡ Broker Demo
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setEmail("venue@elsewhere.com");
+                  setPassword("demo123");
+                  setTimeout(() => {
+                    (document.querySelector("form") as HTMLFormElement)?.requestSubmit();
+                  }, 50);
+                }}
+                style={{
+                  flex: 1, padding: '10px', background: 'rgba(129,140,248,0.08)',
+                  border: '1px solid rgba(129,140,248,0.3)', borderRadius: '8px',
+                  color: 'var(--brand-secondary)', fontFamily: 'var(--font-body)',
+                  fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer',
+                }}
+              >
+                ⚡ Venue Operator
+              </button>
+            </div>
+            <div className="login-investors">
+              <span>Backed by</span>
+              <strong>a16z SpeedRun</strong>
+              <span>&amp;</span>
+              <strong>Dorm Room Fund</strong>
+            </div>
           </div>
         </div>
 
@@ -180,7 +220,7 @@ export default function LoginPage() {
           position: absolute;
           width: 600px;
           height: 600px;
-          background: radial-gradient(circle, rgba(0, 245, 212, 0.15) 0%, transparent 70%);
+          background: radial-gradient(circle, rgba(212, 255, 0, 0.08) 0%, transparent 70%);
           top: -200px;
           left: -100px;
         }
@@ -189,7 +229,7 @@ export default function LoginPage() {
           position: absolute;
           width: 500px;
           height: 500px;
-          background: radial-gradient(circle, rgba(255, 0, 110, 0.1) 0%, transparent 70%);
+          background: radial-gradient(circle, rgba(0, 240, 255, 0.07) 0%, transparent 70%);
           bottom: -150px;
           right: -100px;
         }
@@ -222,8 +262,8 @@ export default function LoginPage() {
           width: 56px;
           height: 56px;
           border-radius: 16px;
-          background: linear-gradient(135deg, rgba(0, 245, 212, 0.2) 0%, rgba(123, 97, 255, 0.2) 100%);
-          border: 1px solid rgba(0, 245, 212, 0.3);
+          background: linear-gradient(135deg, rgba(212, 255, 0, 0.15) 0%, rgba(0, 240, 255, 0.15) 100%);
+          border: 1px solid rgba(212, 255, 0, 0.3);
           color: var(--brand-primary);
           margin-bottom: 16px;
         }
@@ -334,7 +374,7 @@ export default function LoginPage() {
 
         .role-option.active {
           border-color: var(--brand-primary);
-          background: rgba(0, 245, 212, 0.1);
+          background: rgba(212, 255, 0, 0.08);
           color: var(--brand-primary);
         }
 

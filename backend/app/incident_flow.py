@@ -8,6 +8,7 @@ from app.schemas import (
     IncidentFlowResponse,
 )
 from app.models import IncidentRecord, IncidentEvaluation
+from app.packet_core import create_packet_snapshot
 from app.seed_data import KNOWLEDGE_SOURCES, STREAM_EVENTS, VENUES
 
 
@@ -36,6 +37,7 @@ def create_brawl_incident_flow(venue_id: str, payload: IncidentCreate, session: 
         injury_observed=incident.injury_observed,
         police_called=incident.police_called,
         ems_called=incident.ems_called,
+        status="open",
     )
     
     db_eval = IncidentEvaluation(
@@ -48,7 +50,20 @@ def create_brawl_incident_flow(venue_id: str, payload: IncidentCreate, session: 
     
     session.add(db_incident)
     session.add(db_eval)
-    session.commit()
+    session.flush()
+
+    create_packet_snapshot(
+        session=session,
+        venue_id=venue_id,
+        incident_id=incident.id,
+        incident=payload,
+        risk_signal=agent_result.risk_signal.model_dump(),
+        action_plan=[item.model_dump() for item in agent_result.action_plan],
+        claims_timeline=[item.model_dump() for item in agent_result.claims_timeline],
+        underwriting_memo=agent_result.underwriting_memo.model_dump(),
+        citations=agent_result.citations,
+        rubric_version="demo-rubric-v1",
+    )
 
     return IncidentFlowResponse(
         incident=incident,
