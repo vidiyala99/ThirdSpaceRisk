@@ -60,12 +60,17 @@ const TIER_COLOR: Record<string, string> = {
   D: "var(--brand-tertiary)",
 };
 
+interface VenueSummary {
+  id: string;
+  name: string;
+}
+
 export default function DashboardPage() {
   const router = useRouter();
   const { signOut, isSignedIn, isLoaded, user } = useAuth();
   const role = useRole();
   const tenantId = useTenantId();
-  const extraVenueCount = user?.extra_venue_ids?.length ?? 0;
+  const extraIdsKey = (user?.extra_venue_ids ?? []).join(",");
   const [loading, setLoading] = useState(true);
   const [portfolioVenues, setPortfolioVenues] = useState<PortfolioVenue[]>([]);
   const [liveState, setLiveState] = useState<LiveState | null>(null);
@@ -73,7 +78,43 @@ export default function DashboardPage() {
   const [quote, setQuote] = useState<PremiumQuote | null>(null);
   const [stats, setStats] = useState<Stats>({ venues: 0, incidents: 0, compliance: 0 });
 
+  // Multi-venue switcher (operator view): which venue's risk/quote/live data
+  // we're currently displaying. Defaults to primary tenant_id.
+  const [selectedVenueId, setSelectedVenueId] = useState<string | null>(null);
+  const [venuesList, setVenuesList] = useState<VenueSummary[]>([]);
+
   const isBroker = role === "broker" || role === "admin";
+
+  // Initialise the selection once tenant loads
+  useEffect(() => {
+    if (!selectedVenueId && tenantId) setSelectedVenueId(tenantId);
+  }, [tenantId, selectedVenueId]);
+
+  // Load the venue list (primary + extras) for chip-row labels.
+  useEffect(() => {
+    if (isBroker || !tenantId) return;
+    let cancelled = false;
+    const primaryId = tenantId; // narrow for inner closure
+    async function loadList() {
+      const ids: string[] = [primaryId, ...(extraIdsKey ? extraIdsKey.split(",") : [])];
+      const results = await Promise.all(
+        ids.map(async (id): Promise<VenueSummary | null> => {
+          try {
+            const res = await fetch(`${API_URL}/api/venues/${id}`);
+            if (!res.ok) return null;
+            const data = await res.json();
+            return { id, name: data.name ?? id };
+          } catch {
+            return null;
+          }
+        })
+      );
+      if (cancelled) return;
+      setVenuesList(results.filter((v): v is VenueSummary => v != null));
+    }
+    loadList();
+    return () => { cancelled = true; };
+  }, [isBroker, tenantId, extraIdsKey]);
 
   useEffect(() => {
     if (isLoaded && !isSignedIn) router.push("/login");
@@ -98,8 +139,18 @@ export default function DashboardPage() {
             });
           }
         } else {
-          // Venue operators: per-venue detailed view
-          const venueId = tenantId ?? "elsewhere-brooklyn";
+          // Venue operators: per-venue detailed view, retargeted by chip selection
+          const venueId = selectedVenueId;
+          if (!venueId) {
+            // Operator without a tenant_id (mid-onboarding) — show empty state
+            // rather than fetching some other venue's data.
+            setStats({ venues: 0, incidents: 0, compliance: 0 });
+            setRiskScore(null);
+            setQuote(null);
+            setLiveState(null);
+            return;
+          }
+          const totalVenueCount = Math.max(venuesList.length, 1);
           const [liveRes, riskRes, quoteRes, incidentsRes] = await Promise.all([
             fetch(`${API_URL}/api/venues/${venueId}/live`),
             fetch(`${API_URL}/api/venues/${venueId}/risk-score`),
@@ -112,16 +163,16 @@ export default function DashboardPage() {
             const state = await liveRes.json();
             setLiveState(state);
             setStats({
-              venues: 1 + extraVenueCount,
+              venues: totalVenueCount,
               incidents: incidentCount,
               compliance: state.compliance_queue?.length || 0,
             });
           } else {
-            // Primary venue not yet set up — still surface the extras count
-            setStats((s) => ({ ...s, venues: 1 + extraVenueCount, incidents: incidentCount }));
+            // This venue not yet set up — still surface the venue count
+            setStats((s) => ({ ...s, venues: totalVenueCount, incidents: incidentCount }));
           }
-          if (riskRes.ok) setRiskScore(await riskRes.json());
-          if (quoteRes.ok) setQuote(await quoteRes.json());
+          setRiskScore(riskRes.ok ? await riskRes.json() : null);
+          setQuote(quoteRes.ok ? await quoteRes.json() : null);
         }
       } catch (error) {
         console.error("Dashboard fetch failed:", error);
@@ -140,7 +191,7 @@ export default function DashboardPage() {
       cancelled = true;
       window.removeEventListener("focus", onFocus);
     };
-  }, [tenantId, isBroker, extraVenueCount]);
+  }, [isBroker, selectedVenueId, venuesList.length]);
 
   const handleSignOut = () => { signOut(); router.push("/login"); };
 
@@ -177,6 +228,47 @@ export default function DashboardPage() {
           </p>
         </div>
       </header>
+
+      {/* Venue switcher — only render when the operator has more than one venue */}
+      {!isBroker && venuesList.length > 1 && (
+        <div className="mb-lg">
+          <div className="text-xs uppercase tracking-wide text-muted mb-sm font-mono">Viewing</div>
+          <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+            {venuesList.map((v) => {
+              const active = v.id === selectedVenueId;
+              return (
+                <button
+                  key={v.id}
+                  onClick={() => {
+                    if (v.id !== selectedVenueId) {
+                      setSelectedVenueId(v.id);
+                      setLoading(true);
+                    }
+                  }}
+                  style={{
+                    padding: "6px 14px",
+                    borderRadius: "18px",
+                    border: `1px solid ${active ? "var(--brand-primary)" : "rgba(255,255,255,0.1)"}`,
+                    background: active ? "rgba(212,255,0,0.08)" : "var(--bg-surface)",
+                    color: active ? "var(--brand-primary)" : "var(--text-secondary)",
+                    fontSize: "0.8rem",
+                    fontWeight: active ? 700 : 600,
+                    cursor: "pointer",
+                    transition: "all 0.15s",
+                    maxWidth: "240px",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                  }}
+                  title={v.name}
+                >
+                  {v.name}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Top stat bar */}
       <div className="bento-grid mb-xl stagger-children">
@@ -259,7 +351,7 @@ export default function DashboardPage() {
       {!isBroker && (
         <div className="grid grid-cols-2 gap-lg mb-xl">
           {riskScore && (
-            <Link href={`/risk-profile/${tenantId ?? "elsewhere-brooklyn"}`} style={{ textDecoration: "none" }}>
+            <Link href={`/risk-profile/${selectedVenueId ?? tenantId}`} style={{ textDecoration: "none" }}>
             <div className="card highlight" style={{ cursor: "pointer" }}
               onMouseEnter={e => (e.currentTarget as HTMLElement).style.borderColor = TIER_COLOR[riskScore.tier]}
               onMouseLeave={e => (e.currentTarget as HTMLElement).style.borderColor = ""}

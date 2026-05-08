@@ -12,8 +12,10 @@ export default function TerminalRedirect() {
   useEffect(() => {
     if (!isLoaded) return;
     if (!isSignedIn) { router.push("/login"); return; }
-    // Brokers without a tenantId go to the first known venue as a fallback
-    router.replace(`/terminal/${tenantId ?? "elsewhere-brooklyn"}`);
+    // No tenant assigned — send the user to /venues to pick or set one up,
+    // rather than dropping them into someone else's venue.
+    if (!tenantId) { router.replace("/venues"); return; }
+    router.replace(`/terminal/${tenantId}`);
   }, [isLoaded, isSignedIn, tenantId, router]);
 
   return <div className="page-loading"><div className="loading-spinner" /></div>;
