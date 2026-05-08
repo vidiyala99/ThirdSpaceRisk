@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useRole, useTenantId, useAuth } from "@/contexts/AuthContext";
-import { Building2, MapPin, Users, Plus, ArrowRight, X } from "lucide-react";
+import { Building2, MapPin, Users, Plus, ArrowRight, X, Edit2, Check } from "lucide-react";
 import Link from "next/link";
 import { toastSuccess, toastError } from "@/lib/toast";
 
@@ -16,19 +16,16 @@ interface Venue {
   capacity?: number;
   venue_type?: string;
   renewal_date?: string;
+  years_in_operation?: number;
 }
 
 const VENUE_TYPES = [
-  "bar",
-  "nightclub",
-  "music venue and bar",
-  "nightclub and performance space",
-  "outdoor music venue",
-  "outdoor bar and music venue",
-  "DIY music venue and bar",
-  "restaurant and bar",
-  "lounge",
+  "bar", "nightclub", "music venue and bar", "nightclub and performance space",
+  "outdoor music venue", "outdoor bar and music venue", "DIY music venue and bar",
+  "restaurant and bar", "lounge",
 ];
+
+const EMPTY_FORM = { name: "", address: "", capacity: "", venue_type: "bar", renewal_date: "", years_in_operation: "" };
 
 export default function VenuesPage() {
   const router = useRouter();
@@ -39,16 +36,13 @@ export default function VenuesPage() {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [formData, setFormData] = useState({
-    name: "",
-    address: "",
-    capacity: "",
-    venue_type: "bar",
-    renewal_date: "",
-    years_in_operation: "",
-  });
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editData, setEditData] = useState<Partial<Venue>>({});
+  const [savingEdit, setSavingEdit] = useState(false);
+  const [formData, setFormData] = useState(EMPTY_FORM);
 
   const isBroker = role === "broker" || role === "admin";
+  const isOperator = role === "venue_operator";
 
   useEffect(() => {
     if (!isSignedIn) router.push("/login");
@@ -66,28 +60,45 @@ export default function VenuesPage() {
         setLoading(false);
       }
     }
-    if (isBroker) {
-      fetchVenues();
-    } else if (tenantId) {
-      setVenues([{ id: tenantId, name: "My Venue" }]);
-      setLoading(false);
-    } else {
-      setLoading(false);
+
+    async function fetchOperatorVenue() {
+      if (!tenantId) { setLoading(false); return; }
+      try {
+        const res = await fetch(`${API_URL}/api/venues/${tenantId}`);
+        if (res.ok) {
+          const data = await res.json();
+          setVenues([data]);
+        } else {
+          setVenues([]);
+        }
+      } catch {
+        setVenues([]);
+      } finally {
+        setLoading(false);
+      }
     }
+
+    if (isBroker) fetchVenues();
+    else fetchOperatorVenue();
   }, [isBroker, tenantId]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!formData.name.trim()) { toastError("Venue name is required"); return; }
     setSubmitting(true);
     try {
+      const body: Record<string, any> = {
+        ...formData,
+        capacity: formData.capacity ? parseInt(formData.capacity) : 300,
+        years_in_operation: formData.years_in_operation ? parseInt(formData.years_in_operation) : 1,
+      };
+      // For operators adding their first venue, use their tenant ID
+      if (isOperator && venues.length === 0 && tenantId) body.id = tenantId;
+
       const res = await fetch(`${API_URL}/api/venues`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...formData,
-          capacity: formData.capacity ? parseInt(formData.capacity) : 300,
-          years_in_operation: formData.years_in_operation ? parseInt(formData.years_in_operation) : 1,
-        }),
+        body: JSON.stringify(body),
       });
       if (!res.ok) {
         const err = await res.json();
@@ -96,12 +107,43 @@ export default function VenuesPage() {
       const newVenue = await res.json();
       setVenues(prev => [...prev, newVenue]);
       setShowForm(false);
-      setFormData({ name: "", address: "", capacity: "", venue_type: "bar", renewal_date: "", years_in_operation: "" });
+      setFormData(EMPTY_FORM);
       toastSuccess(`${newVenue.name} added successfully`);
     } catch (err) {
       toastError(err instanceof Error ? err.message : "Failed to add venue");
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const startEdit = (venue: Venue) => {
+    setEditingId(venue.id);
+    setEditData({
+      name: venue.name,
+      address: venue.address ?? "",
+      capacity: venue.capacity,
+      venue_type: venue.venue_type ?? "bar",
+      years_in_operation: venue.years_in_operation,
+    });
+  };
+
+  const saveEdit = async (venueId: string) => {
+    setSavingEdit(true);
+    try {
+      const res = await fetch(`${API_URL}/api/venues/${venueId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(editData),
+      });
+      if (!res.ok) throw new Error("Failed to update venue");
+      const updated = await res.json();
+      setVenues(prev => prev.map(v => v.id === venueId ? { ...v, ...updated } : v));
+      setEditingId(null);
+      toastSuccess("Venue updated");
+    } catch {
+      toastError("Failed to save changes");
+    } finally {
+      setSavingEdit(false);
     }
   };
 
@@ -115,14 +157,12 @@ export default function VenuesPage() {
         <div>
           <h1>Venues</h1>
           <p className="page-subtitle">
-            {isBroker ? "Manage your insured venues" : "Your venue information"}
+            {isBroker ? "Manage your insured venues" : "Your venue properties"}
           </p>
         </div>
-        {isBroker && (
-          <button className="btn btn-primary" onClick={() => setShowForm(true)}>
-            <Plus size={18} /> Add Venue
-          </button>
-        )}
+        <button className="btn btn-primary" onClick={() => setShowForm(true)}>
+          <Plus size={18} /> Add Venue
+        </button>
       </header>
 
       {/* Add Venue Modal */}
@@ -151,7 +191,7 @@ export default function VenuesPage() {
               </div>
               <div className="form-group">
                 <label className="form-label">Address</label>
-                <input className="input-field" placeholder="123 Main St, Brooklyn, NY 11201" value={formData.address} onChange={(e) => setFormData({ ...formData, address: e.target.value })} />
+                <input className="input-field" placeholder="123 Main St, Brooklyn, NY" value={formData.address} onChange={(e) => setFormData({ ...formData, address: e.target.value })} />
               </div>
               <div className="form-row">
                 <div className="input-wrapper">
@@ -180,36 +220,78 @@ export default function VenuesPage() {
 
       <div className="venues-grid">
         {venues.map((venue) => (
-          <Link key={venue.id} href={`/terminal/${venue.id}`} className="venue-card" style={{ textDecoration: "none" }}>
-            <div className="venue-icon"><Building2 size={24} /></div>
-            <div className="venue-info">
-              <h3>{venue.name}</h3>
-              {venue.venue_type && (
-                <p className="venue-address" style={{ color: "var(--text-tertiary)", textTransform: "uppercase", fontSize: "0.7rem", letterSpacing: "0.05em" }}>
-                  {venue.venue_type}
-                </p>
-              )}
-              {venue.address && (
-                <p className="venue-address"><MapPin size={12} />{venue.address}</p>
-              )}
-              {venue.capacity && (
-                <p className="venue-capacity">
-                  <Users size={12} />
-                  Cap. {venue.capacity.toLocaleString()}
-                  {venue.renewal_date && <span style={{ marginLeft: "8px", color: "var(--text-tertiary)" }}>· Renewal {venue.renewal_date}</span>}
-                </p>
-              )}
-            </div>
-            <ArrowRight size={20} className="venue-arrow" />
-          </Link>
+          <div key={venue.id} className="venue-card" style={{ textDecoration: "none", display: "block" }}>
+            {editingId === venue.id ? (
+              /* Inline edit form */
+              <div style={{ display: "flex", flexDirection: "column", gap: "12px", width: "100%" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <span style={{ fontSize: "0.7rem", fontWeight: 700, letterSpacing: "0.1em", color: "var(--text-tertiary)", textTransform: "uppercase" }}>Editing</span>
+                  <div style={{ display: "flex", gap: "8px" }}>
+                    <button onClick={() => setEditingId(null)} className="btn btn-ghost" style={{ padding: "4px 10px", fontSize: "0.75rem" }}>Cancel</button>
+                    <button onClick={() => saveEdit(venue.id)} className="btn btn-primary" disabled={savingEdit} style={{ padding: "4px 12px", fontSize: "0.75rem" }}>
+                      {savingEdit ? "Saving..." : <><Check size={13} /> Save</>}
+                    </button>
+                  </div>
+                </div>
+                <input className="input-field" placeholder="Venue name" value={editData.name ?? ""} onChange={(e) => setEditData({ ...editData, name: e.target.value })} style={{ fontSize: "0.9rem" }} />
+                <select className="input-field" value={editData.venue_type ?? "bar"} onChange={(e) => setEditData({ ...editData, venue_type: e.target.value })} style={{ background: "var(--bg-surface)", color: "var(--text-primary)", fontSize: "0.9rem" }}>
+                  {VENUE_TYPES.map(t => <option key={t} value={t}>{t.replace(/\b\w/g, c => c.toUpperCase())}</option>)}
+                </select>
+                <input className="input-field" placeholder="Address" value={editData.address ?? ""} onChange={(e) => setEditData({ ...editData, address: e.target.value })} style={{ fontSize: "0.9rem" }} />
+                <div style={{ display: "flex", gap: "8px" }}>
+                  <input className="input-field" type="number" placeholder="Capacity" value={editData.capacity ?? ""} onChange={(e) => setEditData({ ...editData, capacity: parseInt(e.target.value) || undefined })} style={{ fontSize: "0.9rem" }} />
+                  <input className="input-field" type="number" placeholder="Years open" value={editData.years_in_operation ?? ""} onChange={(e) => setEditData({ ...editData, years_in_operation: parseInt(e.target.value) || undefined })} style={{ fontSize: "0.9rem" }} />
+                </div>
+              </div>
+            ) : (
+              /* Read view */
+              <>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", width: "100%", gap: "8px" }}>
+                  <div style={{ display: "flex", gap: "12px", alignItems: "flex-start", flex: 1 }}>
+                    <div className="venue-icon"><Building2 size={24} /></div>
+                    <div className="venue-info">
+                      <h3>{venue.name}</h3>
+                      {venue.venue_type && (
+                        <p className="venue-address" style={{ color: "var(--text-tertiary)", textTransform: "uppercase", fontSize: "0.7rem", letterSpacing: "0.05em" }}>
+                          {venue.venue_type}
+                        </p>
+                      )}
+                      {venue.address && <p className="venue-address"><MapPin size={12} />{venue.address}</p>}
+                      {venue.capacity && (
+                        <p className="venue-capacity">
+                          <Users size={12} />
+                          Cap. {venue.capacity.toLocaleString()}
+                          {venue.renewal_date && <span style={{ marginLeft: "8px", color: "var(--text-tertiary)" }}>· Renewal {venue.renewal_date}</span>}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  <div style={{ display: "flex", gap: "8px", alignItems: "center", flexShrink: 0 }}>
+                    <button
+                      onClick={() => startEdit(venue)}
+                      style={{ background: "none", border: "1px solid var(--border-subtle)", borderRadius: "6px", padding: "5px 8px", cursor: "pointer", color: "var(--text-tertiary)", display: "flex", alignItems: "center", gap: "4px", fontSize: "0.75rem" }}
+                    >
+                      <Edit2 size={12} /> Edit
+                    </button>
+                    <Link href={`/terminal/${venue.id}`} style={{ color: "inherit" }}>
+                      <ArrowRight size={20} className="venue-arrow" />
+                    </Link>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
         ))}
       </div>
 
       {venues.length === 0 && !loading && (
         <div className="page-empty">
           <Building2 size={48} />
-          <h3>No Venues Found</h3>
-          <p>{isBroker ? "Add your first venue to get started" : "Contact your administrator for venue access"}</p>
+          <h3>No Venues Yet</h3>
+          <p>{isBroker ? "Add your first venue to get started" : "Set up your venue to generate a risk profile and premium quote"}</p>
+          <button className="btn btn-primary" style={{ marginTop: "16px" }} onClick={() => setShowForm(true)}>
+            <Plus size={16} /> Add Your Venue
+          </button>
         </div>
       )}
     </div>
