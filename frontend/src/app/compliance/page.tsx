@@ -45,7 +45,19 @@ export default function CompliancePage() {
   // Broker portfolio state (only when no ?venue filter)
   const [brokerVenues, setBrokerVenues] = useState<VenueWithCompliance[]>([]);
 
+  // All venues for the broker dropdown (independent of compliance counts)
+  const [allVenues, setAllVenues] = useState<Array<{ id: string; name: string }>>([]);
+
   const [loading, setLoading] = useState(true);
+
+  // Populate the broker venue picker
+  useEffect(() => {
+    if (!isBroker) return;
+    fetch(`${API_URL}/api/venues`)
+      .then((r) => (r.ok ? r.json() : []))
+      .then((data) => setAllVenues(Array.isArray(data) ? data : []))
+      .catch(() => {});
+  }, [isBroker]);
 
   useEffect(() => {
     if (isLoaded && !isSignedIn) router.push("/login");
@@ -136,6 +148,39 @@ export default function CompliancePage() {
                 : "Complete pending compliance actions to maintain coverage"}
           </p>
         </div>
+        {isBroker && (
+          <div style={{ display: "flex", alignItems: "center", gap: "var(--space-sm)" }}>
+            <label htmlFor="compliance-venue-filter" className="text-xs uppercase tracking-wide text-muted font-mono">
+              Venue
+            </label>
+            <select
+              id="compliance-venue-filter"
+              value={filterVenueId ?? ""}
+              onChange={(e) => {
+                const next = e.target.value;
+                router.push(next ? `/compliance?venue=${encodeURIComponent(next)}` : "/compliance");
+              }}
+              style={{
+                background: "var(--bg-surface)",
+                border: "1px solid var(--border-subtle)",
+                borderRadius: "var(--radius-md)",
+                color: "var(--text-primary)",
+                padding: "6px 12px",
+                fontSize: "0.85rem",
+                fontFamily: "inherit",
+                cursor: "pointer",
+                minWidth: "180px",
+              }}
+            >
+              <option value="">All venues ({allVenues.length})</option>
+              {allVenues.map((v) => (
+                <option key={v.id} value={v.id}>
+                  {v.name ?? v.id}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
       </header>
 
       {filterVenueId && (
