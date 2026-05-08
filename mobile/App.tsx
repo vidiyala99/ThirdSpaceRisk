@@ -25,7 +25,7 @@ import {
 
 import { AuthProvider, useAuth } from './src/contexts/AuthContext';
 import { TabNavigator } from './src/navigation/TabNavigator';
-import { LoginScreen } from './src/screens/LoginScreen';
+import { AuthStack } from './src/navigation/AuthStack';
 
 enableScreens();
 
@@ -40,7 +40,7 @@ function RootNavigator() {
     );
   }
 
-  return isSignedIn ? <TabNavigator /> : <LoginScreen />;
+  return isSignedIn ? <TabNavigator /> : <AuthStack />;
 }
 
 export default function App() {

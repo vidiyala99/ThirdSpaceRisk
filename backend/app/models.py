@@ -6,6 +6,7 @@ from sqlalchemy import Column, JSON
 class Venue(SQLModel, table=True):
     id: str = Field(primary_key=True)
     name: str
+    venue_data: Optional[str] = Field(default=None)  # JSON-encoded full venue dict
 
 class IncidentRecord(SQLModel, table=True):
     id: str = Field(primary_key=True)

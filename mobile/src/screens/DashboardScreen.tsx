@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import {
   ActivityIndicator,
   Pressable,
@@ -35,7 +36,7 @@ interface PremiumQuote {
   monthly_premium: number;
 }
 
-export function DashboardScreen({ navigation }: any) {
+export function DashboardScreen({ navigation, route }: any) {
   const { user, signOut } = useAuth();
   const insets = useSafeAreaInsets();
   const [riskData, setRiskData] = useState<RiskScore | null>(null);
@@ -44,8 +45,11 @@ export function DashboardScreen({ navigation }: any) {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
+  const [fetchError, setFetchError] = useState<string | null>(null);
+
   const fetchData = useCallback(async () => {
     if (!user?.tenant_id) return;
+    setFetchError(null);
     try {
       const [risk, quote, incidents] = await Promise.all([
         api.request<any>(`/api/venues/${user.tenant_id}/risk-score`),
@@ -68,8 +72,8 @@ export function DashboardScreen({ navigation }: any) {
       setRiskData(risk);
       setQuoteData(quote);
       setOpenIncidents(Array.isArray(incidents) ? incidents.length : 0);
-    } catch {
-      // data stays stale
+    } catch (e: any) {
+      setFetchError(e?.message ?? 'Failed to load venue data');
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -79,6 +83,13 @@ export function DashboardScreen({ navigation }: any) {
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  useEffect(() => {
+    if (route?.params?.venueCreatedAt) {
+      setLoading(true);
+      fetchData();
+    }
+  }, [route?.params?.venueCreatedAt]);
 
   function onRefresh() {
     setRefreshing(true);
@@ -160,7 +171,7 @@ export function DashboardScreen({ navigation }: any) {
         {/* Your Venue */}
         <Pressable style={styles.statCard} onPress={() => navigation.navigate('Live')}>
           <Text style={styles.statEyebrow}>YOUR VENUE</Text>
-          <Text style={styles.statValue}>1</Text>
+          <Text style={styles.statValue}>{riskData ? 1 : 0}</Text>
         </Pressable>
 
         {/* Open Incidents */}
@@ -177,6 +188,24 @@ export function DashboardScreen({ navigation }: any) {
           <Text style={styles.statValue}>0</Text>
         </View>
       </View>
+
+      {/* Empty state for new venue operators */}
+      {!riskData && !quoteData && (
+        <Pressable
+          style={({ pressed }) => [styles.emptyCard, pressed && { opacity: 0.8 }]}
+          onPress={() => navigation.navigate('VenueSetup')}
+        >
+          <Text style={styles.emptyEyebrow}>NO VENUE DATA</Text>
+          <Text style={styles.emptyHeading}>Set up your venue</Text>
+          <Text style={styles.emptyBody}>
+            Tap to add your venue details and generate your first risk profile and premium quote.
+          </Text>
+          {fetchError && (
+            <Text style={styles.emptyError}>{fetchError}</Text>
+          )}
+          <Text style={styles.emptyAction}>Get started →</Text>
+        </Pressable>
+      )}
 
       {/* Risk Profile card */}
       {riskData && (
@@ -391,6 +420,50 @@ const styles = StyleSheet.create({
     letterSpacing: 2,
     marginBottom: 14,
     fontFamily: 'JetBrainsMono_700Bold',
+  },
+
+  // Empty state
+  emptyCard: {
+    backgroundColor: '#0d0f1c',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255,255,255,0.07)',
+    borderRadius: 16,
+    padding: 24,
+    marginBottom: 12,
+    gap: 8,
+  },
+  emptyEyebrow: {
+    color: '#4a4f65',
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 2,
+    fontFamily: 'JetBrainsMono_700Bold',
+  },
+  emptyHeading: {
+    color: '#eeeef5',
+    fontSize: 20,
+    fontWeight: '700',
+    letterSpacing: -0.5,
+    fontFamily: 'CormorantGaramond_700Bold',
+  },
+  emptyBody: {
+    color: '#4a4f65',
+    fontSize: 13,
+    lineHeight: 20,
+    fontFamily: 'DMSans_400Regular',
+  },
+  emptyError: {
+    color: '#ff4557',
+    fontSize: 11,
+    fontFamily: 'JetBrainsMono_400Regular',
+    marginTop: 4,
+  },
+  emptyAction: {
+    color: '#c8f000',
+    fontSize: 13,
+    fontWeight: '700',
+    fontFamily: 'JetBrainsMono_700Bold',
+    marginTop: 4,
   },
 
   // Risk profile

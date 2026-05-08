@@ -15,6 +15,7 @@ interface AuthContextValue {
   isLoading: boolean;
   user: User | null;
   signIn: (email: string, password: string) => Promise<void>;
+  signUp: (email: string, password: string, name: string, role: string) => Promise<void>;
   signOut: () => Promise<void>;
 }
 
@@ -59,6 +60,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(data.user);
   }
 
+  async function signUp(email: string, password: string, name: string, role: string) {
+    const data = await api.request<{ access_token: string; user: User }>(
+      '/api/auth/register',
+      {
+        method: 'POST',
+        body: JSON.stringify({ email, password, name, role }),
+      }
+    );
+    await SecureStore.setItemAsync('auth_token', data.access_token);
+    setUser(data.user);
+  }
+
   async function signOut() {
     await SecureStore.deleteItemAsync('auth_token');
     setUser(null);
@@ -66,7 +79,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <AuthContext.Provider
-      value={{ isSignedIn: !!user, isLoading, user, signIn, signOut }}
+      value={{ isSignedIn: !!user, isLoading, user, signIn, signUp, signOut }}
     >
       {children}
     </AuthContext.Provider>

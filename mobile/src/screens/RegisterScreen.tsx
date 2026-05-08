@@ -5,6 +5,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -16,24 +17,26 @@ import { useAuth } from '../contexts/AuthContext';
 import { AuthStackParamList } from '../navigation/AuthStack';
 
 type Props = {
-  navigation: NativeStackNavigationProp<AuthStackParamList, 'Login'>;
+  navigation: NativeStackNavigationProp<AuthStackParamList, 'Register'>;
 };
 
-export function LoginScreen({ navigation }: Props) {
-  const { signIn } = useAuth();
+export function RegisterScreen({ navigation }: Props) {
+  const { signUp } = useAuth();
+  const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [role, setRole] = useState<'venue_operator' | 'broker'>('venue_operator');
   const [loading, setLoading] = useState(false);
 
-  async function handleLogin() {
-    if (!email || !password) return;
+  async function handleRegister() {
+    if (!name || !email || !password) return;
     setLoading(true);
     try {
-      await signIn(email.trim(), password);
+      await signUp(email.trim(), password, name.trim(), role);
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (e: any) {
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      Alert.alert('Access denied', e.message ?? 'Invalid credentials');
+      Alert.alert('Registration failed', e.message ?? 'Something went wrong');
     } finally {
       setLoading(false);
     }
@@ -44,19 +47,35 @@ export function LoginScreen({ navigation }: Props) {
       style={styles.root}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
-      <View style={styles.inner}>
+      <ScrollView
+        contentContainerStyle={styles.inner}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
         <View style={styles.brandBlock}>
           <Text style={styles.eyebrow}>RISK OS</Text>
-          <Text style={styles.wordmark}>Third{'\n'}Space</Text>
-          <Text style={styles.tagline}>Keep venues alive.</Text>
+          <Text style={styles.wordmark}>Create{'\n'}Account</Text>
+          <Text style={styles.tagline}>Join the network.</Text>
         </View>
 
         <View style={styles.form}>
           <View style={styles.inputWrap}>
+            <Text style={styles.inputLabel}>FULL NAME</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Your name"
+              placeholderTextColor="#2e3247"
+              autoCapitalize="words"
+              value={name}
+              onChangeText={setName}
+            />
+          </View>
+
+          <View style={styles.inputWrap}>
             <Text style={styles.inputLabel}>EMAIL</Text>
             <TextInput
               style={styles.input}
-              placeholder="operator@venue.com"
+              placeholder="you@venue.com"
               placeholderTextColor="#2e3247"
               keyboardType="email-address"
               autoCapitalize="none"
@@ -64,6 +83,7 @@ export function LoginScreen({ navigation }: Props) {
               onChangeText={setEmail}
             />
           </View>
+
           <View style={styles.inputWrap}>
             <Text style={styles.inputLabel}>PASSWORD</Text>
             <TextInput
@@ -73,54 +93,57 @@ export function LoginScreen({ navigation }: Props) {
               secureTextEntry
               value={password}
               onChangeText={setPassword}
-              onSubmitEditing={handleLogin}
             />
+          </View>
+
+          <View style={styles.inputWrap}>
+            <Text style={styles.inputLabel}>I AM A</Text>
+            <View style={styles.roleRow}>
+              <Pressable
+                style={[styles.roleBtn, role === 'venue_operator' && styles.roleBtnActive]}
+                onPress={() => setRole('venue_operator')}
+              >
+                <Text style={[styles.roleBtnLabel, role === 'venue_operator' && styles.roleBtnLabelActive]}>
+                  VENUE OPS
+                </Text>
+                <Text style={styles.roleBtnSub}>Venue Owner</Text>
+              </Pressable>
+              <Pressable
+                style={[styles.roleBtn, role === 'broker' && styles.roleBtnActive]}
+                onPress={() => setRole('broker')}
+              >
+                <Text style={[styles.roleBtnLabel, role === 'broker' && styles.roleBtnLabelActive]}>
+                  BROKER
+                </Text>
+                <Text style={styles.roleBtnSub}>ThirdSpace Risk</Text>
+              </Pressable>
+            </View>
           </View>
 
           <Pressable
             style={({ pressed }) => [styles.btn, pressed && styles.btnPressed, loading && styles.btnDisabled]}
-            onPress={handleLogin}
+            onPress={handleRegister}
             disabled={loading}
           >
             {loading ? (
               <ActivityIndicator color="#07080f" />
             ) : (
-              <Text style={styles.btnText}>SIGN IN</Text>
+              <Text style={styles.btnText}>CREATE ACCOUNT</Text>
             )}
           </Pressable>
         </View>
 
-        <Pressable onPress={() => navigation.navigate('Register')} style={styles.createLink}>
-          <Text style={styles.createLinkText}>Create account →</Text>
+        <Pressable onPress={() => navigation.goBack()} style={styles.backLink}>
+          <Text style={styles.backLinkText}>← Already have an account? Sign in</Text>
         </Pressable>
-
-        <View style={styles.demoSection}>
-          <Text style={styles.demoLabel}>DEMO ACCESS</Text>
-          <View style={styles.demoRow}>
-            <Pressable
-              style={({ pressed }) => [styles.demoBtn, pressed && styles.demoBtnPressed]}
-              onPress={() => { setEmail('venue@elsewhere.com'); setPassword('demo123'); }}
-            >
-              <Text style={styles.demoBtnRole}>VENUE OPS</Text>
-              <Text style={styles.demoBtnSub}>Elsewhere Brooklyn</Text>
-            </Pressable>
-            <Pressable
-              style={({ pressed }) => [styles.demoBtn, pressed && styles.demoBtnPressed]}
-              onPress={() => { setEmail('broker@thirdspace.risk'); setPassword('demo123'); }}
-            >
-              <Text style={styles.demoBtnRole}>BROKER</Text>
-              <Text style={styles.demoBtnSub}>ThirdSpace Risk</Text>
-            </Pressable>
-          </View>
-        </View>
-      </View>
+      </ScrollView>
     </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: '#07080f' },
-  inner: { flex: 1, justifyContent: 'space-between', paddingHorizontal: 28, paddingTop: 80, paddingBottom: 48 },
+  inner: { paddingHorizontal: 28, paddingTop: 80, paddingBottom: 48, gap: 40 },
 
   brandBlock: { gap: 6 },
   eyebrow: {
@@ -133,10 +156,10 @@ const styles = StyleSheet.create({
   },
   wordmark: {
     color: '#eeeef5',
-    fontSize: 60,
+    fontSize: 52,
     fontWeight: '800',
     letterSpacing: -2,
-    lineHeight: 58,
+    lineHeight: 52,
     fontFamily: 'CormorantGaramond_700Bold',
   },
   tagline: {
@@ -167,6 +190,31 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontFamily: 'DMSans_400Regular',
   },
+
+  roleRow: { flexDirection: 'row', gap: 10 },
+  roleBtn: {
+    flex: 1,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(200,240,0,0.2)',
+    borderRadius: 10,
+    paddingVertical: 14,
+    paddingHorizontal: 12,
+    gap: 2,
+  },
+  roleBtnActive: {
+    borderColor: '#c8f000',
+    backgroundColor: 'rgba(200,240,0,0.06)',
+  },
+  roleBtnLabel: {
+    color: '#4a4f65',
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 1.5,
+    fontFamily: 'JetBrainsMono_700Bold',
+  },
+  roleBtnLabelActive: { color: '#c8f000' },
+  roleBtnSub: { color: '#4a4f65', fontSize: 12, fontFamily: 'DMSans_400Regular' },
+
   btn: {
     backgroundColor: '#c8f000',
     borderRadius: 10,
@@ -178,29 +226,6 @@ const styles = StyleSheet.create({
   btnDisabled: { opacity: 0.5 },
   btnText: { color: '#07080f', fontWeight: '800', fontSize: 13, letterSpacing: 1.5, fontFamily: 'DMSans_700Bold' },
 
-  createLink: { alignItems: 'center', paddingVertical: 4 },
-  createLinkText: { color: '#c8f000', fontSize: 13, fontFamily: 'DMSans_400Regular' },
-
-  demoSection: { gap: 12 },
-  demoLabel: {
-    color: '#2e3247',
-    fontSize: 10,
-    fontWeight: '700',
-    letterSpacing: 2,
-    textAlign: 'center',
-    fontFamily: 'JetBrainsMono_700Bold',
-  },
-  demoRow: { flexDirection: 'row', gap: 10 },
-  demoBtn: {
-    flex: 1,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(200,240,0,0.2)',
-    borderRadius: 10,
-    paddingVertical: 14,
-    paddingHorizontal: 12,
-    gap: 2,
-  },
-  demoBtnPressed: { backgroundColor: 'rgba(200,240,0,0.06)' },
-  demoBtnRole: { color: '#c8f000', fontSize: 10, fontWeight: '700', letterSpacing: 1.5, fontFamily: 'JetBrainsMono_700Bold' },
-  demoBtnSub: { color: '#4a4f65', fontSize: 12, fontFamily: 'DMSans_400Regular' },
+  backLink: { alignItems: 'center', paddingVertical: 8 },
+  backLinkText: { color: '#4a4f65', fontSize: 13, fontFamily: 'DMSans_400Regular' },
 });

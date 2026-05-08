@@ -82,17 +82,31 @@ def _backfill_incident_packets(session: Session) -> None:
 async def lifespan(app: FastAPI):
     create_db_and_tables()
     with next(get_session()) as session:
-        # Add status column to existing DBs that predate this field
-        try:
-            session.exec(text("ALTER TABLE incidentrecord ADD COLUMN status TEXT NOT NULL DEFAULT 'open'"))
-            session.commit()
-        except Exception:
-            pass  # Column already exists
+        # Migrations for columns added after initial deploy
+        for migration in [
+            "ALTER TABLE incidentrecord ADD COLUMN status TEXT NOT NULL DEFAULT 'open'",
+            "ALTER TABLE venue ADD COLUMN venue_data TEXT",
+        ]:
+            try:
+                session.exec(text(migration))
+                session.commit()
+            except Exception:
+                pass  # Column already exists
         # Seed venues
         for venue_id, venue_data in VENUES.items():
             if not session.get(Venue, venue_id):
                 session.add(Venue(id=venue_id, name=venue_data["name"]))
         session.commit()
+        # Rehydrate VENUES from any API-created venues stored in the DB
+        import json as _json
+        db_venues = session.exec(select(Venue)).all()
+        for v in db_venues:
+            if v.id not in VENUES and v.venue_data:
+                try:
+                    VENUES[v.id] = _json.loads(v.venue_data)
+                    print(f"[REHYDRATE] Loaded venue {v.id} from DB")
+                except Exception:
+                    pass
         # Reseed incidents if DB has no seed incidents (fresh start or after reset)
         existing_count = session.exec(select(func.count(IncidentRecord.id))).one()
         if existing_count == 0:
@@ -170,7 +184,7 @@ def create_venue(payload: dict, session: Session = Depends(get_session)) -> dict
     name = payload.get("name", "").strip()
     if not name:
         raise HTTPException(status_code=400, detail="Venue name is required")
-    venue_id = re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
+    venue_id = payload.get("id") or re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
     if venue_id in VENUES:
         raise HTTPException(status_code=409, detail="A venue with this name already exists")
     venue_data = {
@@ -188,9 +202,14 @@ def create_venue(payload: dict, session: Session = Depends(get_session)) -> dict
         "infrastructure": [],
     }
     VENUES[venue_id] = venue_data
+    import json as _json
     if not session.get(Venue, venue_id):
-        session.add(Venue(id=venue_id, name=name))
-        session.commit()
+        session.add(Venue(id=venue_id, name=name, venue_data=_json.dumps(venue_data)))
+    else:
+        db_venue = session.get(Venue, venue_id)
+        db_venue.venue_data = _json.dumps(venue_data)
+        session.add(db_venue)
+    session.commit()
     return {"id": venue_id, **venue_data}
 
 
