@@ -38,33 +38,36 @@ def create_packet_snapshot(
     citation_ids: list[str] = []
 
     invalid_citations: list[str] = []
-    for index, citation in enumerate(citations):
-        source = _ensure_source_record(
-            session=session,
-            venue_id=venue_id,
-            incident_id=incident_id,
-            citation=citation,
-        )
-        validation_status, failure_reason = _validate_citation(
-            source=source,
-            venue_id=venue_id,
-            excerpt=citation.excerpt,
-        )
-        citation_id = f"cit-{uuid4().hex[:12]}"
-        citation_record = CitationRecord(
-            id=citation_id,
-            packet_id=packet_id,
-            source_id=source.id,
-            claim_id=f"risk_signal:{risk_signal.get('type', 'unknown')}:{index}",
-            citation_type=citation.source_type,
-            field_path="excerpt",
-            excerpt=citation.excerpt,
-            validation_status=validation_status,
-        )
-        session.add(citation_record)
-        citation_ids.append(citation_id)
-        if validation_status == "invalid":
-            invalid_citations.append(f"{citation.source_id}: {failure_reason}")
+    # Use no_autoflush so Postgres doesn't try to insert CitationRecords
+    # before the parent UnderwritingPacket row exists (FK constraint).
+    with session.no_autoflush:
+        for index, citation in enumerate(citations):
+            source = _ensure_source_record(
+                session=session,
+                venue_id=venue_id,
+                incident_id=incident_id,
+                citation=citation,
+            )
+            validation_status, failure_reason = _validate_citation(
+                source=source,
+                venue_id=venue_id,
+                excerpt=citation.excerpt,
+            )
+            citation_id = f"cit-{uuid4().hex[:12]}"
+            citation_record = CitationRecord(
+                id=citation_id,
+                packet_id=packet_id,
+                source_id=source.id,
+                claim_id=f"risk_signal:{risk_signal.get('type', 'unknown')}:{index}",
+                citation_type=citation.source_type,
+                field_path="excerpt",
+                excerpt=citation.excerpt,
+                validation_status=validation_status,
+            )
+            session.add(citation_record)
+            citation_ids.append(citation_id)
+            if validation_status == "invalid":
+                invalid_citations.append(f"{citation.source_id}: {failure_reason}")
 
     overall_status = "invalid" if invalid_citations else "valid"
     validation = {
