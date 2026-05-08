@@ -40,7 +40,7 @@ const STATUS_TRANSITIONS: Record<string, { label: string; next: string; color: s
 
 export function IncidentDetailScreen({ route, navigation }: any) {
   const { incidentId } = route.params;
-  const { user } = useAuth();
+  const { user, signOut } = useAuth();
   const insets = useSafeAreaInsets();
   const isBroker = user?.role === 'broker' || user?.role === 'admin';
 
@@ -112,10 +112,13 @@ export function IncidentDetailScreen({ route, navigation }: any) {
       style={styles.root}
       contentContainerStyle={[styles.content, { paddingTop: insets.top + 12 }]}
     >
-      <Pressable style={styles.backRow} onPress={() => navigation.goBack()}>
-        <Text style={styles.backArrow}>←</Text>
-        <Text style={styles.backLabel}>Incidents</Text>
-      </Pressable>
+      <View style={styles.backRow}>
+        <Pressable style={styles.backBtn} onPress={() => navigation.goBack()}>
+          <Text style={styles.backArrow}>←</Text>
+          <Text style={styles.backLabel}>Incidents</Text>
+        </Pressable>
+        <Text style={styles.signOut} onPress={signOut}>SIGN OUT</Text>
+      </View>
 
       {/* Header */}
       <View style={styles.header}>
@@ -327,7 +330,9 @@ const styles = StyleSheet.create({
   centered: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#07080f' },
   notFound: { color: '#4a4f65', fontSize: 15 },
 
-  backRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 20 },
+  backRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 },
+  backBtn: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  signOut: { color: '#8b90a8', fontSize: 10, fontWeight: '700', letterSpacing: 1.5, paddingVertical: 4 },
   backArrow: { color: '#c8f000', fontSize: 18 },
   backLabel: { color: '#c8f000', fontSize: 13, fontWeight: '600' },
 
