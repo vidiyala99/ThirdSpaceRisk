@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -20,6 +19,8 @@ type Props = {
   navigation: NativeStackNavigationProp<AuthStackParamList, 'Register'>;
 };
 
+const isValidEmail = (val: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val.trim());
+
 export function RegisterScreen({ navigation }: Props) {
   const { signUp } = useAuth();
   const [name, setName] = useState('');
@@ -27,20 +28,44 @@ export function RegisterScreen({ navigation }: Props) {
   const [password, setPassword] = useState('');
   const [role, setRole] = useState<'venue_operator' | 'broker'>('venue_operator');
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  function clearError() {
+    if (error) setError(null);
+  }
 
   async function handleRegister() {
-    if (!name || !email || !password) return;
+    if (!name.trim()) {
+      setError('Please enter your full name.');
+      return;
+    }
+    if (!email.trim() || !isValidEmail(email)) {
+      setError('Enter a valid email address (e.g. you@venue.com).');
+      return;
+    }
+    if (password.length < 6) {
+      setError('Password must be at least 6 characters.');
+      return;
+    }
     setLoading(true);
+    setError(null);
     try {
       await signUp(email.trim(), password, name.trim(), role);
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (e: any) {
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      Alert.alert('Registration failed', e.message ?? 'Something went wrong');
+      const msg: string = e.message ?? '';
+      if (msg.toLowerCase().includes('already exists')) {
+        setError('An account with this email already exists. Try signing in.');
+      } else {
+        setError('Registration failed. Please try again.');
+      }
     } finally {
       setLoading(false);
     }
   }
+
+  const hasError = !!error;
 
   return (
     <KeyboardAvoidingView
@@ -67,32 +92,32 @@ export function RegisterScreen({ navigation }: Props) {
               placeholderTextColor="#2e3247"
               autoCapitalize="words"
               value={name}
-              onChangeText={setName}
+              onChangeText={(v) => { setName(v); clearError(); }}
             />
           </View>
 
           <View style={styles.inputWrap}>
             <Text style={styles.inputLabel}>EMAIL</Text>
             <TextInput
-              style={styles.input}
+              style={[styles.input, hasError && styles.inputError]}
               placeholder="you@venue.com"
               placeholderTextColor="#2e3247"
               keyboardType="email-address"
               autoCapitalize="none"
               value={email}
-              onChangeText={setEmail}
+              onChangeText={(v) => { setEmail(v); clearError(); }}
             />
           </View>
 
           <View style={styles.inputWrap}>
             <Text style={styles.inputLabel}>PASSWORD</Text>
             <TextInput
-              style={styles.input}
-              placeholder="••••••••"
+              style={[styles.input, hasError && styles.inputError]}
+              placeholder="Min. 6 characters"
               placeholderTextColor="#2e3247"
               secureTextEntry
               value={password}
-              onChangeText={setPassword}
+              onChangeText={(v) => { setPassword(v); clearError(); }}
             />
           </View>
 
@@ -120,15 +145,31 @@ export function RegisterScreen({ navigation }: Props) {
             </View>
           </View>
 
+          {hasError && (
+            <View style={styles.errorBanner}>
+              <View style={styles.errorIconBadge}>
+                <Text style={styles.errorIconText}>!</Text>
+              </View>
+              <Text style={styles.errorText}>{error}</Text>
+            </View>
+          )}
+
           <Pressable
-            style={({ pressed }) => [styles.btn, pressed && styles.btnPressed, loading && styles.btnDisabled]}
+            style={({ pressed }) => [
+              styles.btn,
+              hasError && styles.btnErrorState,
+              pressed && styles.btnPressed,
+              loading && styles.btnDisabled,
+            ]}
             onPress={handleRegister}
             disabled={loading}
           >
             {loading ? (
               <ActivityIndicator color="#07080f" />
             ) : (
-              <Text style={styles.btnText}>CREATE ACCOUNT</Text>
+              <Text style={[styles.btnText, hasError && styles.btnTextError]}>
+                CREATE ACCOUNT
+              </Text>
             )}
           </Pressable>
         </View>
@@ -190,6 +231,47 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontFamily: 'DMSans_400Regular',
   },
+  inputError: {
+    borderColor: 'rgba(255,69,87,0.5)',
+    borderWidth: 1,
+    backgroundColor: 'rgba(255,69,87,0.04)',
+  },
+
+  errorBanner: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+    backgroundColor: 'rgba(255,69,87,0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,69,87,0.22)',
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+  },
+  errorIconBadge: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: 'rgba(255,69,87,0.18)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 1,
+    flexShrink: 0,
+  },
+  errorIconText: {
+    color: '#ff4557',
+    fontSize: 11,
+    fontWeight: '800',
+    fontFamily: 'JetBrainsMono_700Bold',
+    lineHeight: 13,
+  },
+  errorText: {
+    flex: 1,
+    color: '#ff8090',
+    fontSize: 13,
+    lineHeight: 19,
+    fontFamily: 'DMSans_400Regular',
+  },
 
   roleRow: { flexDirection: 'row', gap: 10 },
   roleBtn: {
@@ -222,9 +304,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 4,
   },
+  btnErrorState: {
+    backgroundColor: 'transparent',
+    borderWidth: 1,
+    borderColor: 'rgba(255,69,87,0.4)',
+  },
   btnPressed: { opacity: 0.88, transform: [{ scale: 0.98 }] },
   btnDisabled: { opacity: 0.5 },
   btnText: { color: '#07080f', fontWeight: '800', fontSize: 13, letterSpacing: 1.5, fontFamily: 'DMSans_700Bold' },
+  btnTextError: { color: '#ff4557' },
 
   backLink: { alignItems: 'center', paddingVertical: 8 },
   backLinkText: { color: '#4a4f65', fontSize: 13, fontFamily: 'DMSans_400Regular' },

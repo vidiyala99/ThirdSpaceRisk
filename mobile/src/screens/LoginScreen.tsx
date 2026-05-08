@@ -29,9 +29,15 @@ export function LoginScreen({ navigation }: Props) {
     if (error) setError(null);
   }
 
+  const isValidEmail = (val: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val.trim());
+
   async function handleLogin() {
     if (!email || !password) {
       setError('Please enter your email and password.');
+      return;
+    }
+    if (!isValidEmail(email)) {
+      setError('Enter a valid email address (e.g. you@venue.com).');
       return;
     }
     setLoading(true);
