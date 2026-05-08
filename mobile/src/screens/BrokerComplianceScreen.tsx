@@ -115,9 +115,9 @@ const styles = StyleSheet.create({
 
   header: { paddingHorizontal: 20, paddingBottom: 20 },
   headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
-  title: { color: '#eeeef5', fontSize: 28, fontWeight: '800', letterSpacing: -0.5 },
-  subtitle: { color: '#4a4f65', fontSize: 13, marginTop: 4 },
-  signOut: { color: '#8b90a8', fontSize: 10, fontWeight: '700', letterSpacing: 1.5, paddingTop: 6 },
+  title: { color: '#eeeef5', fontSize: 28, fontWeight: '800', letterSpacing: -0.5, fontFamily: 'CormorantGaramond_700Bold' },
+  subtitle: { color: '#4a4f65', fontSize: 13, marginTop: 4, fontFamily: 'DMSans_400Regular' },
+  signOut: { color: '#8b90a8', fontSize: 10, fontWeight: '700', letterSpacing: 1.5, paddingTop: 6, fontFamily: 'JetBrainsMono_700Bold' },
 
   list: { paddingHorizontal: 20, paddingBottom: 48, gap: 12 },
   card: {
@@ -130,20 +130,20 @@ const styles = StyleSheet.create({
   },
   cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
   venueInfo: { flex: 1, gap: 3 },
-  venueName: { color: '#eeeef5', fontSize: 16, fontWeight: '700' },
-  venueType: { color: '#4a4f65', fontSize: 10, fontWeight: '600', letterSpacing: 1 },
+  venueName: { color: '#eeeef5', fontSize: 16, fontWeight: '700', fontFamily: 'DMSans_600SemiBold' },
+  venueType: { color: '#4a4f65', fontSize: 10, fontWeight: '600', letterSpacing: 1, fontFamily: 'JetBrainsMono_700Bold' },
   countBadge: { alignItems: 'center', backgroundColor: 'rgba(255,149,0,0.1)', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8 },
-  countNum: { color: '#ff9500', fontSize: 22, fontWeight: '800', letterSpacing: -0.5 },
-  countLabel: { color: '#ff9500', fontSize: 8, fontWeight: '700', letterSpacing: 1.5 },
-  address: { color: '#4a4f65', fontSize: 12 },
+  countNum: { color: '#ff9500', fontSize: 22, fontWeight: '800', letterSpacing: -0.5, fontFamily: 'JetBrainsMono_700Bold' },
+  countLabel: { color: '#ff9500', fontSize: 8, fontWeight: '700', letterSpacing: 1.5, fontFamily: 'JetBrainsMono_700Bold' },
+  address: { color: '#4a4f65', fontSize: 12, fontFamily: 'DMSans_400Regular' },
 
   itemList: { gap: 8 },
   queueItem: { borderLeftWidth: 2, paddingLeft: 10, paddingVertical: 4, gap: 2 },
-  queueText: { color: '#8b90a8', fontSize: 13, lineHeight: 18 },
-  queueSev: { fontSize: 9, fontWeight: '700', letterSpacing: 1 },
+  queueText: { color: '#8b90a8', fontSize: 13, lineHeight: 18, fontFamily: 'DMSans_400Regular' },
+  queueSev: { fontSize: 9, fontWeight: '700', letterSpacing: 1, fontFamily: 'JetBrainsMono_700Bold' },
 
   empty: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 120, gap: 10 },
   emptyIcon: { fontSize: 48, color: '#c8f000' },
-  emptyTitle: { color: '#eeeef5', fontSize: 20, fontWeight: '700' },
-  emptySub: { color: '#4a4f65', fontSize: 14, textAlign: 'center', paddingHorizontal: 40 },
+  emptyTitle: { color: '#eeeef5', fontSize: 20, fontWeight: '700', fontFamily: 'DMSans_700Bold' },
+  emptySub: { color: '#4a4f65', fontSize: 14, textAlign: 'center', paddingHorizontal: 40, fontFamily: 'DMSans_400Regular' },
 });

@@ -92,7 +92,7 @@ export function ReportIncidentScreen() {
       <ScrollView contentContainerStyle={[styles.content, { paddingTop: insets.top + 12 }]} keyboardShouldPersistTaps="handled">
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 32 }}>
           <Text style={[styles.heading, { marginBottom: 0 }]}>Report{'\n'}Incident</Text>
-          <Text style={{ color: '#8b90a8', fontSize: 10, fontWeight: '700', letterSpacing: 1.5, paddingTop: 8 }} onPress={signOut}>SIGN OUT</Text>
+          <Text style={{ color: '#8b90a8', fontSize: 10, fontWeight: '700', letterSpacing: 1.5, paddingTop: 8, fontFamily: 'JetBrainsMono_700Bold' }} onPress={signOut}>SIGN OUT</Text>
         </View>
 
         <View style={styles.fieldGroup}>
@@ -204,6 +204,7 @@ const styles = StyleSheet.create({
     letterSpacing: -1.5,
     lineHeight: 42,
     marginBottom: 32,
+    fontFamily: 'CormorantGaramond_700Bold',
   },
 
   fieldGroup: { marginBottom: 20 },
@@ -213,6 +214,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     letterSpacing: 2,
     marginBottom: 8,
+    fontFamily: 'JetBrainsMono_700Bold',
   },
   input: {
     backgroundColor: '#0d0f1c',
@@ -223,6 +225,7 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     color: '#eeeef5',
     fontSize: 15,
+    fontFamily: 'DMSans_400Regular',
   },
   multiline: { minHeight: 100, textAlignVertical: 'top' },
 
@@ -244,7 +247,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: 'rgba(255,255,255,0.06)',
   },
-  toggleLabel: { color: '#8b90a8', fontSize: 14 },
+  toggleLabel: { color: '#8b90a8', fontSize: 14, fontFamily: 'DMSans_500Medium' },
 
   evidenceRow: { flexDirection: 'row', gap: 10 },
   evidenceBtn: {
@@ -257,7 +260,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   evidenceBtnPressed: { backgroundColor: 'rgba(255,255,255,0.04)' },
-  evidenceBtnText: { color: '#8b90a8', fontSize: 11, fontWeight: '700', letterSpacing: 1.5 },
+  evidenceBtnText: { color: '#8b90a8', fontSize: 11, fontWeight: '700', letterSpacing: 1.5, fontFamily: 'JetBrainsMono_700Bold' },
   thumbScroll: { marginTop: 10 },
   thumb: { width: 72, height: 72, borderRadius: 10, marginRight: 8 },
 
@@ -270,5 +273,5 @@ const styles = StyleSheet.create({
   },
   submitPressed: { opacity: 0.88, transform: [{ scale: 0.98 }] },
   submitDisabled: { opacity: 0.5 },
-  submitText: { color: '#07080f', fontWeight: '800', fontSize: 13, letterSpacing: 1.5 },
+  submitText: { color: '#07080f', fontWeight: '800', fontSize: 13, letterSpacing: 1.5, fontFamily: 'DMSans_700Bold' },
 });

@@ -307,12 +307,14 @@ const styles = StyleSheet.create({
     fontSize: 28,
     fontWeight: '800',
     letterSpacing: -0.5,
+    fontFamily: 'CormorantGaramond_700Bold',
   },
   signOut: {
     color: '#8b90a8',
     fontSize: 10,
     fontWeight: '700',
     letterSpacing: 1.5,
+    fontFamily: 'JetBrainsMono_700Bold',
   },
 
   // ── Stats bar ────────────────────────────────────────────────────────────
@@ -335,12 +337,14 @@ const styles = StyleSheet.create({
     fontSize: 17,
     fontWeight: '800',
     letterSpacing: -0.3,
+    fontFamily: 'JetBrainsMono_700Bold',
   },
   statLabel: {
     color: '#4a4f65',
     fontSize: 8,
     fontWeight: '700',
     letterSpacing: 1.2,
+    fontFamily: 'JetBrainsMono_700Bold',
   },
   statDivider: {
     width: StyleSheet.hairlineWidth,
@@ -369,6 +373,7 @@ const styles = StyleSheet.create({
     color: '#4a4f65',
     fontSize: 12,
     fontWeight: '600',
+    fontFamily: 'DMSans_500Medium',
   },
   chipTextActive: {
     color: '#07080f',
@@ -406,6 +411,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '700',
     letterSpacing: 0.1,
+    fontFamily: 'DMSans_600SemiBold',
   },
   statusBadge: {
     borderWidth: StyleSheet.hairlineWidth,
@@ -418,6 +424,7 @@ const styles = StyleSheet.create({
     fontSize: 9,
     fontWeight: '700',
     letterSpacing: 1.2,
+    fontFamily: 'JetBrainsMono_700Bold',
   },
 
   // Risk type label
@@ -427,6 +434,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     letterSpacing: 0.5,
     textTransform: 'lowercase',
+    fontFamily: 'DMSans_500Medium',
   },
 
   // Severity + confidence row
@@ -444,6 +452,7 @@ const styles = StyleSheet.create({
     fontSize: 9,
     fontWeight: '700',
     letterSpacing: 1,
+    fontFamily: 'JetBrainsMono_700Bold',
   },
   confidenceWrap: {
     flex: 1,
@@ -467,6 +476,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     width: 32,
     textAlign: 'right',
+    fontFamily: 'JetBrainsMono_700Bold',
   },
 
   // Memo + date
@@ -474,10 +484,12 @@ const styles = StyleSheet.create({
     color: '#8b90a8',
     fontSize: 13,
     lineHeight: 18,
+    fontFamily: 'DMSans_400Regular',
   },
   date: {
     color: '#2e3247',
     fontSize: 11,
+    fontFamily: 'JetBrainsMono_400Regular',
   },
 
   // Empty state
@@ -490,10 +502,12 @@ const styles = StyleSheet.create({
     color: '#eeeef5',
     fontSize: 18,
     fontWeight: '700',
+    fontFamily: 'DMSans_700Bold',
   },
   emptySub: {
     color: '#4a4f65',
     fontSize: 14,
     textAlign: 'center',
+    fontFamily: 'DMSans_400Regular',
   },
 });

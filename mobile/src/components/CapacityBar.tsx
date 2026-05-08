@@ -44,8 +44,8 @@ export function CapacityBar({ label, value, max = 100, unit = '', invertScale = 
 const styles = StyleSheet.create({
   container: { gap: 8 },
   labelRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  label: { color: '#4a4f65', fontSize: 11, fontWeight: '700', letterSpacing: 0.5 },
-  value: { fontSize: 12, fontWeight: '700', letterSpacing: 0.3 },
+  label: { color: '#4a4f65', fontSize: 11, fontWeight: '700', letterSpacing: 0.5, fontFamily: 'JetBrainsMono_700Bold' },
+  value: { fontSize: 12, fontWeight: '700', letterSpacing: 0.3, fontFamily: 'JetBrainsMono_700Bold' },
   track: {
     height: 3,
     backgroundColor: 'rgba(255,255,255,0.06)',

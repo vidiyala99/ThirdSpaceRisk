@@ -229,9 +229,9 @@ const styles = StyleSheet.create({
     paddingTop: 12,
     paddingBottom: 20,
   },
-  name: { color: '#eeeef5', fontSize: 22, fontWeight: '700', letterSpacing: -0.5 },
-  role: { color: '#4a4f65', fontSize: 10, fontWeight: '700', letterSpacing: 2, marginTop: 4 },
-  signOut: { color: '#8b90a8', fontSize: 10, fontWeight: '700', letterSpacing: 1.5, paddingTop: 6 },
+  name: { color: '#eeeef5', fontSize: 22, fontWeight: '700', letterSpacing: -0.5, fontFamily: 'CormorantGaramond_700Bold' },
+  role: { color: '#4a4f65', fontSize: 10, fontWeight: '700', letterSpacing: 2, marginTop: 4, fontFamily: 'JetBrainsMono_700Bold' },
+  signOut: { color: '#8b90a8', fontSize: 10, fontWeight: '700', letterSpacing: 1.5, paddingTop: 6, fontFamily: 'JetBrainsMono_700Bold' },
 
   // Stats bar
   statsRow: { flexDirection: 'row', gap: 10, paddingHorizontal: 20, marginBottom: 24 },
@@ -245,9 +245,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 4,
   },
-  statNum: { color: '#eeeef5', fontSize: 28, fontWeight: '800', letterSpacing: -1 },
+  statNum: { color: '#eeeef5', fontSize: 28, fontWeight: '800', letterSpacing: -1, fontFamily: 'JetBrainsMono_700Bold' },
   statNumRed: { color: '#ff4557' },
-  statLabel: { color: '#4a4f65', fontSize: 9, fontWeight: '700', letterSpacing: 1.5, textAlign: 'center' },
+  statLabel: { color: '#4a4f65', fontSize: 9, fontWeight: '700', letterSpacing: 1.5, textAlign: 'center', fontFamily: 'JetBrainsMono_700Bold' },
 
   // Section eyebrow
   sectionEyebrow: {
@@ -257,6 +257,7 @@ const styles = StyleSheet.create({
     letterSpacing: 2,
     paddingHorizontal: 20,
     marginBottom: 12,
+    fontFamily: 'JetBrainsMono_700Bold',
   },
 
   // Venue list
@@ -278,17 +279,20 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     letterSpacing: 1.5,
     textTransform: 'uppercase',
+    fontFamily: 'JetBrainsMono_700Bold',
   },
   venueName: {
     color: '#eeeef5',
     fontSize: 18,
     fontWeight: '700',
     letterSpacing: -0.3,
+    fontFamily: 'DMSans_600SemiBold',
   },
   venueAddress: {
     color: '#4a4f65',
     fontSize: 11,
     marginTop: -2,
+    fontFamily: 'DMSans_600SemiBold',
   },
 
   // Score row
@@ -303,11 +307,13 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     letterSpacing: -1,
     color: '#eeeef5',
+    fontFamily: 'JetBrainsMono_700Bold',
   },
   scoreOf: {
     fontSize: 16,
     fontWeight: '600',
     color: '#4a4f65',
+    fontFamily: 'DMSans_500Medium',
   },
   tierPill: {
     borderWidth: 1,
@@ -319,6 +325,7 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '700',
     letterSpacing: 0.5,
+    fontFamily: 'JetBrainsMono_700Bold',
   },
 
   // Capacity
@@ -333,11 +340,13 @@ const styles = StyleSheet.create({
     fontSize: 9,
     fontWeight: '700',
     letterSpacing: 1.5,
+    fontFamily: 'JetBrainsMono_700Bold',
   },
   capacityNumbers: {
     color: '#eeeef5',
     fontSize: 12,
     fontWeight: '600',
+    fontFamily: 'JetBrainsMono_400Regular',
   },
   capacityTrack: {
     height: 4,
@@ -359,6 +368,7 @@ const styles = StyleSheet.create({
     flex: 1,
     color: '#4a4f65',
     fontSize: 11,
+    fontFamily: 'JetBrainsMono_400Regular',
   },
   bottomRight: {
     flexDirection: 'row',
@@ -370,6 +380,7 @@ const styles = StyleSheet.create({
     fontSize: 9,
     fontWeight: '700',
     letterSpacing: 1,
+    fontFamily: 'JetBrainsMono_700Bold',
   },
   incidentPill: {
     backgroundColor: 'rgba(255,69,87,0.12)',
@@ -384,10 +395,11 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '700',
     letterSpacing: 0.5,
+    fontFamily: 'JetBrainsMono_700Bold',
   },
 
   // Empty state
   empty: { alignItems: 'center', paddingTop: 80, gap: 8 },
-  emptyTitle: { color: '#eeeef5', fontSize: 18, fontWeight: '700' },
-  emptySub: { color: '#4a4f65', fontSize: 14 },
+  emptyTitle: { color: '#eeeef5', fontSize: 18, fontWeight: '700', fontFamily: 'DMSans_700Bold' },
+  emptySub: { color: '#4a4f65', fontSize: 14, fontFamily: 'DMSans_400Regular' },
 });

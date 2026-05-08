@@ -119,6 +119,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     letterSpacing: 2.5,
     marginBottom: 8,
+    fontFamily: 'JetBrainsMono_700Bold',
   },
   wordmark: {
     color: '#eeeef5',
@@ -126,6 +127,7 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     letterSpacing: -2,
     lineHeight: 58,
+    fontFamily: 'CormorantGaramond_700Bold',
   },
   subtitle: {
     color: '#4a4f65',
@@ -133,6 +135,7 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     letterSpacing: 0.5,
     marginTop: 8,
+    fontFamily: 'DMSans_500Medium',
   },
 
   form: { gap: 16 },
@@ -142,6 +145,7 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '700',
     letterSpacing: 2,
+    fontFamily: 'JetBrainsMono_700Bold',
   },
   input: {
     backgroundColor: '#0d0f1c',
@@ -152,6 +156,7 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     color: '#eeeef5',
     fontSize: 15,
+    fontFamily: 'DMSans_400Regular',
   },
   btn: {
     backgroundColor: '#c8f000',
@@ -162,7 +167,7 @@ const styles = StyleSheet.create({
   },
   btnPressed: { opacity: 0.88, transform: [{ scale: 0.98 }] },
   btnDisabled: { opacity: 0.5 },
-  btnText: { color: '#07080f', fontWeight: '800', fontSize: 13, letterSpacing: 1.5 },
+  btnText: { color: '#07080f', fontWeight: '800', fontSize: 13, letterSpacing: 1.5, fontFamily: 'DMSans_700Bold' },
 
   demoSection: { gap: 12 },
   demoLabel: {
@@ -171,6 +176,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     letterSpacing: 2,
     textAlign: 'center',
+    fontFamily: 'JetBrainsMono_700Bold',
   },
   demoRow: { flexDirection: 'row', gap: 10 },
   demoBtn: {
@@ -183,6 +189,6 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   demoBtnPressed: { backgroundColor: 'rgba(200,240,0,0.06)' },
-  demoBtnRole: { color: '#c8f000', fontSize: 10, fontWeight: '700', letterSpacing: 1.5 },
-  demoBtnSub: { color: '#4a4f65', fontSize: 12 },
+  demoBtnRole: { color: '#c8f000', fontSize: 10, fontWeight: '700', letterSpacing: 1.5, fontFamily: 'JetBrainsMono_700Bold' },
+  demoBtnSub: { color: '#4a4f65', fontSize: 12, fontFamily: 'DMSans_400Regular' },
 });

@@ -3,19 +3,38 @@ import { ActivityIndicator, View } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { enableScreens } from 'react-native-screens';
-
-enableScreens();
 import { StatusBar } from 'expo-status-bar';
+import { useFonts } from 'expo-font';
+
+import {
+  CormorantGaramond_700Bold,
+  CormorantGaramond_600SemiBoldItalic,
+} from '@expo-google-fonts/cormorant-garamond';
+
+import {
+  DMSans_400Regular,
+  DMSans_500Medium,
+  DMSans_600SemiBold,
+  DMSans_700Bold,
+} from '@expo-google-fonts/dm-sans';
+
+import {
+  JetBrainsMono_400Regular,
+  JetBrainsMono_700Bold,
+} from '@expo-google-fonts/jetbrains-mono';
+
 import { AuthProvider, useAuth } from './src/contexts/AuthContext';
 import { TabNavigator } from './src/navigation/TabNavigator';
 import { LoginScreen } from './src/screens/LoginScreen';
+
+enableScreens();
 
 function RootNavigator() {
   const { isSignedIn, isLoading } = useAuth();
 
   if (isLoading) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#0b0c15' }}>
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#07080f' }}>
         <ActivityIndicator color="#c8f000" />
       </View>
     );
@@ -25,6 +44,25 @@ function RootNavigator() {
 }
 
 export default function App() {
+  const [fontsLoaded] = useFonts({
+    CormorantGaramond_700Bold,
+    CormorantGaramond_600SemiBoldItalic,
+    DMSans_400Regular,
+    DMSans_500Medium,
+    DMSans_600SemiBold,
+    DMSans_700Bold,
+    JetBrainsMono_400Regular,
+    JetBrainsMono_700Bold,
+  });
+
+  if (!fontsLoaded) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#07080f' }}>
+        <ActivityIndicator color="#c8f000" />
+      </View>
+    );
+  }
+
   return (
     <SafeAreaProvider>
       <AuthProvider>

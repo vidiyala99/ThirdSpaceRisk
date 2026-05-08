@@ -284,73 +284,73 @@ function Flag({ label, color }: { label: string; color: string }) {
 
 const metaStyles = StyleSheet.create({
   row: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 7, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: 'rgba(255,255,255,0.05)' },
-  label: { color: '#4a4f65', fontSize: 10, fontWeight: '700', letterSpacing: 1.5 },
-  value: { color: '#8b90a8', fontSize: 12, flex: 1, textAlign: 'right' },
+  label: { color: '#4a4f65', fontSize: 10, fontWeight: '700', letterSpacing: 1.5, fontFamily: 'JetBrainsMono_700Bold' },
+  value: { color: '#8b90a8', fontSize: 12, flex: 1, textAlign: 'right', fontFamily: 'DMSans_400Regular' },
 });
 
 const flagStyles = StyleSheet.create({
   pill: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 4, borderWidth: StyleSheet.hairlineWidth },
-  text: { fontSize: 9, fontWeight: '700', letterSpacing: 1 },
+  text: { fontSize: 9, fontWeight: '700', letterSpacing: 1, fontFamily: 'JetBrainsMono_700Bold' },
 });
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: '#07080f' },
   content: { paddingHorizontal: 20, paddingBottom: 48 },
   centered: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#07080f' },
-  notFound: { color: '#4a4f65', fontSize: 15 },
+  notFound: { color: '#4a4f65', fontSize: 15, fontFamily: 'DMSans_400Regular' },
 
   headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
   backBtn: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   backArrow: { color: '#c8f000', fontSize: 18 },
-  backLabel: { color: '#c8f000', fontSize: 13, fontWeight: '600' },
-  signOut: { color: '#8b90a8', fontSize: 10, fontWeight: '700', letterSpacing: 1.5 },
+  backLabel: { color: '#c8f000', fontSize: 13, fontWeight: '600', fontFamily: 'DMSans_600SemiBold' },
+  signOut: { color: '#8b90a8', fontSize: 10, fontWeight: '700', letterSpacing: 1.5, fontFamily: 'JetBrainsMono_700Bold' },
 
-  venueName: { color: '#eeeef5', fontSize: 22, fontWeight: '800', letterSpacing: -0.5 },
-  reportDate: { color: '#4a4f65', fontSize: 12, marginTop: 4, marginBottom: 12 },
+  venueName: { color: '#eeeef5', fontSize: 22, fontWeight: '800', letterSpacing: -0.5, fontFamily: 'CormorantGaramond_700Bold' },
+  reportDate: { color: '#4a4f65', fontSize: 12, marginTop: 4, marginBottom: 12, fontFamily: 'JetBrainsMono_400Regular' },
   sevBanner: { borderWidth: 1, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 8, marginBottom: 16, alignSelf: 'flex-start' },
-  sevBannerText: { fontSize: 11, fontWeight: '700', letterSpacing: 0.5 },
+  sevBannerText: { fontSize: 11, fontWeight: '700', letterSpacing: 0.5, fontFamily: 'JetBrainsMono_700Bold' },
 
   card: { backgroundColor: '#0d0f1c', borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.07)', borderRadius: 14, padding: 16, marginBottom: 12, gap: 10 },
-  eyebrow: { color: '#4a4f65', fontSize: 10, fontWeight: '700', letterSpacing: 2 },
-  bodyText: { color: '#8b90a8', fontSize: 13, lineHeight: 20 },
+  eyebrow: { color: '#4a4f65', fontSize: 10, fontWeight: '700', letterSpacing: 2, fontFamily: 'JetBrainsMono_700Bold' },
+  bodyText: { color: '#8b90a8', fontSize: 13, lineHeight: 20, fontFamily: 'DMSans_400Regular' },
   metaGrid: { gap: 0 },
   flagRow: { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
   rowBetween: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
 
   signalRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   sevPill: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 5 },
-  sevPillText: { fontSize: 10, fontWeight: '700', letterSpacing: 1.2 },
-  confNum: { fontSize: 28, fontWeight: '800', letterSpacing: -1 },
+  sevPillText: { fontSize: 10, fontWeight: '700', letterSpacing: 1.2, fontFamily: 'JetBrainsMono_700Bold' },
+  confNum: { fontSize: 28, fontWeight: '800', letterSpacing: -1, fontFamily: 'JetBrainsMono_700Bold' },
 
   questionRow: { flexDirection: 'row', gap: 8 },
   questionDot: { color: '#c8f000', fontSize: 16, lineHeight: 20 },
-  questionText: { color: '#8b90a8', fontSize: 13, lineHeight: 20, flex: 1 },
+  questionText: { color: '#8b90a8', fontSize: 13, lineHeight: 20, flex: 1, fontFamily: 'DMSans_400Regular' },
 
   actionItem: { gap: 3, paddingVertical: 8, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: 'rgba(255,255,255,0.05)' },
-  actionTitle: { color: '#eeeef5', fontSize: 13, fontWeight: '600' },
-  actionSub: { color: '#8b90a8', fontSize: 12 },
-  actionEvidence: { color: '#c8f000', fontSize: 11 },
+  actionTitle: { color: '#eeeef5', fontSize: 13, fontWeight: '600', fontFamily: 'DMSans_600SemiBold' },
+  actionSub: { color: '#8b90a8', fontSize: 12, fontFamily: 'DMSans_400Regular' },
+  actionEvidence: { color: '#c8f000', fontSize: 11, fontFamily: 'DMSans_400Regular' },
 
-  corroBadge: { fontSize: 9, fontWeight: '700', letterSpacing: 1, borderWidth: StyleSheet.hairlineWidth, borderRadius: 4, paddingHorizontal: 7, paddingVertical: 3 },
+  corroBadge: { fontSize: 9, fontWeight: '700', letterSpacing: 1, borderWidth: StyleSheet.hairlineWidth, borderRadius: 4, paddingHorizontal: 7, paddingVertical: 3, fontFamily: 'JetBrainsMono_700Bold' },
   visionItem: { borderLeftWidth: 2, paddingLeft: 10, gap: 4, paddingVertical: 4 },
-  visionType: { color: '#4a4f65', fontSize: 9, fontWeight: '700', letterSpacing: 1.5 },
+  visionType: { color: '#4a4f65', fontSize: 9, fontWeight: '700', letterSpacing: 1.5, fontFamily: 'JetBrainsMono_700Bold' },
 
   timelineRow: { flexDirection: 'row', gap: 12, paddingVertical: 6, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: 'rgba(255,255,255,0.05)' },
-  timelineTime: { color: '#4a4f65', fontSize: 11, fontWeight: '600', width: 40 },
+  timelineTime: { color: '#4a4f65', fontSize: 11, fontWeight: '600', width: 40, fontFamily: 'JetBrainsMono_400Regular' },
   timelineContent: { flex: 1 },
-  timelineLabel: { color: '#eeeef5', fontSize: 13 },
-  timelineSource: { color: '#4a4f65', fontSize: 11 },
+  timelineLabel: { color: '#eeeef5', fontSize: 13, fontFamily: 'DMSans_400Regular' },
+  timelineSource: { color: '#4a4f65', fontSize: 11, fontFamily: 'JetBrainsMono_400Regular' },
 
   evidenceSummaryRow: { flexDirection: 'row', gap: 10 },
   evidenceSummaryCard: { flex: 1, alignItems: 'center', padding: 12, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.07)', borderRadius: 10 },
-  evidenceSummaryNum: { color: '#c8f000', fontSize: 24, fontWeight: '800' },
-  evidenceSummaryLabel: { color: '#4a4f65', fontSize: 9, fontWeight: '700', letterSpacing: 1.5, marginTop: 2 },
-  reportId: { color: '#2e3247', fontSize: 10, fontFamily: 'monospace' },
+  evidenceSummaryNum: { color: '#c8f000', fontSize: 24, fontWeight: '800', fontFamily: 'JetBrainsMono_700Bold' },
+  evidenceSummaryLabel: { color: '#4a4f65', fontSize: 9, fontWeight: '700', letterSpacing: 1.5, marginTop: 2, fontFamily: 'JetBrainsMono_700Bold' },
+  reportId: { color: '#2e3247', fontSize: 10, fontFamily: 'JetBrainsMono_400Regular' },
 
   decisionButtons: { gap: 10 },
   notesInput: { backgroundColor: '#07080f', borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.1)', borderRadius: 10, padding: 12, color: '#eeeef5', fontSize: 14, minHeight: 72, textAlignVertical: 'top' },
   decBtn: { borderRadius: 10, paddingVertical: 14, alignItems: 'center' },
-  decBtnText: { fontSize: 13, fontWeight: '700', letterSpacing: 0.5 },
+  decBtnText: { fontSize: 13, fontWeight: '700', letterSpacing: 0.5, fontFamily: 'DMSans_700Bold' },
   decisionResult: { borderWidth: 1, borderRadius: 10, paddingVertical: 16, alignItems: 'center' },
-  decisionResultText: { fontSize: 14, fontWeight: '800', letterSpacing: 1 },
+  decisionResultText: { fontSize: 14, fontWeight: '800', letterSpacing: 1, fontFamily: 'JetBrainsMono_700Bold' },
 });

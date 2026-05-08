@@ -209,10 +209,10 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: '#07080f' },
   content: { paddingHorizontal: 20, paddingBottom: 24, gap: 12 },
   centered: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#07080f' },
-  empty: { color: '#4a4f65', fontSize: 14 },
+  empty: { color: '#4a4f65', fontSize: 14, fontFamily: 'DMSans_400Regular' },
 
   topRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 },
-  title: { color: '#eeeef5', fontSize: 28, fontWeight: '800', letterSpacing: -0.5 },
+  title: { color: '#eeeef5', fontSize: 28, fontWeight: '800', letterSpacing: -0.5, fontFamily: 'CormorantGaramond_700Bold' },
   livePill: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -225,8 +225,8 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(200,240,0,0.25)',
   },
   liveDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#c8f000' },
-  liveText: { color: '#c8f000', fontSize: 10, fontWeight: '700', letterSpacing: 1.5 },
-  signOut: { color: '#8b90a8', fontSize: 10, fontWeight: '700', letterSpacing: 1.5 },
+  liveText: { color: '#c8f000', fontSize: 10, fontWeight: '700', letterSpacing: 1.5, fontFamily: 'JetBrainsMono_700Bold' },
+  signOut: { color: '#8b90a8', fontSize: 10, fontWeight: '700', letterSpacing: 1.5, fontFamily: 'JetBrainsMono_700Bold' },
 
   statsRow: { flexDirection: 'row', gap: 10 },
   statCard: {
@@ -238,9 +238,9 @@ const styles = StyleSheet.create({
     padding: 14,
     gap: 4,
   },
-  statEyebrow: { color: '#4a4f65', fontSize: 9, fontWeight: '700', letterSpacing: 2 },
-  statBig: { color: '#eeeef5', fontSize: 28, fontWeight: '800', letterSpacing: -1 },
-  statSub: { color: '#4a4f65', fontSize: 12 },
+  statEyebrow: { color: '#4a4f65', fontSize: 9, fontWeight: '700', letterSpacing: 2, fontFamily: 'JetBrainsMono_700Bold' },
+  statBig: { color: '#eeeef5', fontSize: 28, fontWeight: '800', letterSpacing: -1, fontFamily: 'JetBrainsMono_700Bold' },
+  statSub: { color: '#4a4f65', fontSize: 12, fontFamily: 'JetBrainsMono_400Regular' },
 
   card: {
     backgroundColor: '#0d0f1c',
@@ -259,11 +259,12 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '700',
     letterSpacing: 2,
+    fontFamily: 'JetBrainsMono_700Bold',
   },
 
   capacityNumbers: { flexDirection: 'row', alignItems: 'flex-end', gap: 6 },
-  capacityBig: { fontSize: 48, fontWeight: '800', letterSpacing: -2, lineHeight: 48 },
-  capacityMax: { color: '#4a4f65', fontSize: 16, paddingBottom: 4 },
+  capacityBig: { fontSize: 48, fontWeight: '800', letterSpacing: -2, lineHeight: 48, fontFamily: 'JetBrainsMono_700Bold' },
+  capacityMax: { color: '#4a4f65', fontSize: 16, paddingBottom: 4, fontFamily: 'DMSans_400Regular' },
 
   infraRow: {
     flexDirection: 'row',
@@ -273,8 +274,8 @@ const styles = StyleSheet.create({
     borderBottomColor: 'rgba(255,255,255,0.04)',
   },
   infraDot: { width: 7, height: 7, borderRadius: 4, marginRight: 12 },
-  infraName: { color: '#8b90a8', fontSize: 13, flex: 1, textTransform: 'capitalize' },
-  infraStatus: { fontSize: 10, fontWeight: '700', letterSpacing: 1 },
+  infraName: { color: '#8b90a8', fontSize: 13, flex: 1, textTransform: 'capitalize', fontFamily: 'DMSans_400Regular' },
+  infraStatus: { fontSize: 10, fontWeight: '700', letterSpacing: 1, fontFamily: 'JetBrainsMono_700Bold' },
 
   queueRow: {
     borderLeftWidth: 2,
@@ -282,6 +283,6 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
   },
   queueContent: { gap: 2 },
-  queueAction: { color: '#8b90a8', fontSize: 13, lineHeight: 18 },
-  queuePriority: { fontSize: 9, fontWeight: '700', letterSpacing: 1.2 },
+  queueAction: { color: '#8b90a8', fontSize: 13, lineHeight: 18, fontFamily: 'DMSans_400Regular' },
+  queuePriority: { fontSize: 9, fontWeight: '700', letterSpacing: 1.2, fontFamily: 'JetBrainsMono_700Bold' },
 });

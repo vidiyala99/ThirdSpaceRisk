@@ -315,30 +315,30 @@ function MetaRow({ label, value }: { label: string; value: string }) {
 
 const flagStyles = StyleSheet.create({
   pill: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 4, borderWidth: StyleSheet.hairlineWidth },
-  text: { fontSize: 9, fontWeight: '700', letterSpacing: 1 },
+  text: { fontSize: 9, fontWeight: '700', letterSpacing: 1, fontFamily: 'JetBrainsMono_700Bold' },
 });
 
 const metaStyles = StyleSheet.create({
   row: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: 'rgba(255,255,255,0.05)' },
-  label: { color: '#4a4f65', fontSize: 10, fontWeight: '700', letterSpacing: 1.5 },
-  value: { color: '#8b90a8', fontSize: 12 },
+  label: { color: '#4a4f65', fontSize: 10, fontWeight: '700', letterSpacing: 1.5, fontFamily: 'JetBrainsMono_700Bold' },
+  value: { color: '#8b90a8', fontSize: 12, fontFamily: 'DMSans_400Regular' },
 });
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: '#07080f' },
   content: { paddingHorizontal: 20, paddingBottom: 48 },
   centered: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#07080f' },
-  notFound: { color: '#4a4f65', fontSize: 15 },
+  notFound: { color: '#4a4f65', fontSize: 15, fontFamily: 'DMSans_400Regular' },
 
   backRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 },
   backBtn: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  signOut: { color: '#8b90a8', fontSize: 10, fontWeight: '700', letterSpacing: 1.5, paddingVertical: 4 },
-  backArrow: { color: '#c8f000', fontSize: 18 },
-  backLabel: { color: '#c8f000', fontSize: 13, fontWeight: '600' },
+  signOut: { color: '#8b90a8', fontSize: 10, fontWeight: '700', letterSpacing: 1.5, paddingVertical: 4, fontFamily: 'JetBrainsMono_700Bold' },
+  backArrow: { color: '#c8f000', fontSize: 18, fontFamily: 'JetBrainsMono_400Regular' },
+  backLabel: { color: '#c8f000', fontSize: 13, fontWeight: '600', fontFamily: 'JetBrainsMono_400Regular' },
 
   header: { gap: 10, marginBottom: 16 },
-  location: { color: '#eeeef5', fontSize: 24, fontWeight: '800', letterSpacing: -0.5 },
-  date: { color: '#4a4f65', fontSize: 12 },
+  location: { color: '#eeeef5', fontSize: 24, fontWeight: '800', letterSpacing: -0.5, fontFamily: 'CormorantGaramond_700Bold' },
+  date: { color: '#4a4f65', fontSize: 12, fontFamily: 'JetBrainsMono_400Regular' },
   statusRow: { flexDirection: 'row', gap: 8, flexWrap: 'wrap', alignItems: 'center' },
 
   actionsRow: { flexDirection: 'row', gap: 10, marginBottom: 14 },
@@ -346,7 +346,7 @@ const styles = StyleSheet.create({
     flex: 1, borderWidth: 1, borderRadius: 10, paddingVertical: 12,
     alignItems: 'center', justifyContent: 'center',
   },
-  actionBtnText: { fontSize: 12, fontWeight: '700', letterSpacing: 0.5 },
+  actionBtnText: { fontSize: 12, fontWeight: '700', letterSpacing: 0.5, fontFamily: 'DMSans_700Bold' },
 
   card: {
     backgroundColor: '#0d0f1c',
@@ -358,46 +358,46 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   cardTitleRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  eyebrow: { color: '#4a4f65', fontSize: 10, fontWeight: '700', letterSpacing: 2 },
+  eyebrow: { color: '#4a4f65', fontSize: 10, fontWeight: '700', letterSpacing: 2, fontFamily: 'JetBrainsMono_700Bold' },
   packetStatusBadge: { borderWidth: StyleSheet.hairlineWidth, borderRadius: 4, paddingHorizontal: 7, paddingVertical: 3 },
-  packetStatusText: { fontSize: 9, fontWeight: '700', letterSpacing: 1 },
+  packetStatusText: { fontSize: 9, fontWeight: '700', letterSpacing: 1, fontFamily: 'JetBrainsMono_700Bold' },
 
-  summary: { color: '#8b90a8', fontSize: 14, lineHeight: 22 },
-  bodyText: { color: '#8b90a8', fontSize: 13, lineHeight: 20 },
+  summary: { color: '#8b90a8', fontSize: 14, lineHeight: 22, fontFamily: 'DMSans_400Regular' },
+  bodyText: { color: '#8b90a8', fontSize: 13, lineHeight: 20, fontFamily: 'DMSans_400Regular' },
   metaGrid: { gap: 0 },
 
   signalRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   severityPill: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 5 },
-  severityText: { fontSize: 10, fontWeight: '700', letterSpacing: 1.2 },
+  severityText: { fontSize: 10, fontWeight: '700', letterSpacing: 1.2, fontFamily: 'JetBrainsMono_700Bold' },
   confidenceWrap: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8 },
   confidenceTrack: { flex: 1, height: 3, backgroundColor: 'rgba(255,255,255,0.06)', borderRadius: 2, overflow: 'hidden' },
   confidenceFill: { height: '100%', borderRadius: 2 },
-  confidenceNum: { fontSize: 11, fontWeight: '700', width: 32, textAlign: 'right' },
+  confidenceNum: { fontSize: 11, fontWeight: '700', width: 32, textAlign: 'right', fontFamily: 'JetBrainsMono_700Bold' },
 
-  explanation: { color: '#8b90a8', fontSize: 13, lineHeight: 20 },
+  explanation: { color: '#8b90a8', fontSize: 13, lineHeight: 20, fontFamily: 'DMSans_400Regular' },
 
   questionRow: { flexDirection: 'row', gap: 8, alignItems: 'flex-start' },
-  questionDot: { color: '#c8f000', fontSize: 16, lineHeight: 20 },
-  questionText: { color: '#8b90a8', fontSize: 13, lineHeight: 20, flex: 1 },
+  questionDot: { color: '#c8f000', fontSize: 16, lineHeight: 20, fontFamily: 'DMSans_400Regular' },
+  questionText: { color: '#8b90a8', fontSize: 13, lineHeight: 20, flex: 1, fontFamily: 'DMSans_400Regular' },
 
   citationRow: { flexDirection: 'row', gap: 10, alignItems: 'flex-start', paddingVertical: 6, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: 'rgba(255,255,255,0.04)' },
   citationSource: { backgroundColor: 'rgba(200,240,0,0.08)', borderRadius: 4, paddingHorizontal: 6, paddingVertical: 3, alignSelf: 'flex-start' },
-  citationSourceType: { color: '#c8f000', fontSize: 8, fontWeight: '700', letterSpacing: 1 },
-  citationExcerpt: { color: '#4a4f65', fontSize: 12, lineHeight: 17, flex: 1 },
+  citationSourceType: { color: '#c8f000', fontSize: 8, fontWeight: '700', letterSpacing: 1, fontFamily: 'JetBrainsMono_700Bold' },
+  citationExcerpt: { color: '#4a4f65', fontSize: 12, lineHeight: 17, flex: 1, fontFamily: 'DMSans_400Regular' },
 
-  corroborationBadge: { fontSize: 9, fontWeight: '700', letterSpacing: 1, borderWidth: StyleSheet.hairlineWidth, borderRadius: 4, paddingHorizontal: 7, paddingVertical: 3 },
+  corroborationBadge: { fontSize: 9, fontWeight: '700', letterSpacing: 1, borderWidth: StyleSheet.hairlineWidth, borderRadius: 4, paddingHorizontal: 7, paddingVertical: 3, fontFamily: 'JetBrainsMono_700Bold' },
   visionItem: { borderLeftWidth: 2, paddingLeft: 12, gap: 6, paddingVertical: 4 },
   visionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  visionType: { color: '#4a4f65', fontSize: 9, fontWeight: '700', letterSpacing: 1.5 },
-  visionDelta: { fontSize: 11, fontWeight: '700' },
+  visionType: { color: '#4a4f65', fontSize: 9, fontWeight: '700', letterSpacing: 1.5, fontFamily: 'JetBrainsMono_700Bold' },
+  visionDelta: { fontSize: 11, fontWeight: '700', fontFamily: 'JetBrainsMono_700Bold' },
   indicatorRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
   indicatorPill: { backgroundColor: 'rgba(200,240,0,0.06)', borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(200,240,0,0.2)', borderRadius: 4, paddingHorizontal: 7, paddingVertical: 3 },
-  indicatorText: { color: '#c8f000', fontSize: 9, fontWeight: '600' },
+  indicatorText: { color: '#c8f000', fontSize: 9, fontWeight: '600', fontFamily: 'JetBrainsMono_400Regular' },
 
   evidenceRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: 'rgba(255,255,255,0.05)' },
   evidenceIcon: { width: 44, height: 44, backgroundColor: 'rgba(255,255,255,0.04)', borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
-  evidenceIconText: { color: '#4a4f65', fontSize: 10, fontWeight: '700', letterSpacing: 1 },
+  evidenceIconText: { color: '#4a4f65', fontSize: 10, fontWeight: '700', letterSpacing: 1, fontFamily: 'JetBrainsMono_700Bold' },
   evidenceMeta: { flex: 1 },
-  evidenceFilename: { color: '#eeeef5', fontSize: 13, fontWeight: '600' },
-  evidenceSize: { color: '#4a4f65', fontSize: 11, marginTop: 2 },
+  evidenceFilename: { color: '#eeeef5', fontSize: 13, fontWeight: '600', fontFamily: 'DMSans_600SemiBold' },
+  evidenceSize: { color: '#4a4f65', fontSize: 11, marginTop: 2, fontFamily: 'JetBrainsMono_400Regular' },
 });

@@ -135,15 +135,15 @@ const styles = StyleSheet.create({
 
   header: { paddingHorizontal: 20, paddingBottom: 16, gap: 16 },
   titleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  signOut: { color: '#8b90a8', fontSize: 10, fontWeight: '700', letterSpacing: 1.5, paddingVertical: 4, paddingLeft: 12 },
-  title: { color: '#eeeef5', fontSize: 28, fontWeight: '800', letterSpacing: -0.5 },
+  signOut: { color: '#8b90a8', fontSize: 10, fontWeight: '700', letterSpacing: 1.5, paddingVertical: 4, paddingLeft: 12, fontFamily: 'JetBrainsMono_700Bold' },
+  title: { color: '#eeeef5', fontSize: 28, fontWeight: '800', letterSpacing: -0.5, fontFamily: 'CormorantGaramond_700Bold' },
   countBadge: {
     backgroundColor: 'rgba(200,240,0,0.12)',
     borderRadius: 8,
     paddingHorizontal: 8,
     paddingVertical: 3,
   },
-  countText: { color: '#c8f000', fontSize: 12, fontWeight: '700' },
+  countText: { color: '#c8f000', fontSize: 12, fontWeight: '700', fontFamily: 'JetBrainsMono_700Bold' },
 
   filters: { flexDirection: 'row', gap: 8 },
   chip: {
@@ -155,8 +155,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#0d0f1c',
   },
   chipActive: { backgroundColor: '#c8f000', borderColor: '#c8f000' },
-  chipText: { color: '#4a4f65', fontSize: 12, fontWeight: '600' },
-  chipTextActive: { color: '#07080f' },
+  chipText: { color: '#4a4f65', fontSize: 12, fontWeight: '600', fontFamily: 'JetBrainsMono_400Regular' },
+  chipTextActive: { color: '#07080f', fontFamily: 'JetBrainsMono_400Regular' },
 
   list: { paddingHorizontal: 20, paddingBottom: 40, gap: 10 },
   card: {
@@ -169,9 +169,9 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  location: { color: '#eeeef5', fontSize: 15, fontWeight: '700', flex: 1 },
-  date: { color: '#4a4f65', fontSize: 11, fontWeight: '600', letterSpacing: 0.3 },
-  summary: { color: '#8b90a8', fontSize: 13, lineHeight: 19 },
+  location: { color: '#eeeef5', fontSize: 15, fontWeight: '700', flex: 1, fontFamily: 'DMSans_600SemiBold' },
+  date: { color: '#4a4f65', fontSize: 11, fontWeight: '600', letterSpacing: 0.3, fontFamily: 'JetBrainsMono_400Regular' },
+  summary: { color: '#8b90a8', fontSize: 13, lineHeight: 19, fontFamily: 'DMSans_400Regular' },
   cardFooter: { flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' },
   flag: {
     paddingHorizontal: 7,
@@ -181,9 +181,9 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: 'rgba(255,69,87,0.3)',
   },
-  flagText: { color: '#ff4557', fontSize: 9, fontWeight: '700', letterSpacing: 1 },
+  flagText: { color: '#ff4557', fontSize: 9, fontWeight: '700', letterSpacing: 1, fontFamily: 'JetBrainsMono_700Bold' },
 
   empty: { alignItems: 'center', paddingTop: 80, gap: 8 },
-  emptyTitle: { color: '#eeeef5', fontSize: 18, fontWeight: '700' },
-  emptySub: { color: '#4a4f65', fontSize: 14, textAlign: 'center' },
+  emptyTitle: { color: '#eeeef5', fontSize: 18, fontWeight: '700', fontFamily: 'DMSans_700Bold' },
+  emptySub: { color: '#4a4f65', fontSize: 14, textAlign: 'center', fontFamily: 'DMSans_400Regular' },
 });

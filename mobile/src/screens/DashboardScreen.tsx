@@ -261,6 +261,7 @@ const styles = StyleSheet.create({
     letterSpacing: -0.5,
     marginBottom: 8,
     textAlign: 'center',
+    fontFamily: 'CormorantGaramond_700Bold',
   },
   brokerBody: {
     color: '#4a4f65',
@@ -268,6 +269,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 20,
     marginBottom: 24,
+    fontFamily: 'DMSans_400Regular',
   },
   signOut: {
     color: '#8b90a8',
@@ -275,6 +277,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     letterSpacing: 1.5,
     paddingTop: 4,
+    fontFamily: 'JetBrainsMono_700Bold',
   },
 
   // Hero
@@ -289,6 +292,7 @@ const styles = StyleSheet.create({
     letterSpacing: -1,
     lineHeight: 38,
     marginBottom: 8,
+    fontFamily: 'CormorantGaramond_700Bold',
   },
   heroAccent: {
     color: '#c8f000',
@@ -297,6 +301,7 @@ const styles = StyleSheet.create({
     color: '#4a4f65',
     fontSize: 13,
     lineHeight: 19,
+    fontFamily: 'DMSans_400Regular',
   },
 
   // Stats bar
@@ -320,12 +325,14 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     letterSpacing: 1.5,
     marginBottom: 6,
+    fontFamily: 'JetBrainsMono_700Bold',
   },
   statValue: {
     color: '#eeeef5',
     fontSize: 24,
     fontWeight: '800',
     letterSpacing: -0.5,
+    fontFamily: 'JetBrainsMono_700Bold',
   },
   statError: {
     color: '#ff4557',
@@ -346,6 +353,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     letterSpacing: 2,
     marginBottom: 14,
+    fontFamily: 'JetBrainsMono_700Bold',
   },
 
   // Risk profile
@@ -368,6 +376,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '700',
     letterSpacing: 0.5,
+    fontFamily: 'JetBrainsMono_700Bold',
   },
   scoreGroup: {
     flexDirection: 'row',
@@ -378,12 +387,14 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     letterSpacing: -2,
     lineHeight: 52,
+    fontFamily: 'JetBrainsMono_700Bold',
   },
   scoreMax: {
     color: '#4a4f65',
     fontSize: 16,
     fontWeight: '500',
     paddingBottom: 6,
+    fontFamily: 'DMSans_500Medium',
   },
   factorList: { gap: 16 },
 
@@ -403,6 +414,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     letterSpacing: 1.5,
     marginBottom: 12,
+    fontFamily: 'JetBrainsMono_700Bold',
   },
   premiumAmount: {
     color: '#eeeef5',
@@ -410,21 +422,25 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     letterSpacing: -1.5,
     lineHeight: 44,
+    fontFamily: 'JetBrainsMono_700Bold',
   },
   premiumSub: {
     color: '#4a4f65',
     fontSize: 12,
     marginBottom: 10,
+    fontFamily: 'DMSans_400Regular',
   },
   premiumMonthly: {
     color: '#eeeef5',
     fontSize: 20,
     fontWeight: '600',
     letterSpacing: -0.5,
+    fontFamily: 'JetBrainsMono_400Regular',
   },
   premiumMonthlySub: {
     color: '#4a4f65',
     fontSize: 13,
     fontWeight: '400',
+    fontFamily: 'DMSans_400Regular',
   },
 });

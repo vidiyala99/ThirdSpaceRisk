@@ -1,0 +1,49 @@
+/**
+ * ThirdSpace Risk — Typography System
+ *
+ * Matches the web portal exactly:
+ *   Display/headings → Cormorant Garamond (editorial, premium)
+ *   Body/UI          → DM Sans (clean, legible)
+ *   Data/labels      → JetBrains Mono (monospaced, technical)
+ */
+
+export const Fonts = {
+  // Display — editorial headings (wordmark, hero, venue names)
+  displayBold:    'CormorantGaramond_700Bold',
+  displayItalic:  'CormorantGaramond_600SemiBoldItalic',
+
+  // Body — all UI text, labels, buttons
+  sansRegular:    'DMSans_400Regular',
+  sansMedium:     'DMSans_500Medium',
+  sansSemiBold:   'DMSans_600SemiBold',
+  sansBold:       'DMSans_700Bold',
+
+  // Mono — data values, IDs, timestamps, status badges, eyebrows
+  monoRegular:    'JetBrainsMono_400Regular',
+  monoBold:       'JetBrainsMono_700Bold',
+};
+
+/** Shared text styles — import and spread in StyleSheet.create() */
+export const TextStyles = {
+  // Display (Cormorant Garamond)
+  wordmark:     { fontFamily: Fonts.displayBold,    fontSize: 56, letterSpacing: -1.5, lineHeight: 56 },
+  heroHeading:  { fontFamily: Fonts.displayBold,    fontSize: 40, letterSpacing: -1,   lineHeight: 44 },
+  screenTitle:  { fontFamily: Fonts.displayBold,    fontSize: 28, letterSpacing: -0.5 },
+  venueName:    { fontFamily: Fonts.displayBold,    fontSize: 22, letterSpacing: -0.5 },
+  tierGlyph:    { fontFamily: Fonts.displayBold,    fontSize: 96, letterSpacing: -4,   lineHeight: 96 },
+
+  // Body UI (DM Sans)
+  body:         { fontFamily: Fonts.sansRegular,    fontSize: 14, lineHeight: 21 },
+  bodySmall:    { fontFamily: Fonts.sansRegular,    fontSize: 13, lineHeight: 19 },
+  label:        { fontFamily: Fonts.sansMedium,     fontSize: 14 },
+  buttonText:   { fontFamily: Fonts.sansBold,       fontSize: 13, letterSpacing: 0.5 },
+  caption:      { fontFamily: Fonts.sansRegular,    fontSize: 12 },
+
+  // Mono data (JetBrains Mono)
+  eyebrow:      { fontFamily: Fonts.monoBold,       fontSize: 10, letterSpacing: 2,   textTransform: 'uppercase' as const },
+  dataLabel:    { fontFamily: Fonts.monoRegular,    fontSize: 11, letterSpacing: 1 },
+  dataValue:    { fontFamily: Fonts.monoBold,       fontSize: 11, letterSpacing: 0.5 },
+  timestamp:    { fontFamily: Fonts.monoRegular,    fontSize: 11 },
+  badge:        { fontFamily: Fonts.monoBold,       fontSize: 9,  letterSpacing: 1.2 },
+  packetId:     { fontFamily: Fonts.monoRegular,    fontSize: 10, letterSpacing: 0.5 },
+};
