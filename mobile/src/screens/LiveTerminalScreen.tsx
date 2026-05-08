@@ -199,10 +199,12 @@ export function LiveTerminalScreen() {
         </View>
       )}
 
-      {data.compliance_queue.length > 0 && (
-        <View style={styles.card}>
-          <Text style={styles.sectionEyebrow}>COMPLIANCE QUEUE</Text>
-          {data.compliance_queue.map((item, i) => (
+      <View style={styles.card}>
+        <Text style={styles.sectionEyebrow}>COMPLIANCE QUEUE</Text>
+        {data.compliance_queue.length === 0 ? (
+          <Text style={styles.complianceClear}>{'>'} Compliance{'\n'}No pending actions. You're all clear.</Text>
+        ) : (
+          data.compliance_queue.map((item, i) => (
             <View key={i} style={[styles.queueRow, { borderLeftColor: PRIORITY_COLOR[item.priority] ?? '#4a4f65' }]}>
               <View style={styles.queueContent}>
                 <Text style={styles.queueAction}>{item.action}</Text>
@@ -211,9 +213,9 @@ export function LiveTerminalScreen() {
                 </Text>
               </View>
             </View>
-          ))}
-        </View>
-      )}
+          ))
+        )}
+      </View>
 
       {/* Coverage breakdown */}
       {quoteData?.coverage_breakdown && (
@@ -344,6 +346,7 @@ const styles = StyleSheet.create({
   infraName: { color: '#8b90a8', fontSize: 13, flex: 1, textTransform: 'capitalize', fontFamily: 'DMSans_400Regular' },
   infraStatus: { fontSize: 10, fontWeight: '700', letterSpacing: 1, fontFamily: 'JetBrainsMono_700Bold' },
 
+  complianceClear: { color: '#4a4f65', fontSize: 13, lineHeight: 20, fontFamily: 'JetBrainsMono_400Regular' },
   queueRow: {
     borderLeftWidth: 2,
     paddingLeft: 12,
