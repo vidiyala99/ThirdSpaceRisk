@@ -1,12 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useTenantId, useAuth, useRole } from "@/contexts/AuthContext";
 import { toastSuccess, toastError } from "@/lib/toast";
 import {
   AlertTriangle, Plus, Calendar, MapPin, User,
-  ShieldAlert, CheckCircle2, Clock, ArrowRight,
+  ShieldAlert, CheckCircle2, Clock, ArrowRight, X,
 } from "lucide-react";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
@@ -28,10 +28,17 @@ interface Incident {
 
 export default function IncidentsPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { isSignedIn } = useAuth();
   const tenantId = useTenantId();
   const role = useRole();
   const isBroker = role === "broker" || role === "admin";
+
+  // ?venue=<id> scopes the incidents list to a single venue. Set by sidebar
+  // navigation from /terminal/[venueId] so users keep their venue context.
+  const filterVenueId = searchParams.get("venue");
+  const [filterVenueName, setFilterVenueName] = useState<string | null>(null);
+
   const [incidents, setIncidents] = useState<Incident[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -69,6 +76,24 @@ export default function IncidentsPage() {
 
   useEffect(() => {
     async function fetchIncidents() {
+      // Explicit ?venue=<id> filter takes precedence over role-based scoping.
+      if (filterVenueId) {
+        try {
+          const res = await fetch(`${API_URL}/api/venues/${filterVenueId}/incidents`);
+          if (res.ok) {
+            const data = await res.json();
+            setIncidents(Array.isArray(data) ? data : []);
+          } else {
+            setIncidents([]);
+          }
+        } catch (error) {
+          console.error("Failed to fetch incidents:", error);
+        } finally {
+          setLoading(false);
+        }
+        return;
+      }
+
       // Operator without a tenant_id (mid-onboarding) — show empty state instead
       // of silently fetching some other venue's incidents.
       if (!isBroker && !tenantId) {
@@ -92,7 +117,18 @@ export default function IncidentsPage() {
       }
     }
     fetchIncidents();
-  }, [tenantId, isBroker]);
+  }, [tenantId, isBroker, filterVenueId]);
+
+  // Look up the filter venue's display name so the chip shows something readable
+  useEffect(() => {
+    if (!filterVenueId) { setFilterVenueName(null); return; }
+    let cancelled = false;
+    fetch(`${API_URL}/api/venues/${filterVenueId}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => { if (!cancelled) setFilterVenueName(data?.name ?? filterVenueId); })
+      .catch(() => { if (!cancelled) setFilterVenueName(filterVenueId); });
+    return () => { cancelled = true; };
+  }, [filterVenueId]);
 
   const openIncident = (incidentId: string) => {
     router.push(`/incidents/${incidentId}`);
@@ -174,9 +210,11 @@ export default function IncidentsPage() {
         <div>
           <h1>Incidents</h1>
           <p className="page-subtitle">
-            {isBroker
-              ? "All incidents across your venue portfolio"
-              : "Report and track incidents at your venue"}
+            {filterVenueId
+              ? `Incidents at ${filterVenueName ?? filterVenueId}`
+              : isBroker
+                ? "All incidents across your venue portfolio"
+                : "Report and track incidents at your venue"}
           </p>
         </div>
         {!isBroker && (
@@ -185,6 +223,32 @@ export default function IncidentsPage() {
           </button>
         )}
       </header>
+
+      {filterVenueId && (
+        <div className="mb-lg" style={{ display: "flex", alignItems: "center", gap: "var(--space-sm)" }}>
+          <span className="text-xs uppercase tracking-wide text-muted font-mono">Filtered by</span>
+          <button
+            onClick={() => router.push("/incidents")}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "6px",
+              padding: "4px 10px",
+              borderRadius: "14px",
+              border: "1px solid var(--brand-primary)",
+              background: "rgba(212,255,0,0.08)",
+              color: "var(--brand-primary)",
+              fontSize: "0.75rem",
+              fontWeight: 600,
+              cursor: "pointer",
+            }}
+            title="Clear filter"
+          >
+            {filterVenueName ?? filterVenueId}
+            <X size={12} />
+          </button>
+        </div>
+      )}
 
       <div className="flex justify-between items-center mb-lg" style={{ flexWrap: "wrap", gap: "var(--space-sm)" }}>
         <div className="flex gap-xs" style={{ background: "var(--bg-surface)", padding: "4px", borderRadius: "var(--radius-lg)", flexWrap: "wrap" }}>
