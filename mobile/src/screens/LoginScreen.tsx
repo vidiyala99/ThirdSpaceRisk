@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -24,20 +23,31 @@ export function LoginScreen({ navigation }: Props) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  function clearError() {
+    if (error) setError(null);
+  }
 
   async function handleLogin() {
-    if (!email || !password) return;
+    if (!email || !password) {
+      setError('Please enter your email and password.');
+      return;
+    }
     setLoading(true);
+    setError(null);
     try {
       await signIn(email.trim(), password);
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (e: any) {
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      Alert.alert('Access denied', e.message ?? 'Invalid credentials');
+      setError('Invalid email or password. Check your credentials and try again.');
     } finally {
       setLoading(false);
     }
   }
+
+  const hasError = !!error;
 
   return (
     <KeyboardAvoidingView
@@ -55,37 +65,53 @@ export function LoginScreen({ navigation }: Props) {
           <View style={styles.inputWrap}>
             <Text style={styles.inputLabel}>EMAIL</Text>
             <TextInput
-              style={styles.input}
+              style={[styles.input, hasError && styles.inputError]}
               placeholder="operator@venue.com"
               placeholderTextColor="#2e3247"
               keyboardType="email-address"
               autoCapitalize="none"
               value={email}
-              onChangeText={setEmail}
+              onChangeText={(v) => { setEmail(v); clearError(); }}
             />
           </View>
           <View style={styles.inputWrap}>
             <Text style={styles.inputLabel}>PASSWORD</Text>
             <TextInput
-              style={styles.input}
+              style={[styles.input, hasError && styles.inputError]}
               placeholder="••••••••"
               placeholderTextColor="#2e3247"
               secureTextEntry
               value={password}
-              onChangeText={setPassword}
+              onChangeText={(v) => { setPassword(v); clearError(); }}
               onSubmitEditing={handleLogin}
             />
           </View>
 
+          {hasError && (
+            <View style={styles.errorBanner}>
+              <View style={styles.errorIconBadge}>
+                <Text style={styles.errorIconText}>!</Text>
+              </View>
+              <Text style={styles.errorText}>{error}</Text>
+            </View>
+          )}
+
           <Pressable
-            style={({ pressed }) => [styles.btn, pressed && styles.btnPressed, loading && styles.btnDisabled]}
+            style={({ pressed }) => [
+              styles.btn,
+              hasError && styles.btnErrorState,
+              pressed && styles.btnPressed,
+              loading && styles.btnDisabled,
+            ]}
             onPress={handleLogin}
             disabled={loading}
           >
             {loading ? (
               <ActivityIndicator color="#07080f" />
             ) : (
-              <Text style={styles.btnText}>SIGN IN</Text>
+              <Text style={[styles.btnText, hasError && styles.btnTextError]}>
+                SIGN IN
+              </Text>
             )}
           </Pressable>
         </View>
@@ -99,14 +125,14 @@ export function LoginScreen({ navigation }: Props) {
           <View style={styles.demoRow}>
             <Pressable
               style={({ pressed }) => [styles.demoBtn, pressed && styles.demoBtnPressed]}
-              onPress={() => { setEmail('venue@elsewhere.com'); setPassword('demo123'); }}
+              onPress={() => { setEmail('venue@elsewhere.com'); setPassword('demo123'); clearError(); }}
             >
               <Text style={styles.demoBtnRole}>VENUE OPS</Text>
               <Text style={styles.demoBtnSub}>Elsewhere Brooklyn</Text>
             </Pressable>
             <Pressable
               style={({ pressed }) => [styles.demoBtn, pressed && styles.demoBtnPressed]}
-              onPress={() => { setEmail('broker@thirdspace.risk'); setPassword('demo123'); }}
+              onPress={() => { setEmail('broker@thirdspace.risk'); setPassword('demo123'); clearError(); }}
             >
               <Text style={styles.demoBtnRole}>BROKER</Text>
               <Text style={styles.demoBtnSub}>ThirdSpace Risk</Text>
@@ -147,7 +173,7 @@ const styles = StyleSheet.create({
     fontFamily: 'CormorantGaramond_600SemiBold_Italic',
   },
 
-  form: { gap: 16 },
+  form: { gap: 14 },
   inputWrap: { gap: 6 },
   inputLabel: {
     color: '#4a4f65',
@@ -167,6 +193,48 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontFamily: 'DMSans_400Regular',
   },
+  inputError: {
+    borderColor: 'rgba(255,69,87,0.5)',
+    borderWidth: 1,
+    backgroundColor: 'rgba(255,69,87,0.04)',
+  },
+
+  errorBanner: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+    backgroundColor: 'rgba(255,69,87,0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,69,87,0.22)',
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+  },
+  errorIconBadge: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: 'rgba(255,69,87,0.18)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 1,
+    flexShrink: 0,
+  },
+  errorIconText: {
+    color: '#ff4557',
+    fontSize: 11,
+    fontWeight: '800',
+    fontFamily: 'JetBrainsMono_700Bold',
+    lineHeight: 13,
+  },
+  errorText: {
+    flex: 1,
+    color: '#ff8090',
+    fontSize: 13,
+    lineHeight: 19,
+    fontFamily: 'DMSans_400Regular',
+  },
+
   btn: {
     backgroundColor: '#c8f000',
     borderRadius: 10,
@@ -174,9 +242,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 4,
   },
+  btnErrorState: {
+    backgroundColor: 'transparent',
+    borderWidth: 1,
+    borderColor: 'rgba(255,69,87,0.4)',
+  },
   btnPressed: { opacity: 0.88, transform: [{ scale: 0.98 }] },
   btnDisabled: { opacity: 0.5 },
   btnText: { color: '#07080f', fontWeight: '800', fontSize: 13, letterSpacing: 1.5, fontFamily: 'DMSans_700Bold' },
+  btnTextError: { color: '#ff4557' },
 
   createLink: { alignItems: 'center', paddingVertical: 4 },
   createLinkText: { color: '#c8f000', fontSize: 13, fontFamily: 'DMSans_400Regular' },
