@@ -191,7 +191,7 @@ export function LiveTerminalScreen() {
                 <View style={[styles.infraDot, { backgroundColor: dotColor }]} />
                 <Text style={styles.infraName}>{item.name}</Text>
                 <Text style={[styles.infraStatus, { color: dotColor }]}>
-                  {item.detail ? `${item.status.toUpperCase()} [${item.detail}]` : item.status.toUpperCase()}
+                  {item.detail ? `${item.status.toUpperCase()} ${item.detail}` : item.status.toUpperCase()}
                 </Text>
               </View>
             );
