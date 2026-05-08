@@ -35,7 +35,7 @@ export function AppShell({ children }: AppShellProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
 
   const navItems = [
-    { href: "/dashboard", label: "Portfolio", icon: LayoutDashboard },
+    { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
     { href: "/underwriter", label: "Reports", icon: FileSearch, roles: ["broker", "admin"] },
     { href: `/terminal/${tenantId ?? "elsewhere-brooklyn"}`, label: "Live Terminal", icon: Activity, roles: ["venue_operator"] },
     { href: "/venues", label: "Venues", icon: Building2, roles: ["broker", "admin", "venue_operator"] },

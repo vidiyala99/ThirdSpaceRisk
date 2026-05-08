@@ -36,10 +36,12 @@ function VenueCard({
   venue,
   isPrimary,
   onSave,
+  onPress,
 }: {
   venue: VenueData;
   isPrimary: boolean;
   onSave: (id: string, updates: Partial<VenueData>) => Promise<void>;
+  onPress: () => void;
 }) {
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -84,7 +86,7 @@ function VenueCard({
       </View>
 
       {!editing ? (
-        <View style={styles.detailGrid}>
+        <Pressable onPress={onPress} style={styles.detailGrid}>
           <View style={styles.detailItem}>
             <Text style={styles.detailLabel}>TYPE</Text>
             <Text style={styles.detailValue}>{venue.venue_type ?? '—'}</Text>
@@ -103,7 +105,10 @@ function VenueCard({
               <Text style={styles.detailValue}>{venue.address}</Text>
             </View>
           ) : null}
-        </View>
+          <View style={[styles.detailItem, { flex: 2 }]}>
+            <Text style={styles.viewLive}>View Live Terminal →</Text>
+          </View>
+        </Pressable>
       ) : (
         <View style={styles.editForm}>
           <View style={styles.inputWrap}>
@@ -244,7 +249,13 @@ export function VenuesScreen({ navigation }: any) {
         </Pressable>
       ) : (
         venues.map((v, i) => (
-          <VenueCard key={v.id} venue={v} isPrimary={i === 0} onSave={handleSave} />
+          <VenueCard
+            key={v.id}
+            venue={v}
+            isPrimary={i === 0}
+            onSave={handleSave}
+            onPress={() => navigation.navigate('Live')}
+          />
         ))
       )}
     </ScrollView>
@@ -309,6 +320,14 @@ const styles = StyleSheet.create({
   saveBtn: { flex: 2, backgroundColor: '#c8f000', borderRadius: 10, paddingVertical: 14, alignItems: 'center' },
   saveBtnText: { color: '#07080f', fontSize: 12, fontWeight: '800', letterSpacing: 1.5, fontFamily: 'DMSans_700Bold' },
 
+  viewLive: {
+    color: '#c8f000',
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: 1,
+    fontFamily: 'JetBrainsMono_700Bold',
+    marginTop: 4,
+  },
   emptyCard: { backgroundColor: '#0d0f1c', borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.07)', borderRadius: 16, padding: 24, gap: 8 },
   emptyHeading: { color: '#eeeef5', fontSize: 18, fontWeight: '700', fontFamily: 'CormorantGaramond_700Bold' },
   emptyBody: { color: '#4a4f65', fontSize: 13, fontFamily: 'DMSans_400Regular' },

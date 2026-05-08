@@ -168,7 +168,7 @@ export function DashboardScreen({ navigation }: any) {
       <View style={styles.statsRow}>
         {/* Your Venue */}
         <Pressable style={styles.statCard} onPress={() => navigation.navigate('Live')}>
-          <Text style={styles.statEyebrow}>YOUR VENUE</Text>
+          <Text style={styles.statEyebrow}>{riskData ? 'YOUR VENUE' : 'YOUR VENUES'}</Text>
           <Text style={styles.statValue}>{riskData ? 1 : 0}</Text>
         </Pressable>
 

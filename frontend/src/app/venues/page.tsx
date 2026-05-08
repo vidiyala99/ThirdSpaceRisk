@@ -247,7 +247,7 @@ export default function VenuesPage() {
               /* Read view */
               <>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", width: "100%", gap: "8px" }}>
-                  <div style={{ display: "flex", gap: "12px", alignItems: "flex-start", flex: 1 }}>
+                  <Link href={`/terminal/${venue.id}`} style={{ textDecoration: "none", display: "flex", gap: "12px", alignItems: "flex-start", flex: 1, color: "inherit" }}>
                     <div className="venue-icon"><Building2 size={24} /></div>
                     <div className="venue-info">
                       <h3>{venue.name}</h3>
@@ -265,7 +265,7 @@ export default function VenuesPage() {
                         </p>
                       )}
                     </div>
-                  </div>
+                  </Link>
                   <div style={{ display: "flex", gap: "8px", alignItems: "center", flexShrink: 0 }}>
                     <button
                       onClick={() => startEdit(venue)}

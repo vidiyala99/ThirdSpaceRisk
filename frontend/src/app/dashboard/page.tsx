@@ -158,17 +158,21 @@ export default function DashboardPage() {
 
       {/* Top stat bar */}
       <div className="bento-grid mb-xl stagger-children">
-        <div className="card bento-card">
-          <div className="flex gap-md items-center">
-            <div className="stat-icon" style={{ background: 'rgba(212, 255, 0, 0.1)', color: 'var(--brand-primary)' }}>
-              <Building2 size={24} />
-            </div>
-            <div className="flex flex-col gap-xs">
-              <span className="text-xs uppercase tracking-wide text-muted">{isBroker ? "Total Venues" : "Your Venue"}</span>
-              <span className="text-2xl font-bold">{stats.venues}</span>
+        <Link href="/venues" style={{ textDecoration: "none" }}>
+          <div className="card bento-card" style={{ cursor: "pointer" }}>
+            <div className="flex gap-md items-center">
+              <div className="stat-icon" style={{ background: 'rgba(212, 255, 0, 0.1)', color: 'var(--brand-primary)' }}>
+                <Building2 size={24} />
+              </div>
+              <div className="flex flex-col gap-xs">
+                <span className="text-xs uppercase tracking-wide text-muted">
+                  {isBroker ? "Total Venues" : stats.venues === 1 ? "Your Venue" : "Your Venues"}
+                </span>
+                <span className="text-2xl font-bold">{stats.venues}</span>
+              </div>
             </div>
           </div>
-        </div>
+        </Link>
         <Link href="/incidents" style={{ textDecoration: "none" }}>
           <div className="card bento-card" style={{ cursor: "pointer" }}>
             <div className="flex gap-md items-center">
