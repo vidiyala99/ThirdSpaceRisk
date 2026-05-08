@@ -406,6 +406,26 @@ EVIDENCE_DIR = Path(__file__).resolve().parent.parent / "evidence_uploads"
 EVIDENCE_DIR.mkdir(exist_ok=True)
 
 
+@app.get("/api/debug/llm-provider")
+def debug_llm_provider() -> dict:
+    """Returns which LLM provider is currently active. No secrets exposed —
+    just provider name + which env vars are set (presence only)."""
+    import os
+    from app.providers import get_default_provider
+    try:
+        prov = get_default_provider()
+        active = {"provider_name": prov.provider_name, "mode": prov.mode.value}
+    except Exception as exc:
+        active = {"provider_name": "ERROR", "mode": "error", "error": f"{exc.__class__.__name__}: {exc}"}
+    return {
+        "active": active,
+        "env": {
+            "ANTHROPIC_API_KEY_set": bool(os.getenv("ANTHROPIC_API_KEY")),
+            "GEMINI_API_KEY_set": bool(os.getenv("GEMINI_API_KEY")),
+        },
+    }
+
+
 def _process_evidence_sync(evidence_id: str) -> None:
     """Phase 2: analyze uploaded evidence and update the underwriting packet."""
     with next(get_session()) as session:

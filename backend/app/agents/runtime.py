@@ -275,6 +275,8 @@ class UnderwritingPacketAgentRuntime:
             open_questions=memo_output.open_questions,
             review_status="draft",
             citations=citations,
+            provider=memo_output.provider,
+            model=memo_output.model,
         )
 
 

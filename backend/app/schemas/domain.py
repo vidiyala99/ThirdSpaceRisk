@@ -50,6 +50,8 @@ class UnderwritingMemo(BaseModel):
     open_questions: List[str]
     review_status: str
     citations: List[Citation]
+    provider: Optional[str] = None  # e.g. "gemini/gemini-2.5-flash" or "deterministic/template-v1"
+    model: Optional[str] = None
 
 class InfrastructureItem(BaseModel):
     name: str
