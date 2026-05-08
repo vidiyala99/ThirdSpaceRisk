@@ -31,6 +31,7 @@ export function RegisterScreen({ navigation }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [emailTouched, setEmailTouched] = useState(false);
   const [passwordTouched, setPasswordTouched] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const emailInvalid = emailTouched && email.length > 0 && !isValidEmail(email);
   const passwordShort = passwordTouched && password.length > 0 && password.length < 6;
@@ -123,15 +124,20 @@ export function RegisterScreen({ navigation }: Props) {
 
           <View style={styles.inputWrap}>
             <Text style={styles.inputLabel}>PASSWORD</Text>
-            <TextInput
-              style={[styles.input, (hasError || passwordShort) && styles.inputError]}
-              placeholder="Min. 6 characters"
-              placeholderTextColor="#2e3247"
-              secureTextEntry
-              value={password}
-              onChangeText={(v) => { setPassword(v); clearError(); }}
-              onBlur={() => setPasswordTouched(true)}
-            />
+            <View style={styles.passwordWrap}>
+              <TextInput
+                style={[styles.input, styles.passwordInput, (hasError || passwordShort) && styles.inputError]}
+                placeholder="Min. 6 characters"
+                placeholderTextColor="#2e3247"
+                secureTextEntry={!showPassword}
+                value={password}
+                onChangeText={(v) => { setPassword(v); clearError(); }}
+                onBlur={() => setPasswordTouched(true)}
+              />
+              <Pressable onPress={() => setShowPassword(v => !v)} style={styles.eyeBtn}>
+                <Text style={styles.eyeText}>{showPassword ? 'HIDE' : 'SHOW'}</Text>
+              </Pressable>
+            </View>
             {passwordShort && (
               <Text style={styles.fieldError}>At least 6 characters required</Text>
             )}
@@ -247,6 +253,11 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontFamily: 'DMSans_400Regular',
   },
+  passwordWrap: { position: 'relative' },
+  passwordInput: { paddingRight: 64 },
+  eyeBtn: { position: 'absolute', right: 16, top: 0, bottom: 0, justifyContent: 'center' },
+  eyeText: { color: '#4a4f65', fontSize: 10, fontWeight: '700', letterSpacing: 1.5, fontFamily: 'JetBrainsMono_700Bold' },
+
   inputError: {
     borderColor: 'rgba(255,69,87,0.5)',
     borderWidth: 1,
