@@ -1,8 +1,8 @@
 # Third Space Risk Engine: Architecture v2
 
 **Date:** 2026-05-07
-**Last Updated:** 2026-05-07 (afternoon session)
-**Version:** v2.2
+**Last Updated:** 2026-05-08 (full-day mobile + web parity session)
+**Version:** v2.4
 **Status:** Current system + near-term roadmap
 **Audience:** Engineering, interview review
 
@@ -33,7 +33,7 @@ The core loop:
 |-------|-----------|
 | Backend | FastAPI + SQLModel + SQLite |
 | Frontend | Next.js 16.2 (App Router), DM Sans + Cormorant Garamond + JetBrains Mono |
-| Mobile | React Native (Expo managed), expo-secure-store, React Navigation bottom tabs |
+| Mobile | React Native (Expo managed), expo-secure-store, React Navigation bottom tabs + native stack | 
 | Auth | Custom HMAC-signed JWT (role-aware: broker, venue_operator, admin) |
 | File storage | Local disk (`evidence_uploads/`) |
 | Agent runtime | Deterministic Python stubs (LLM-ready interfaces) |
@@ -309,6 +309,18 @@ Provider switching requires changing one function per agent, not the architectur
 - ✅ Atmospheric dark SaaS UI: Cormorant Garamond + DM Sans + JetBrains Mono, grain texture, ambient glow, stagger animations
 - ✅ Accessibility: prefers-reduced-motion, touch-action: manipulation, inputMode attributes
 - ✅ **Mobile operator app** — Expo React Native, 4-tab bottom nav (Dashboard, Incidents, Report, Live), haptic feedback, camera evidence upload, SecureStore auth
+- ✅ **Mobile broker app** — separate tab set (Portfolio, Reports, Incidents, Compliance), tappable venue cards → venue detail, tappable report cards → full packet detail with review decisions
+- ✅ **Mobile typography system** — Cormorant Garamond (display), DM Sans (body/UI), JetBrains Mono (data/labels) — matches web exactly via @expo-google-fonts
+- ✅ **Mobile role-aware navigation** — DashboardStack, IncidentsStack, LiveStack, PortfolioStack, ReportsStack for nested push navigation
+- ✅ **Risk Profile Detail screen** — operator + broker, factor-by-factor explanations, what's working / what to improve, premium impact, upgrade potential
+- ✅ **Report Incident** — datetime picker (native Android two-step), footage link sharing with chip confirmation, compliance evidence uploads
+- ✅ **Live Terminal enhancements** — savings hero (operator only), coverage breakdown, infrastructure detail + degraded warning, compliance upload buttons
+- ✅ **Broker Portfolio** — search/filter by name or type, carrier + renewal date + degraded infra badge, CLIENT SAVES vs YOU SAVE role framing
+- ✅ **Broker Venue Detail** — matches web terminal layout: LIVE header, occupancy first, risk profile card, premium with market rate comparison
+- ✅ **Web: Risk Profile page** — `/risk-profile/[venueId]`, linked from dashboard and terminal risk profile cards
+- ✅ **Web: Compliance page** — role-aware: broker sees portfolio compliance overview, operator sees upload queue
+- ✅ **Web: Role-aware copy** — savings banner hidden from brokers, "Client Saves" vs "You Save", "Showing all venues" (removed Read-only)
+- ✅ **CI fixes** — 5 backend test failures resolved (memo review_status, shared source citations, worker context keys)
 
 ### Phase 2 — LLM-backed agents
 - Wire real Claude API calls behind existing interfaces
