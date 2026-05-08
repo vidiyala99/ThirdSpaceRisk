@@ -287,7 +287,10 @@ export default function DashboardPage() {
             </div>
           </div>
         </Link>
-        <Link href="/incidents" style={{ textDecoration: "none" }}>
+        <Link
+          href={!isBroker && selectedVenueId ? `/incidents?venue=${encodeURIComponent(selectedVenueId)}` : "/incidents"}
+          style={{ textDecoration: "none" }}
+        >
           <div className="card bento-card" style={{ cursor: "pointer" }}>
             <div className="flex gap-md items-center">
               <div className="stat-icon" style={{ background: 'rgba(255, 0, 85, 0.1)', color: 'var(--brand-tertiary)' }}>
@@ -296,7 +299,7 @@ export default function DashboardPage() {
               <div className="flex flex-col gap-xs">
                 <span className="text-xs uppercase tracking-wide text-muted">Open Incidents</span>
                 <span className="text-2xl font-bold text-error">{stats.incidents}</span>
-                <span className="text-xs text-muted">Across portfolio</span>
+                <span className="text-xs text-muted">{isBroker ? "Across portfolio" : "At this venue"}</span>
               </div>
             </div>
           </div>
