@@ -646,7 +646,11 @@ def update_incident_status(
 @app.post("/api/venues/{venue_id}/incidents", response_model=IncidentFlowResponse, status_code=201)
 def create_incident(venue_id: str, payload: IncidentCreate, session: Session = Depends(get_session)) -> IncidentFlowResponse:
     _resolve_venue(venue_id, session)
-    return create_brawl_incident_flow(venue_id, payload, session)
+    try:
+        return create_brawl_incident_flow(venue_id, payload, session)
+    except Exception as e:
+        import traceback
+        raise HTTPException(status_code=500, detail=f"{type(e).__name__}: {str(e)} | {traceback.format_exc()[-500:]}")
 
 
 @app.get("/api/incidents/{incident_id}/packets")
