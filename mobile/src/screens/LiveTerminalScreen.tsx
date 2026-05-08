@@ -7,6 +7,8 @@ import {
   Text,
   View,
 } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
+import * as Haptics from 'expo-haptics';
 import { api } from '../api/client';
 import { useAuth } from '../contexts/AuthContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -20,6 +22,7 @@ interface InfraItem {
 }
 
 interface QueueItem {
+  id: string;
   action: string;
   priority: string;
 }
@@ -58,6 +61,7 @@ export function LiveTerminalScreen({ navigation }: any) {
   const [riskData, setRiskData] = useState<any>(null);
   const [quoteData, setQuoteData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [uploadingId, setUploadingId] = useState<string | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const fetchLive = useCallback(async () => {
@@ -89,6 +93,7 @@ export function LiveTerminalScreen({ navigation }: any) {
       }
       // Normalize compliance queue — API uses title/severity, UI uses action/priority
       const queue: QueueItem[] = (raw.compliance_queue ?? []).map((item: any) => ({
+        id: String(item.id ?? ''),
         action: String(item.action ?? item.title ?? ''),
         priority: String(item.priority ?? item.severity ?? 'low').toLowerCase(),
       }));
@@ -107,6 +112,38 @@ export function LiveTerminalScreen({ navigation }: any) {
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
   }, [fetchLive]);
+
+  const handleUpload = useCallback(async (item: QueueItem) => {
+    if (!user?.tenant_id) return;
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.All,
+      allowsEditing: false,
+      quality: 0.85,
+    });
+    if (result.canceled || !result.assets?.length) return;
+    const asset = result.assets[0];
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setUploadingId(item.id);
+    try {
+      const formData = new FormData();
+      formData.append('file', {
+        uri: asset.uri,
+        name: asset.fileName ?? 'evidence',
+        type: asset.mimeType ?? 'application/octet-stream',
+      } as any);
+      await api.upload(`/api/venues/${user.tenant_id}/compliance/${item.id}/upload`, formData);
+      setData(prev =>
+        prev
+          ? { ...prev, compliance_queue: prev.compliance_queue.filter(q => q.id !== item.id) }
+          : prev,
+      );
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch {
+      // keep item in queue on failure
+    } finally {
+      setUploadingId(null);
+    }
+  }, [user?.tenant_id]);
 
   if (loading) {
     return (
@@ -214,13 +251,24 @@ export function LiveTerminalScreen({ navigation }: any) {
           <Text style={styles.complianceClear}>{'>'} Compliance{'\n'}No pending actions. You're all clear.</Text>
         ) : (
           data.compliance_queue.map((item, i) => (
-            <View key={i} style={[styles.queueRow, { borderLeftColor: PRIORITY_COLOR[item.priority] ?? '#4a4f65' }]}>
+            <View key={item.id || i} style={[styles.queueRow, { borderLeftColor: PRIORITY_COLOR[item.priority] ?? '#4a4f65' }]}>
               <View style={styles.queueContent}>
                 <Text style={styles.queueAction}>{item.action}</Text>
                 <Text style={[styles.queuePriority, { color: PRIORITY_COLOR[item.priority] ?? '#4a4f65' }]}>
                   {item.priority.toUpperCase()}
                 </Text>
               </View>
+              <Pressable
+                style={({ pressed }) => [styles.uploadBtn, pressed && { opacity: 0.65 }]}
+                onPress={() => handleUpload(item)}
+                disabled={uploadingId === item.id}
+              >
+                {uploadingId === item.id ? (
+                  <ActivityIndicator size="small" color="#c8f000" />
+                ) : (
+                  <Text style={styles.uploadBtnText}>UPLOAD EVIDENCE</Text>
+                )}
+              </Pressable>
             </View>
           ))
         )}
@@ -360,8 +408,26 @@ const styles = StyleSheet.create({
     borderLeftWidth: 2,
     paddingLeft: 12,
     paddingVertical: 4,
+    gap: 8,
   },
   queueContent: { gap: 2 },
   queueAction: { color: '#8b90a8', fontSize: 13, lineHeight: 18, fontFamily: 'DMSans_400Regular' },
   queuePriority: { fontSize: 9, fontWeight: '700', letterSpacing: 1.2, fontFamily: 'JetBrainsMono_700Bold' },
+  uploadBtn: {
+    alignSelf: 'flex-start',
+    borderWidth: 1,
+    borderColor: 'rgba(200,240,0,0.3)',
+    borderRadius: 6,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    minWidth: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  uploadBtnText: {
+    color: '#c8f000',
+    fontSize: 11,
+    fontFamily: 'JetBrainsMono_700Bold',
+    letterSpacing: 0.8,
+  },
 });

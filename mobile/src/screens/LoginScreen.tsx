@@ -40,9 +40,9 @@ export function LoginScreen() {
     >
       <View style={styles.inner}>
         <View style={styles.brandBlock}>
-          <Text style={styles.eyebrow}>NYC NIGHTLIFE COVERAGE</Text>
+          <Text style={styles.eyebrow}>RISK OS</Text>
           <Text style={styles.wordmark}>Third{'\n'}Space</Text>
-          <Text style={styles.subtitle}>Risk Operations</Text>
+          <Text style={styles.tagline}>Keep venues alive.</Text>
         </View>
 
         <View style={styles.form}>
@@ -114,7 +114,7 @@ const styles = StyleSheet.create({
 
   brandBlock: { gap: 6 },
   eyebrow: {
-    color: '#c8f000',
+    color: '#4a4f65',
     fontSize: 10,
     fontWeight: '700',
     letterSpacing: 2.5,
@@ -129,13 +129,12 @@ const styles = StyleSheet.create({
     lineHeight: 58,
     fontFamily: 'CormorantGaramond_700Bold',
   },
-  subtitle: {
-    color: '#4a4f65',
-    fontSize: 14,
-    fontWeight: '500',
-    letterSpacing: 0.5,
+  tagline: {
+    color: '#c8f000',
+    fontSize: 16,
+    fontStyle: 'italic',
     marginTop: 8,
-    fontFamily: 'DMSans_500Medium',
+    fontFamily: 'CormorantGaramond_600SemiBold_Italic',
   },
 
   form: { gap: 16 },

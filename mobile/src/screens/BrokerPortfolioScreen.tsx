@@ -6,6 +6,7 @@ import {
   RefreshControl,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from 'react-native';
 import { useAuth } from '../contexts/AuthContext';
@@ -41,6 +42,7 @@ export function BrokerPortfolioScreen({ navigation }: any) {
   const [venues, setVenues] = useState<PortfolioVenue[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
 
   const fetchPortfolio = useCallback(async () => {
     try {
@@ -67,6 +69,16 @@ export function BrokerPortfolioScreen({ navigation }: any) {
   const totalVenues = venues.length;
   const openIncidents = venues.reduce((s, v) => s + (v.open_incidents ?? 0), 0);
   const complianceActions = venues.reduce((s, v) => s + (v.compliance_actions ?? 0), 0);
+
+  const filteredVenues = searchQuery.trim().length === 0
+    ? venues
+    : venues.filter(v => {
+        const q = searchQuery.toLowerCase();
+        return (
+          (v.name ?? '').toLowerCase().includes(q) ||
+          (v.venue_type ?? '').toLowerCase().includes(q)
+        );
+      });
 
   return (
     <View style={styles.root}>
@@ -97,10 +109,30 @@ export function BrokerPortfolioScreen({ navigation }: any) {
         </Pressable>
       </View>
 
-      <Text style={styles.sectionEyebrow}>PORTFOLIO — {totalVenues} VENUES</Text>
+      {/* Search bar */}
+      <View style={styles.searchWrap}>
+        <Text style={styles.searchIcon}>⌕</Text>
+        <TextInput
+          style={styles.searchInput}
+          placeholder="Search venues..."
+          placeholderTextColor="#4a4f65"
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+          autoCorrect={false}
+          autoCapitalize="none"
+          clearButtonMode="while-editing"
+        />
+      </View>
+
+      <Text style={styles.sectionEyebrow}>
+        PORTFOLIO —{' '}
+        {searchQuery.trim().length > 0
+          ? `${filteredVenues.length} of ${totalVenues} VENUES`
+          : `${totalVenues} VENUES`}
+      </Text>
 
       <FlatList
-        data={venues}
+        data={filteredVenues}
         keyExtractor={item => item.id}
         contentContainerStyle={styles.list}
         refreshControl={
@@ -207,8 +239,14 @@ export function BrokerPortfolioScreen({ navigation }: any) {
         }}
         ListEmptyComponent={
           <View style={styles.empty}>
-            <Text style={styles.emptyTitle}>No venues</Text>
-            <Text style={styles.emptySub}>Portfolio is empty.</Text>
+            <Text style={styles.emptyTitle}>
+              {searchQuery.trim().length > 0 ? 'No venues match' : 'No venues'}
+            </Text>
+            <Text style={styles.emptySub}>
+              {searchQuery.trim().length > 0
+                ? `No venues match "${searchQuery}".`
+                : 'Portfolio is empty.'}
+            </Text>
           </View>
         }
       />
@@ -234,7 +272,7 @@ const styles = StyleSheet.create({
   signOut: { color: '#8b90a8', fontSize: 10, fontWeight: '700', letterSpacing: 1.5, paddingTop: 6, fontFamily: 'JetBrainsMono_700Bold' },
 
   // Stats bar
-  statsRow: { flexDirection: 'row', gap: 10, paddingHorizontal: 20, marginBottom: 24 },
+  statsRow: { flexDirection: 'row', gap: 10, paddingHorizontal: 20, marginBottom: 16 },
   statCard: {
     flex: 1,
     backgroundColor: '#0d0f1c',
@@ -248,6 +286,33 @@ const styles = StyleSheet.create({
   statNum: { color: '#eeeef5', fontSize: 28, fontWeight: '800', letterSpacing: -1, fontFamily: 'JetBrainsMono_700Bold' },
   statNumRed: { color: '#ff4557' },
   statLabel: { color: '#4a4f65', fontSize: 9, fontWeight: '700', letterSpacing: 1.5, textAlign: 'center', fontFamily: 'JetBrainsMono_700Bold' },
+
+  // Search bar
+  searchWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginHorizontal: 20,
+    marginBottom: 14,
+    backgroundColor: '#0d0f1c',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255,255,255,0.1)',
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 11,
+    gap: 8,
+  },
+  searchIcon: {
+    color: '#4a4f65',
+    fontSize: 16,
+  },
+  searchInput: {
+    flex: 1,
+    color: '#eeeef5',
+    fontFamily: 'DMSans_400Regular',
+    fontSize: 14,
+    padding: 0,
+    margin: 0,
+  },
 
   // Section eyebrow
   sectionEyebrow: {

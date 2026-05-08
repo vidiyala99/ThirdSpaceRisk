@@ -54,6 +54,27 @@ const FILTER_LABELS: Record<Filter, string> = {
   blocked:      'Blocked',
 };
 
+function EmptyState({ filter, totalPackets }: { filter: Filter; totalPackets: number }) {
+  const isGlobalEmpty = filter === 'all' && totalPackets === 0;
+  const filterLabel = FILTER_LABELS[filter]?.toLowerCase() ?? filter;
+
+  const title = isGlobalEmpty
+    ? 'No Reports Yet'
+    : `No ${filterLabel} reports`;
+
+  const subtitle = isGlobalEmpty
+    ? 'Underwriting packets will appear here as incidents are filed and processed.'
+    : "Try switching to 'All' to see all packets.";
+
+  return (
+    <View style={styles.empty}>
+      <Text style={styles.emptyIcon}>□</Text>
+      <Text style={styles.emptyTitle}>{title}</Text>
+      <Text style={styles.emptySub}>{subtitle}</Text>
+    </View>
+  );
+}
+
 export function BrokerReportsScreen({ navigation }: any) {
   const { signOut } = useAuth();
   const insets = useSafeAreaInsets();
@@ -268,14 +289,7 @@ export function BrokerReportsScreen({ navigation }: any) {
           );
         }}
         ListEmptyComponent={
-          <View style={styles.empty}>
-            <Text style={styles.emptyTitle}>No packets</Text>
-            <Text style={styles.emptySub}>
-              {filter === 'all'
-                ? 'No underwriting packets yet.'
-                : `No ${FILTER_LABELS[filter].toLowerCase()} packets.`}
-            </Text>
-          </View>
+          <EmptyState filter={filter} totalPackets={packets.length} />
         }
       />
     </View>
@@ -496,7 +510,13 @@ const styles = StyleSheet.create({
   empty: {
     alignItems: 'center',
     paddingTop: 80,
+    paddingHorizontal: 32,
     gap: 8,
+  },
+  emptyIcon: {
+    color: '#2e3247',
+    fontSize: 36,
+    marginBottom: 4,
   },
   emptyTitle: {
     color: '#eeeef5',
@@ -508,6 +528,7 @@ const styles = StyleSheet.create({
     color: '#4a4f65',
     fontSize: 14,
     textAlign: 'center',
+    lineHeight: 20,
     fontFamily: 'DMSans_400Regular',
   },
 });
