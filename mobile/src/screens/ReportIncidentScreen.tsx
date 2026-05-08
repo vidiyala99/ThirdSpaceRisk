@@ -17,6 +17,7 @@ import * as ImagePicker from 'expo-image-picker';
 import * as Haptics from 'expo-haptics';
 import { api } from '../api/client';
 import { useAuth } from '../contexts/AuthContext';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 interface FormState {
   summary: string;
@@ -28,7 +29,8 @@ interface FormState {
 }
 
 export function ReportIncidentScreen() {
-  const { user } = useAuth();
+  const { user, signOut } = useAuth();
+  const insets = useSafeAreaInsets();
   const [form, setForm] = useState<FormState>({
     summary: '',
     location: '',
@@ -64,10 +66,7 @@ export function ReportIncidentScreen() {
     try {
       const incident = await api.request<{ id: number }>(`/api/venues/${user!.tenant_id}/incidents`, {
         method: 'POST',
-        body: JSON.stringify({
-          ...form,
-          occurred_at: new Date().toISOString(),
-        }),
+        body: JSON.stringify({ ...form, occurred_at: new Date().toISOString() }),
       });
 
       for (const uri of images) {
@@ -77,7 +76,7 @@ export function ReportIncidentScreen() {
       }
 
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      Alert.alert('Submitted', 'Incident reported successfully.');
+      Alert.alert('Filed', 'Incident report submitted.');
       setForm({ summary: '', location: '', reported_by: user?.name ?? '', injury_observed: false, police_called: false, ems_called: false });
       setImages([]);
     } catch (e: any) {
@@ -90,141 +89,186 @@ export function ReportIncidentScreen() {
 
   return (
     <KeyboardAvoidingView style={styles.root} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-        <Text style={styles.heading}>Report Incident</Text>
-
-        <Label>Summary</Label>
-        <TextInput
-          style={[styles.input, styles.multiline]}
-          placeholder="Describe what happened…"
-          placeholderTextColor="#4b5563"
-          multiline
-          numberOfLines={4}
-          value={form.summary}
-          onChangeText={v => set('summary', v)}
-        />
-
-        <Label>Location</Label>
-        <TextInput
-          style={styles.input}
-          placeholder="e.g. Main Bar, Room 3"
-          placeholderTextColor="#4b5563"
-          value={form.location}
-          onChangeText={v => set('location', v)}
-        />
-
-        <Label>Reported By</Label>
-        <TextInput
-          style={styles.input}
-          placeholder="Your name"
-          placeholderTextColor="#4b5563"
-          value={form.reported_by}
-          onChangeText={v => set('reported_by', v)}
-        />
-
-        <View style={styles.toggleSection}>
-          <ToggleRow label="Injury observed" value={form.injury_observed} onChange={v => set('injury_observed', v)} />
-          <ToggleRow label="Police called" value={form.police_called} onChange={v => set('police_called', v)} />
-          <ToggleRow label="EMS called" value={form.ems_called} onChange={v => set('ems_called', v)} />
+      <ScrollView contentContainerStyle={[styles.content, { paddingTop: insets.top + 12 }]} keyboardShouldPersistTaps="handled">
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 32 }}>
+          <Text style={[styles.heading, { marginBottom: 0 }]}>Report{'\n'}Incident</Text>
+          <Text style={{ color: '#2e3247', fontSize: 10, fontWeight: '700', letterSpacing: 1.5, paddingTop: 8 }} onPress={signOut}>SIGN OUT</Text>
         </View>
 
-        <Label>Evidence</Label>
-        <View style={styles.evidenceRow}>
-          <Pressable style={styles.evidenceBtn} onPress={() => pickImage('camera')}>
-            <Text style={styles.evidenceBtnText}>Camera</Text>
-          </Pressable>
-          <Pressable style={styles.evidenceBtn} onPress={() => pickImage('library')}>
-            <Text style={styles.evidenceBtnText}>Gallery</Text>
-          </Pressable>
+        <View style={styles.fieldGroup}>
+          <Text style={styles.fieldLabel}>WHAT HAPPENED</Text>
+          <TextInput
+            style={[styles.input, styles.multiline]}
+            placeholder="Describe the incident…"
+            placeholderTextColor="#2e3247"
+            multiline
+            numberOfLines={4}
+            value={form.summary}
+            onChangeText={v => set('summary', v)}
+          />
         </View>
-        {images.length > 0 && (
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.thumbScroll}>
-            {images.map((uri, i) => (
-              <Image key={i} source={{ uri }} style={styles.thumb} />
-            ))}
-          </ScrollView>
-        )}
 
-        <Pressable style={[styles.submitBtn, submitting && styles.submitDisabled]} onPress={submit} disabled={submitting}>
-          {submitting ? <ActivityIndicator color="#0b0c15" /> : <Text style={styles.submitText}>Submit Report</Text>}
+        <View style={styles.fieldGroup}>
+          <Text style={styles.fieldLabel}>LOCATION</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="e.g. Rear Bar, Stairwell B"
+            placeholderTextColor="#2e3247"
+            value={form.location}
+            onChangeText={v => set('location', v)}
+          />
+        </View>
+
+        <View style={styles.fieldGroup}>
+          <Text style={styles.fieldLabel}>REPORTED BY</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="Your name"
+            placeholderTextColor="#2e3247"
+            value={form.reported_by}
+            onChangeText={v => set('reported_by', v)}
+          />
+        </View>
+
+        <View style={styles.fieldGroup}>
+          <Text style={styles.fieldLabel}>FLAGS</Text>
+          <View style={styles.toggleCard}>
+            <ToggleRow label="Injury observed" value={form.injury_observed} onChange={v => set('injury_observed', v)} />
+            <ToggleRow label="Police called" value={form.police_called} onChange={v => set('police_called', v)} />
+            <ToggleRow label="EMS called" value={form.ems_called} onChange={v => set('ems_called', v)} last />
+          </View>
+        </View>
+
+        <View style={styles.fieldGroup}>
+          <Text style={styles.fieldLabel}>EVIDENCE</Text>
+          <View style={styles.evidenceRow}>
+            <Pressable
+              style={({ pressed }) => [styles.evidenceBtn, pressed && styles.evidenceBtnPressed]}
+              onPress={() => pickImage('camera')}
+            >
+              <Text style={styles.evidenceBtnText}>CAMERA</Text>
+            </Pressable>
+            <Pressable
+              style={({ pressed }) => [styles.evidenceBtn, pressed && styles.evidenceBtnPressed]}
+              onPress={() => pickImage('library')}
+            >
+              <Text style={styles.evidenceBtnText}>GALLERY</Text>
+            </Pressable>
+          </View>
+          {images.length > 0 && (
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.thumbScroll}>
+              {images.map((uri, i) => (
+                <Image key={i} source={{ uri }} style={styles.thumb} />
+              ))}
+            </ScrollView>
+          )}
+        </View>
+
+        <Pressable
+          style={({ pressed }) => [styles.submitBtn, pressed && styles.submitPressed, submitting && styles.submitDisabled]}
+          onPress={submit}
+          disabled={submitting}
+        >
+          {submitting
+            ? <ActivityIndicator color="#07080f" />
+            : <Text style={styles.submitText}>FILE REPORT</Text>
+          }
         </Pressable>
       </ScrollView>
     </KeyboardAvoidingView>
   );
 }
 
-function Label({ children }: { children: React.ReactNode }) {
-  return <Text style={styles.label}>{children}</Text>;
-}
-
-function ToggleRow({ label, value, onChange }: { label: string; value: boolean; onChange: (v: boolean) => void }) {
+function ToggleRow({ label, value, onChange, last }: { label: string; value: boolean; onChange: (v: boolean) => void; last?: boolean }) {
   return (
-    <View style={styles.toggleRow}>
+    <View style={[styles.toggleRow, !last && styles.toggleRowBorder]}>
       <Text style={styles.toggleLabel}>{label}</Text>
       <Switch
         value={value}
         onValueChange={onChange}
-        trackColor={{ false: '#1f2937', true: 'rgba(200,240,0,0.4)' }}
-        thumbColor={value ? '#c8f000' : '#4b5563'}
+        trackColor={{ false: 'rgba(255,255,255,0.06)', true: 'rgba(200,240,0,0.35)' }}
+        thumbColor={value ? '#c8f000' : '#2e3247'}
       />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#0b0c15' },
-  content: { padding: 20, paddingBottom: 48 },
-  heading: { color: '#f9fafb', fontSize: 22, fontWeight: '700', marginBottom: 20 },
-  label: { color: '#6b7280', fontSize: 12, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6, marginTop: 16 },
-  input: {
-    backgroundColor: '#13151f',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    color: '#f9fafb',
-    fontSize: 14,
+  root: { flex: 1, backgroundColor: '#07080f' },
+  content: { paddingHorizontal: 20, paddingBottom: 24 },
+
+  heading: {
+    color: '#eeeef5',
+    fontSize: 40,
+    fontWeight: '800',
+    letterSpacing: -1.5,
+    lineHeight: 42,
+    marginBottom: 32,
   },
-  multiline: { minHeight: 96, textAlignVertical: 'top' },
-  toggleSection: {
-    backgroundColor: '#13151f',
-    borderWidth: 1,
+
+  fieldGroup: { marginBottom: 20 },
+  fieldLabel: {
+    color: '#4a4f65',
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 2,
+    marginBottom: 8,
+  },
+  input: {
+    backgroundColor: '#0d0f1c',
+    borderWidth: StyleSheet.hairlineWidth,
     borderColor: 'rgba(255,255,255,0.08)',
-    borderRadius: 10,
-    marginTop: 16,
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    color: '#eeeef5',
+    fontSize: 15,
+  },
+  multiline: { minHeight: 100, textAlignVertical: 'top' },
+
+  toggleCard: {
+    backgroundColor: '#0d0f1c',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255,255,255,0.08)',
+    borderRadius: 12,
     overflow: 'hidden',
   },
   toggleRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.04)',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
   },
-  toggleLabel: { color: '#d1d5db', fontSize: 14 },
-  evidenceRow: { flexDirection: 'row', gap: 10, marginTop: 4 },
+  toggleRowBorder: {
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: 'rgba(255,255,255,0.06)',
+  },
+  toggleLabel: { color: '#8b90a8', fontSize: 14 },
+
+  evidenceRow: { flexDirection: 'row', gap: 10 },
   evidenceBtn: {
     flex: 1,
-    backgroundColor: '#13151f',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
-    borderRadius: 10,
-    paddingVertical: 12,
+    backgroundColor: '#0d0f1c',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255,255,255,0.1)',
+    borderRadius: 12,
+    paddingVertical: 14,
     alignItems: 'center',
   },
-  evidenceBtnText: { color: '#9ca3af', fontSize: 13, fontWeight: '600' },
+  evidenceBtnPressed: { backgroundColor: 'rgba(255,255,255,0.04)' },
+  evidenceBtnText: { color: '#8b90a8', fontSize: 11, fontWeight: '700', letterSpacing: 1.5 },
   thumbScroll: { marginTop: 10 },
-  thumb: { width: 72, height: 72, borderRadius: 8, marginRight: 8 },
+  thumb: { width: 72, height: 72, borderRadius: 10, marginRight: 8 },
+
   submitBtn: {
     backgroundColor: '#c8f000',
     borderRadius: 12,
-    paddingVertical: 16,
+    paddingVertical: 17,
     alignItems: 'center',
-    marginTop: 28,
+    marginTop: 8,
   },
-  submitDisabled: { opacity: 0.6 },
-  submitText: { color: '#0b0c15', fontWeight: '700', fontSize: 15 },
+  submitPressed: { opacity: 0.88, transform: [{ scale: 0.98 }] },
+  submitDisabled: { opacity: 0.5 },
+  submitText: { color: '#07080f', fontWeight: '800', fontSize: 13, letterSpacing: 1.5 },
 });

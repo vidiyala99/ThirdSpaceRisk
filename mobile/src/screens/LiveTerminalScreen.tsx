@@ -8,29 +8,42 @@ import {
 } from 'react-native';
 import { api } from '../api/client';
 import { useAuth } from '../contexts/AuthContext';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CapacityBar } from '../components/CapacityBar';
+
+interface InfraItem {
+  name: string;
+  status: string;
+}
+
+interface QueueItem {
+  action: string;
+  priority: string;
+}
 
 interface LiveData {
   current_capacity: number;
   max_capacity: number;
-  infrastructure: Record<string, string>;
-  compliance_queue: Array<{ action: string; priority: string }>;
+  infrastructure: InfraItem[];
+  compliance_queue: QueueItem[];
 }
-
-const PRIORITY_COLOR: Record<string, string> = {
-  high: '#ef4444',
-  medium: '#f59e0b',
-  low: '#6b7280',
-};
 
 const STATUS_DOT: Record<string, string> = {
   operational: '#c8f000',
-  degraded: '#f59e0b',
-  down: '#ef4444',
+  active: '#c8f000',
+  degraded: '#ff9500',
+  down: '#ff4557',
+};
+
+const PRIORITY_COLOR: Record<string, string> = {
+  high: '#ff4557',
+  medium: '#ff9500',
+  low: '#4a4f65',
 };
 
 export function LiveTerminalScreen() {
-  const { user } = useAuth();
+  const { user, signOut } = useAuth();
+  const insets = useSafeAreaInsets();
   const [data, setData] = useState<LiveData | null>(null);
   const [loading, setLoading] = useState(true);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -38,8 +51,26 @@ export function LiveTerminalScreen() {
   const fetchLive = useCallback(async () => {
     if (!user?.tenant_id) return;
     try {
-      const live = await api.request<LiveData>(`/api/venues/${user.tenant_id}/live`);
-      setData(live);
+      const raw = await api.request<any>(`/api/venues/${user.tenant_id}/live`);
+      // Normalize infrastructure to a flat array of {name, status}
+      let infra: InfraItem[] = [];
+      if (Array.isArray(raw.infrastructure)) {
+        infra = raw.infrastructure.map((item: any) => ({
+          name: String(item.name ?? ''),
+          status: String(item.status ?? ''),
+        }));
+      } else if (raw.infrastructure && typeof raw.infrastructure === 'object') {
+        infra = Object.entries(raw.infrastructure).map(([key, val]: [string, any]) => ({
+          name: typeof val === 'object' ? String(val.name ?? key) : key,
+          status: typeof val === 'object' ? String(val.status ?? val) : String(val),
+        }));
+      }
+      // Normalize compliance queue — API uses title/severity, UI uses action/priority
+      const queue: QueueItem[] = (raw.compliance_queue ?? []).map((item: any) => ({
+        action: String(item.action ?? item.title ?? ''),
+        priority: String(item.priority ?? item.severity ?? 'low').toLowerCase(),
+      }));
+      setData({ ...raw, infrastructure: infra, compliance_queue: queue });
     } catch {
       // keep stale
     } finally {
@@ -71,43 +102,64 @@ export function LiveTerminalScreen() {
     );
   }
 
+  const capacityPct = data.current_capacity / data.max_capacity;
+
   return (
-    <ScrollView style={styles.root} contentContainerStyle={styles.content}>
-      <View style={styles.headerRow}>
-        <Text style={styles.heading}>Live Terminal</Text>
-        <View style={styles.liveDot} />
+    <ScrollView style={styles.root} contentContainerStyle={[styles.content, { paddingTop: insets.top + 12 }]}>
+      <View style={styles.topRow}>
+        <Text style={styles.title}>Live Terminal</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+          <View style={styles.livePill}>
+            <View style={styles.liveDot} />
+            <Text style={styles.liveText}>LIVE</Text>
+          </View>
+          <Text style={styles.signOut} onPress={signOut}>SIGN OUT</Text>
+        </View>
       </View>
 
-      <View style={styles.card}>
-        <Text style={styles.cardLabel}>Capacity</Text>
+      <View style={[styles.card, capacityPct > 0.85 && styles.cardDanger]}>
+        <Text style={styles.sectionEyebrow}>CAPACITY</Text>
+        <View style={styles.capacityNumbers}>
+          <Text style={[styles.capacityBig, { color: capacityPct > 0.85 ? '#ff4557' : '#eeeef5' }]}>
+            {data.current_capacity}
+          </Text>
+          <Text style={styles.capacityMax}>/ {data.max_capacity} pax</Text>
+        </View>
         <CapacityBar
-          label="Current"
+          label=""
           value={data.current_capacity}
           max={data.max_capacity}
-          unit=" pax"
         />
       </View>
 
-      {Object.keys(data.infrastructure).length > 0 && (
+      {data.infrastructure.length > 0 && (
         <View style={styles.card}>
-          <Text style={styles.cardLabel}>Infrastructure</Text>
-          {Object.entries(data.infrastructure).map(([name, status]) => (
-            <View key={name} style={styles.infraRow}>
-              <View style={[styles.dot, { backgroundColor: STATUS_DOT[status] ?? '#6b7280' }]} />
-              <Text style={styles.infraName}>{name.replace(/_/g, ' ')}</Text>
-              <Text style={[styles.infraStatus, { color: STATUS_DOT[status] ?? '#6b7280' }]}>{status}</Text>
-            </View>
-          ))}
+          <Text style={styles.sectionEyebrow}>INFRASTRUCTURE</Text>
+          {data.infrastructure.map((item, i) => {
+            const statusLower = item.status.toLowerCase();
+            const dotColor = STATUS_DOT[statusLower] ?? '#4a4f65';
+            return (
+              <View key={i} style={styles.infraRow}>
+                <View style={[styles.infraDot, { backgroundColor: dotColor }]} />
+                <Text style={styles.infraName}>{item.name.replace(/_/g, ' ')}</Text>
+                <Text style={[styles.infraStatus, { color: dotColor }]}>{item.status.toUpperCase()}</Text>
+              </View>
+            );
+          })}
         </View>
       )}
 
       {data.compliance_queue.length > 0 && (
         <View style={styles.card}>
-          <Text style={styles.cardLabel}>Compliance Queue</Text>
+          <Text style={styles.sectionEyebrow}>COMPLIANCE QUEUE</Text>
           {data.compliance_queue.map((item, i) => (
-            <View key={i} style={styles.queueRow}>
-              <View style={[styles.priorityDot, { backgroundColor: PRIORITY_COLOR[item.priority] ?? '#6b7280' }]} />
-              <Text style={styles.queueAction}>{item.action}</Text>
+            <View key={i} style={[styles.queueRow, { borderLeftColor: PRIORITY_COLOR[item.priority] ?? '#4a4f65' }]}>
+              <View style={styles.queueContent}>
+                <Text style={styles.queueAction}>{item.action}</Text>
+                <Text style={[styles.queuePriority, { color: PRIORITY_COLOR[item.priority] ?? '#4a4f65' }]}>
+                  {item.priority.toUpperCase()}
+                </Text>
+              </View>
             </View>
           ))}
         </View>
@@ -117,27 +169,68 @@ export function LiveTerminalScreen() {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#0b0c15' },
-  content: { padding: 20, paddingBottom: 48 },
-  centered: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#0b0c15' },
-  headerRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 20 },
-  heading: { color: '#f9fafb', fontSize: 22, fontWeight: '700' },
-  liveDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#c8f000' },
-  card: {
-    backgroundColor: '#13151f',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.06)',
-    borderRadius: 14,
-    padding: 16,
-    marginBottom: 14,
+  root: { flex: 1, backgroundColor: '#07080f' },
+  content: { paddingHorizontal: 20, paddingBottom: 24, gap: 12 },
+  centered: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#07080f' },
+  empty: { color: '#4a4f65', fontSize: 14 },
+
+  topRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 },
+  title: { color: '#eeeef5', fontSize: 28, fontWeight: '800', letterSpacing: -0.5 },
+  livePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(200,240,0,0.1)',
+    borderRadius: 20,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(200,240,0,0.25)',
   },
-  cardLabel: { color: '#6b7280', fontSize: 11, fontWeight: '600', letterSpacing: 0.5, textTransform: 'uppercase', marginBottom: 14 },
-  infraRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
-  dot: { width: 8, height: 8, borderRadius: 4, marginRight: 10 },
-  infraName: { color: '#d1d5db', fontSize: 13, flex: 1 },
-  infraStatus: { fontSize: 12, fontWeight: '600' },
-  queueRow: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 10, gap: 10 },
-  priorityDot: { width: 8, height: 8, borderRadius: 4, marginTop: 4 },
-  queueAction: { color: '#9ca3af', fontSize: 13, flex: 1, lineHeight: 18 },
-  empty: { color: '#4b5563', fontSize: 14 },
+  liveDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#c8f000' },
+  liveText: { color: '#c8f000', fontSize: 10, fontWeight: '700', letterSpacing: 1.5 },
+  signOut: { color: '#2e3247', fontSize: 10, fontWeight: '700', letterSpacing: 1.5 },
+
+  card: {
+    backgroundColor: '#0d0f1c',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255,255,255,0.07)',
+    borderRadius: 16,
+    padding: 18,
+    gap: 14,
+  },
+  cardDanger: {
+    borderColor: 'rgba(255,69,87,0.25)',
+    backgroundColor: 'rgba(255,69,87,0.04)',
+  },
+  sectionEyebrow: {
+    color: '#4a4f65',
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 2,
+  },
+
+  capacityNumbers: { flexDirection: 'row', alignItems: 'flex-end', gap: 6 },
+  capacityBig: { fontSize: 48, fontWeight: '800', letterSpacing: -2, lineHeight: 48 },
+  capacityMax: { color: '#4a4f65', fontSize: 16, paddingBottom: 4 },
+
+  infraRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 4,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: 'rgba(255,255,255,0.04)',
+  },
+  infraDot: { width: 7, height: 7, borderRadius: 4, marginRight: 12 },
+  infraName: { color: '#8b90a8', fontSize: 13, flex: 1, textTransform: 'capitalize' },
+  infraStatus: { fontSize: 10, fontWeight: '700', letterSpacing: 1 },
+
+  queueRow: {
+    borderLeftWidth: 2,
+    paddingLeft: 12,
+    paddingVertical: 4,
+  },
+  queueContent: { gap: 2 },
+  queueAction: { color: '#8b90a8', fontSize: 13, lineHeight: 18 },
+  queuePriority: { fontSize: 9, fontWeight: '700', letterSpacing: 1.2 },
 });

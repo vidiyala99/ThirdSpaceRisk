@@ -4,44 +4,38 @@ import {
   FlatList,
   Pressable,
   RefreshControl,
-  ScrollView,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
-import { api } from '../api/client';
 import { useAuth } from '../contexts/AuthContext';
+import * as Haptics from 'expo-haptics';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { api } from '../api/client';
 import { StatusBadge } from '../components/StatusBadge';
 
-const FILTERS = ['all', 'open', 'under_review', 'closed'] as const;
-type Filter = (typeof FILTERS)[number];
+type Filter = 'all' | 'open' | 'under_review' | 'closed';
 
-const FILTER_LABEL: Record<Filter, string> = {
-  all: 'All',
-  open: 'Open',
-  under_review: 'Under Review',
-  closed: 'Closed',
+const STATUS_ACCENT: Record<string, string> = {
+  open: '#ff9500',
+  under_review: '#5b8af5',
+  closed: '#00d97e',
 };
 
-interface Incident {
-  id: number;
-  summary: string;
-  status: string;
-  occurred_at: string;
-  location: string;
-}
-
 export function IncidentListScreen() {
-  const { user } = useAuth();
-  const [incidents, setIncidents] = useState<Incident[]>([]);
+  const { user, signOut } = useAuth();
+  const insets = useSafeAreaInsets();
+  const [incidents, setIncidents] = useState<any[]>([]);
   const [filter, setFilter] = useState<Filter>('all');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
   const fetchIncidents = useCallback(async () => {
-    if (!user?.tenant_id) return;
     try {
-      const data = await api.request<Incident[]>(`/api/venues/${user.tenant_id}/incidents`);
+      const endpoint = user?.tenant_id
+        ? `/api/venues/${user.tenant_id}/incidents`
+        : '/api/incidents';
+      const data = await api.request<any[]>(endpoint);
       setIncidents(data);
     } catch {
       // keep stale
@@ -65,73 +59,126 @@ export function IncidentListScreen() {
 
   return (
     <View style={styles.root}>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterBar} contentContainerStyle={styles.filterContent}>
-        {FILTERS.map(f => (
-          <Pressable
-            key={f}
-            style={[styles.filterChip, filter === f && styles.filterChipActive]}
-            onPress={() => setFilter(f)}
-          >
-            <Text style={[styles.filterText, filter === f && styles.filterTextActive]}>
-              {FILTER_LABEL[f]}
-            </Text>
-          </Pressable>
-        ))}
-      </ScrollView>
+      <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
+        <View style={styles.titleRow}>
+          <Text style={styles.title}>Incidents</Text>
+          <View style={styles.countBadge}>
+            <Text style={styles.countText}>{incidents.length}</Text>
+          </View>
+          <Text style={styles.signOut} onPress={signOut}>SIGN OUT</Text>
+        </View>
+        <View style={styles.filters}>
+          {(['all', 'open', 'under_review', 'closed'] as Filter[]).map(f => (
+            <Pressable
+              key={f}
+              style={[styles.chip, filter === f && styles.chipActive]}
+              onPress={() => setFilter(f)}
+            >
+              <Text style={[styles.chipText, filter === f && styles.chipTextActive]}>
+                {f === 'under_review' ? 'Review' : f.charAt(0).toUpperCase() + f.slice(1)}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
+      </View>
 
       <FlatList
         data={filtered}
-        keyExtractor={item => String(item.id)}
+        keyExtractor={item => item.id}
         contentContainerStyle={styles.list}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchIncidents(); }} tintColor="#c8f000" />}
-        ListEmptyComponent={<Text style={styles.empty}>No incidents</Text>}
         renderItem={({ item }) => (
-          <View style={styles.row}>
-            <View style={styles.rowTop}>
-              <Text style={styles.location} numberOfLines={1}>{item.location}</Text>
+          <View style={[styles.card, { borderLeftColor: STATUS_ACCENT[item.status] ?? '#2e3247' }]}>
+            <View style={styles.cardHeader}>
+              <Text style={styles.location}>{item.location}</Text>
               <Text style={styles.date}>
-                {new Date(item.occurred_at).toLocaleDateString()}
+                {new Date(item.occurred_at).toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', year: '2-digit' })}
               </Text>
             </View>
             <Text style={styles.summary} numberOfLines={2}>{item.summary}</Text>
-            <View style={styles.rowBottom}>
+            <View style={styles.cardFooter}>
               <StatusBadge status={item.status} />
+              {item.injury_observed && (
+                <View style={styles.flag}>
+                  <Text style={styles.flagText}>INJURY</Text>
+                </View>
+              )}
+              {item.police_called && (
+                <View style={styles.flag}>
+                  <Text style={styles.flagText}>POLICE</Text>
+                </View>
+              )}
             </View>
           </View>
         )}
+        ListEmptyComponent={
+          <View style={styles.empty}>
+            <Text style={styles.emptyTitle}>No incidents</Text>
+            <Text style={styles.emptySub}>
+              {filter === 'all' ? 'Clean sheet — keep it that way.' : `No ${filter.replace('_', ' ')} incidents.`}
+            </Text>
+          </View>
+        }
       />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#0b0c15' },
-  centered: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#0b0c15' },
-  filterBar: { flexGrow: 0, paddingTop: 16 },
-  filterContent: { paddingHorizontal: 16, gap: 8, paddingBottom: 12 },
-  filterChip: {
+  root: { flex: 1, backgroundColor: '#07080f' },
+  centered: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#07080f' },
+
+  header: { paddingHorizontal: 20, paddingBottom: 16, gap: 16 },
+  titleRow: { flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 },
+  signOut: { color: '#2e3247', fontSize: 10, fontWeight: '700', letterSpacing: 1.5, marginLeft: 'auto' },
+  title: { color: '#eeeef5', fontSize: 28, fontWeight: '800', letterSpacing: -0.5 },
+  countBadge: {
+    backgroundColor: 'rgba(200,240,0,0.12)',
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
+  countText: { color: '#c8f000', fontSize: 12, fontWeight: '700' },
+
+  filters: { flexDirection: 'row', gap: 8 },
+  chip: {
     paddingHorizontal: 14,
     paddingVertical: 7,
     borderRadius: 20,
-    backgroundColor: '#13151f',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: '#0d0f1c',
   },
-  filterChipActive: { backgroundColor: 'rgba(200,240,0,0.12)', borderColor: '#c8f000' },
-  filterText: { color: '#6b7280', fontSize: 13, fontWeight: '500' },
-  filterTextActive: { color: '#c8f000', fontWeight: '600' },
-  list: { padding: 16, gap: 10 },
-  row: {
-    backgroundColor: '#13151f',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.06)',
-    borderRadius: 12,
-    padding: 14,
+  chipActive: { backgroundColor: '#c8f000', borderColor: '#c8f000' },
+  chipText: { color: '#4a4f65', fontSize: 12, fontWeight: '600' },
+  chipTextActive: { color: '#07080f' },
+
+  list: { paddingHorizontal: 20, paddingBottom: 40, gap: 10 },
+  card: {
+    backgroundColor: '#0d0f1c',
+    borderRadius: 14,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255,255,255,0.07)',
+    borderLeftWidth: 3,
+    padding: 16,
+    gap: 8,
   },
-  rowTop: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 },
-  location: { color: '#f9fafb', fontSize: 14, fontWeight: '600', flex: 1, marginRight: 8 },
-  date: { color: '#4b5563', fontSize: 12 },
-  summary: { color: '#9ca3af', fontSize: 13, lineHeight: 18, marginBottom: 10 },
-  rowBottom: { flexDirection: 'row' },
-  empty: { color: '#4b5563', textAlign: 'center', marginTop: 60, fontSize: 14 },
+  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  location: { color: '#eeeef5', fontSize: 15, fontWeight: '700', flex: 1 },
+  date: { color: '#4a4f65', fontSize: 11, fontWeight: '600', letterSpacing: 0.3 },
+  summary: { color: '#8b90a8', fontSize: 13, lineHeight: 19 },
+  cardFooter: { flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' },
+  flag: {
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderRadius: 4,
+    backgroundColor: 'rgba(255,69,87,0.12)',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255,69,87,0.3)',
+  },
+  flagText: { color: '#ff4557', fontSize: 9, fontWeight: '700', letterSpacing: 1 },
+
+  empty: { alignItems: 'center', paddingTop: 80, gap: 8 },
+  emptyTitle: { color: '#eeeef5', fontSize: 18, fontWeight: '700' },
+  emptySub: { color: '#4a4f65', fontSize: 14, textAlign: 'center' },
 });

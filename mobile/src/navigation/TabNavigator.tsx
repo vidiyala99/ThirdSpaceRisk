@@ -1,42 +1,87 @@
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { Text } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { useAuth } from '../contexts/AuthContext';
+
+// Venue operator screens
 import { DashboardScreen } from '../screens/DashboardScreen';
 import { IncidentListScreen } from '../screens/IncidentListScreen';
 import { ReportIncidentScreen } from '../screens/ReportIncidentScreen';
 import { LiveTerminalScreen } from '../screens/LiveTerminalScreen';
 
+// Broker screens
+import { BrokerPortfolioScreen } from '../screens/BrokerPortfolioScreen';
+import { BrokerReportsScreen } from '../screens/BrokerReportsScreen';
+
 const Tab = createBottomTabNavigator();
 
-const ICONS: Record<string, string> = {
-  Dashboard: '◈',
-  Incidents: '⊞',
-  Report: '＋',
-  Live: '◉',
+const VENUE_ICONS: Record<string, { active: string; inactive: string }> = {
+  Dashboard: { active: '◈', inactive: '◇' },
+  Incidents: { active: '⊞', inactive: '⊟' },
+  Report:    { active: '+', inactive: '+' },
+  Live:      { active: '◉', inactive: '○' },
 };
 
-export function TabNavigator() {
+const BROKER_ICONS: Record<string, { active: string; inactive: string }> = {
+  Portfolio: { active: '◈', inactive: '◇' },
+  Reports:   { active: '⊞', inactive: '⊟' },
+  Incidents: { active: '◉', inactive: '○' },
+};
+
+function TabIcon({ name, focused, isReport }: { name: string; focused: boolean; isReport?: boolean }) {
+  if (isReport) {
+    return (
+      <View style={[tabStyles.reportBtn, focused && tabStyles.reportBtnActive]}>
+        <Text style={[tabStyles.reportIcon, focused && tabStyles.reportIconActive]}>+</Text>
+      </View>
+    );
+  }
+  const icons = { ...VENUE_ICONS, ...BROKER_ICONS };
   return (
-    <Tab.Navigator
-      screenOptions={({ route }) => ({
-        headerStyle: { backgroundColor: '#0b0c15', shadowColor: 'transparent', elevation: 0 },
-        headerTintColor: '#f9fafb',
-        headerTitleStyle: { fontWeight: '700', fontSize: 17 },
-        tabBarStyle: {
-          backgroundColor: '#0d0e18',
-          borderTopColor: 'rgba(255,255,255,0.06)',
-          borderTopWidth: 1,
-          height: 60,
-          paddingBottom: 8,
-        },
-        tabBarActiveTintColor: '#c8f000',
-        tabBarInactiveTintColor: '#4b5563',
-        tabBarLabel: route.name,
-        tabBarIcon: ({ color }) => (
-          <Text style={{ fontSize: 18, color }}>{ICONS[route.name]}</Text>
-        ),
-      })}
-    >
+    <Text style={{ fontSize: 16, color: focused ? '#c8f000' : '#ffffff' }}>
+      {focused ? (icons[name]?.active ?? '◈') : (icons[name]?.inactive ?? '◇')}
+    </Text>
+  );
+}
+
+function SignOutButton({ onPress }: { onPress: () => void }) {
+  return (
+    <Pressable onPress={onPress} style={{ paddingRight: 20 }}>
+      <Text style={{ color: '#4a4f65', fontSize: 10, fontWeight: '700', letterSpacing: 1.5 }}>SIGN OUT</Text>
+    </Pressable>
+  );
+}
+
+const screenOptions = {
+  headerShown: false,
+  tabBarStyle: {
+    backgroundColor: '#0a0b14',
+    borderTopColor: 'rgba(255,255,255,0.06)',
+    borderTopWidth: StyleSheet.hairlineWidth,
+    height: 64,
+    paddingBottom: 10,
+    paddingTop: 8,
+  },
+  tabBarActiveTintColor: '#c8f000',
+  tabBarInactiveTintColor: '#ffffff',
+  tabBarLabelStyle: {
+    fontSize: 10,
+    fontWeight: '700' as const,
+    letterSpacing: 0.5,
+    marginTop: 2,
+  },
+};
+
+function VenueOperatorTabs() {
+  const { signOut } = useAuth();
+  return (
+    <Tab.Navigator screenOptions={({ route }) => ({
+      ...screenOptions,
+      headerShown: false,
+      tabBarIcon: ({ focused }) => (
+        <TabIcon name={route.name} focused={focused} isReport={route.name === 'Report'} />
+      ),
+    })}>
       <Tab.Screen name="Dashboard" component={DashboardScreen} />
       <Tab.Screen name="Incidents" component={IncidentListScreen} />
       <Tab.Screen name="Report" component={ReportIncidentScreen} />
@@ -44,3 +89,40 @@ export function TabNavigator() {
     </Tab.Navigator>
   );
 }
+
+function BrokerTabs() {
+  const { signOut } = useAuth();
+  return (
+    <Tab.Navigator screenOptions={({ route }) => ({
+      ...screenOptions,
+      headerShown: false,
+      tabBarIcon: ({ focused }) => <TabIcon name={route.name} focused={focused} />,
+    })}>
+      <Tab.Screen name="Portfolio" component={BrokerPortfolioScreen} />
+      <Tab.Screen name="Reports" component={BrokerReportsScreen} />
+      <Tab.Screen name="Incidents" component={IncidentListScreen} />
+    </Tab.Navigator>
+  );
+}
+
+export function TabNavigator() {
+  const { user } = useAuth();
+  const isBroker = user?.role === 'broker' || user?.role === 'admin';
+  return isBroker ? <BrokerTabs /> : <VenueOperatorTabs />;
+}
+
+const tabStyles = StyleSheet.create({
+  reportBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255,255,255,0.15)',
+    backgroundColor: '#0d0f1c',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  reportBtnActive: { backgroundColor: '#c8f000', borderColor: '#c8f000' },
+  reportIcon: { fontSize: 18, color: '#ffffff', lineHeight: 22 },
+  reportIconActive: { color: '#07080f' },
+});
