@@ -321,6 +321,25 @@ def update_venue(venue_id: str, payload: dict, session: Session = Depends(get_se
     return {"id": venue_id, **venue}
 
 
+@app.delete("/api/venues/{venue_id}", status_code=200)
+def delete_venue(venue_id: str, session: Session = Depends(get_session)) -> dict:
+    _resolve_venue(venue_id, session)
+    incident_count = session.exec(
+        select(func.count(IncidentRecord.id)).where(IncidentRecord.venue_id == venue_id)
+    ).one()
+    if incident_count > 0:
+        raise HTTPException(
+            status_code=409,
+            detail=f"Cannot delete venue — it has {incident_count} incident(s) on record.",
+        )
+    VENUES.pop(venue_id, None)
+    db_venue = session.get(Venue, venue_id)
+    if db_venue:
+        session.delete(db_venue)
+        session.commit()
+    return {"deleted": venue_id}
+
+
 @app.get("/api/portfolio")
 def get_portfolio(session: Session = Depends(get_session)) -> list[dict]:
     """Single endpoint for broker portfolio view — all venues with scores + live state."""

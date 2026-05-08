@@ -36,11 +36,13 @@ function VenueCard({
   venue,
   isPrimary,
   onSave,
+  onDelete,
   onPress,
 }: {
   venue: VenueData;
   isPrimary: boolean;
   onSave: (id: string, updates: Partial<VenueData>) => Promise<void>;
+  onDelete: (id: string) => Promise<void>;
   onPress: () => void;
 }) {
   const [editing, setEditing] = useState(false);
@@ -157,6 +159,23 @@ function VenueCard({
               {saving ? <ActivityIndicator color="#07080f" size="small" /> : <Text style={styles.saveBtnText}>SAVE</Text>}
             </Pressable>
           </View>
+          {!isPrimary && (
+            <Pressable
+              style={styles.deleteBtn}
+              onPress={() =>
+                Alert.alert(
+                  'Delete Venue',
+                  `Are you sure you want to delete "${venue.name}"? This cannot be undone.`,
+                  [
+                    { text: 'Cancel', style: 'cancel' },
+                    { text: 'Delete', style: 'destructive', onPress: () => onDelete(venue.id) },
+                  ]
+                )
+              }
+            >
+              <Text style={styles.deleteBtnText}>DELETE VENUE</Text>
+            </Pressable>
+          )}
         </View>
       )}
     </View>
@@ -202,6 +221,22 @@ export function VenuesScreen({ navigation }: any) {
     setVenues((prev) => prev.map((v) => v.id === venueId ? { ...v, ...updated } : v));
   }
 
+  async function handleDelete(venueId: string) {
+    try {
+      await api.request(`/api/venues/${venueId}`, { method: 'DELETE' });
+      // Remove from AsyncStorage extra venues list
+      if (user?.tenant_id) {
+        const key = `extra_venues_${user.tenant_id}`;
+        const stored = await AsyncStorage.getItem(key);
+        const ids: string[] = stored ? JSON.parse(stored) : [];
+        await AsyncStorage.setItem(key, JSON.stringify(ids.filter((id) => id !== venueId)));
+      }
+      setVenues((prev) => prev.filter((v) => v.id !== venueId));
+    } catch (e: any) {
+      Alert.alert('Cannot delete', e.message ?? 'Something went wrong');
+    }
+  }
+
   function onRefresh() {
     setRefreshing(true);
     loadVenues();
@@ -245,6 +280,7 @@ export function VenuesScreen({ navigation }: any) {
             venue={v}
             isPrimary={i === 0}
             onSave={handleSave}
+            onDelete={handleDelete}
             onPress={() => navigation.navigate('Live')}
           />
         ))
@@ -311,6 +347,21 @@ const styles = StyleSheet.create({
   saveBtn: { flex: 2, backgroundColor: '#c8f000', borderRadius: 10, paddingVertical: 14, alignItems: 'center' },
   saveBtnText: { color: '#07080f', fontSize: 12, fontWeight: '800', letterSpacing: 1.5, fontFamily: 'DMSans_700Bold' },
 
+  deleteBtn: {
+    marginTop: 4,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255,80,80,0.3)',
+    borderRadius: 10,
+    paddingVertical: 13,
+    alignItems: 'center',
+  },
+  deleteBtnText: {
+    color: '#ff5050',
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 1.5,
+    fontFamily: 'JetBrainsMono_700Bold',
+  },
   viewLive: {
     color: '#c8f000',
     fontSize: 12,
