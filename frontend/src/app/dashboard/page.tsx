@@ -217,6 +217,22 @@ export default function DashboardPage() {
         </>
       )}
 
+      {/* Venue operator: empty state if no venue set up yet */}
+      {!isBroker && !riskScore && !quote && (
+        <Link href="/venues" style={{ textDecoration: "none" }}>
+          <div className="card" style={{ padding: "var(--space-xl)", cursor: "pointer", borderColor: "rgba(212,255,0,0.15)" }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-sm)" }}>
+              <span className="text-xs uppercase tracking-wide text-muted font-mono">No Venue Data</span>
+              <h2 className="text-2xl font-display">Set up your venue</h2>
+              <p className="text-secondary" style={{ maxWidth: "480px" }}>
+                Add your venue details to generate a risk profile and premium quote.
+              </p>
+              <span className="text-accent text-sm font-mono" style={{ marginTop: "var(--space-xs)" }}>Go to Venues →</span>
+            </div>
+          </div>
+        </Link>
+      )}
+
       {/* Venue operator: single-venue detailed view */}
       {!isBroker && (
         <div className="grid grid-cols-2 gap-lg mb-xl">
