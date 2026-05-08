@@ -266,10 +266,38 @@ export default function IncidentsPage() {
             </button>
           ))}
         </div>
-        {isBroker && !filterVenueId && (
-          <span className="text-xs text-secondary">
-            Showing all venues
-          </span>
+        {isBroker && (
+          <div style={{ display: "flex", alignItems: "center", gap: "var(--space-sm)" }}>
+            <label htmlFor="venue-filter" className="text-xs uppercase tracking-wide text-muted font-mono">
+              Venue
+            </label>
+            <select
+              id="venue-filter"
+              value={filterVenueId ?? ""}
+              onChange={(e) => {
+                const next = e.target.value;
+                router.push(next ? `/incidents?venue=${encodeURIComponent(next)}` : "/incidents");
+              }}
+              style={{
+                background: "var(--bg-surface)",
+                border: "1px solid var(--border-subtle)",
+                borderRadius: "var(--radius-md)",
+                color: "var(--text-primary)",
+                padding: "6px 12px",
+                fontSize: "0.85rem",
+                fontFamily: "inherit",
+                cursor: "pointer",
+                minWidth: "180px",
+              }}
+            >
+              <option value="">All venues ({venues.length})</option>
+              {venues.map((v) => (
+                <option key={v.id} value={v.id}>
+                  {v.name ?? v.id}
+                </option>
+              ))}
+            </select>
+          </div>
         )}
       </div>
 
