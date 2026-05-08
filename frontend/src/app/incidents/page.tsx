@@ -97,6 +97,10 @@ export default function IncidentsPage() {
     e.preventDefault();
     const venueId = isBroker ? selectedVenueId : (tenantId ?? "");
     if (!venueId) return;
+    if (!formData.occurred_at) {
+      toastError("Please enter the date and time of the incident");
+      return;
+    }
     setSubmitting(true);
     try {
       const res = await fetch(`${API_URL}/api/venues/${venueId}/incidents`, {
@@ -104,7 +108,10 @@ export default function IncidentsPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ...formData, occurred_at: new Date(formData.occurred_at).toISOString() }),
       });
-      if (!res.ok) throw new Error("Failed to submit");
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.detail || `Server error ${res.status}`);
+      }
       const created = await res.json();
       // Upload any attached evidence files
       if (evidenceFiles.length > 0 && created.incident?.id) {
@@ -128,8 +135,8 @@ export default function IncidentsPage() {
         const data = await updated.json();
         setIncidents(Array.isArray(data) ? data : []);
       }
-    } catch {
-      toastError("Failed to report incident");
+    } catch (err: any) {
+      toastError(err?.message || "Failed to report incident");
     } finally {
       setSubmitting(false);
     }
