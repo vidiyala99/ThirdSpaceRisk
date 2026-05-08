@@ -266,7 +266,7 @@ export default function IncidentsPage() {
             </button>
           ))}
         </div>
-        {isBroker && (
+        {isBroker && !filterVenueId && (
           <span className="text-xs text-secondary">
             Showing all venues
           </span>
