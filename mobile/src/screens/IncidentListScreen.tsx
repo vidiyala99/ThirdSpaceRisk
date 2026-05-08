@@ -134,8 +134,8 @@ const styles = StyleSheet.create({
   centered: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#07080f' },
 
   header: { paddingHorizontal: 20, paddingBottom: 16, gap: 16 },
-  titleRow: { flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1, justifyContent: 'space-between' },
-  signOut: { color: '#8b90a8', fontSize: 10, fontWeight: '700', letterSpacing: 1.5 },
+  titleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  signOut: { color: '#8b90a8', fontSize: 10, fontWeight: '700', letterSpacing: 1.5, paddingVertical: 4, paddingLeft: 12 },
   title: { color: '#eeeef5', fontSize: 28, fontWeight: '800', letterSpacing: -0.5 },
   countBadge: {
     backgroundColor: 'rgba(200,240,0,0.12)',
