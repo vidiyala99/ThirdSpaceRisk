@@ -38,7 +38,7 @@ export function AppShell({ children }: AppShellProps) {
     { href: "/dashboard", label: "Portfolio", icon: LayoutDashboard },
     { href: "/underwriter", label: "Reports", icon: FileSearch, roles: ["broker", "admin"] },
     { href: `/terminal/${tenantId ?? "elsewhere-brooklyn"}`, label: "Live Terminal", icon: Activity, roles: ["venue_operator"] },
-    { href: "/venues", label: "Venues", icon: Building2, roles: ["broker", "admin"] },
+    { href: "/venues", label: "Venues", icon: Building2, roles: ["broker", "admin", "venue_operator"] },
     { href: "/incidents", label: "Incidents", icon: AlertTriangle },
     { href: "/compliance", label: "Compliance", icon: CheckSquare },
   ];
