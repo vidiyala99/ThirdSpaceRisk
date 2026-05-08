@@ -72,13 +72,11 @@ Or create a new account via **Sign Up / Create Account** on the login screen (we
 - **Compliance page** — role-aware: broker sees portfolio compliance overview, operator sees upload queue
 - **Shared knowledge sources** — policy docs apply across all venues (venue_id="*")
 - **Startup backfill** — all incidents get packets on boot, idempotent
-- **Self-serve auth** — operators and brokers can sign up directly (web + mobile); email format validation, password minimum, inline error states (no system alerts)
-- **Venue management** — operators set up their venue on first login (name, type, address, capacity, years open); view, edit, and add multiple venues via a dedicated Venues tab/page; venue data persists across Railway restarts via SQLite DB fallback
-- **Persistent users** — registered accounts survive backend restarts; users stored in SQLite and rehydrated on startup
+- **Self-serve registration** — operators and brokers sign up directly on web or mobile; new operators walk through a guided venue setup on first login
+- **Venue management** — operators view, edit, and add multiple venues via a dedicated Venues tab (mobile) and Venues page (web); name, type, address, capacity, years in operation
 - **Mobile app** — full iOS/Android app with role-aware tab navigation (operator: Dashboard / Venues / Incidents / Report / Live; broker: Portfolio / Reports / Incidents / Compliance), matching web typography and design system
 - **Mobile broker screens** — portfolio with search/filter, report detail with full packet + review decisions, venue detail with live terminal layout
-- **Mobile operator screens** — dashboard with savings hero and empty-state venue setup CTA, live terminal with compliance uploads, risk profile detail, incident reporting with datetime picker and evidence links, venue management with inline edit and multi-venue support
-- **Polished error states** — inline red banners with recovery actions on login, register, and dashboard (no raw JSON or system dialogs)
+- **Mobile operator screens** — dashboard with savings hero, live terminal with compliance uploads, risk profile detail, incident reporting with datetime picker and evidence links, venue management with inline edit and multi-venue support
 
 ---
 
