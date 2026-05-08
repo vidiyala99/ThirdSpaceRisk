@@ -264,7 +264,7 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   signOut: {
-    color: '#2e3247',
+    color: '#8b90a8',
     fontSize: 10,
     fontWeight: '700',
     letterSpacing: 1.5,

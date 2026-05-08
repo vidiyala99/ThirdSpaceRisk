@@ -47,7 +47,7 @@ function TabIcon({ name, focused, isReport }: { name: string; focused: boolean; 
 function SignOutButton({ onPress }: { onPress: () => void }) {
   return (
     <Pressable onPress={onPress} style={{ paddingRight: 20 }}>
-      <Text style={{ color: '#4a4f65', fontSize: 10, fontWeight: '700', letterSpacing: 1.5 }}>SIGN OUT</Text>
+      <Text style={{ color: '#8b90a8', fontSize: 10, fontWeight: '700', letterSpacing: 1.5 }}>SIGN OUT</Text>
     </Pressable>
   );
 }

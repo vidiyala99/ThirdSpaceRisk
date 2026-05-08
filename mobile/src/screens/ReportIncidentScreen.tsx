@@ -92,7 +92,7 @@ export function ReportIncidentScreen() {
       <ScrollView contentContainerStyle={[styles.content, { paddingTop: insets.top + 12 }]} keyboardShouldPersistTaps="handled">
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 32 }}>
           <Text style={[styles.heading, { marginBottom: 0 }]}>Report{'\n'}Incident</Text>
-          <Text style={{ color: '#2e3247', fontSize: 10, fontWeight: '700', letterSpacing: 1.5, paddingTop: 8 }} onPress={signOut}>SIGN OUT</Text>
+          <Text style={{ color: '#8b90a8', fontSize: 10, fontWeight: '700', letterSpacing: 1.5, paddingTop: 8 }} onPress={signOut}>SIGN OUT</Text>
         </View>
 
         <View style={styles.fieldGroup}>

@@ -226,7 +226,7 @@ const styles = StyleSheet.create({
   },
   liveDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#c8f000' },
   liveText: { color: '#c8f000', fontSize: 10, fontWeight: '700', letterSpacing: 1.5 },
-  signOut: { color: '#2e3247', fontSize: 10, fontWeight: '700', letterSpacing: 1.5 },
+  signOut: { color: '#8b90a8', fontSize: 10, fontWeight: '700', letterSpacing: 1.5 },
 
   statsRow: { flexDirection: 'row', gap: 10 },
   statCard: {

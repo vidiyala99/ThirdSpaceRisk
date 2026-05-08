@@ -133,7 +133,7 @@ const styles = StyleSheet.create({
 
   header: { paddingHorizontal: 20, paddingBottom: 16, gap: 16 },
   titleRow: { flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 },
-  signOut: { color: '#2e3247', fontSize: 10, fontWeight: '700', letterSpacing: 1.5, marginLeft: 'auto' },
+  signOut: { color: '#8b90a8', fontSize: 10, fontWeight: '700', letterSpacing: 1.5, marginLeft: 'auto' },
   title: { color: '#eeeef5', fontSize: 28, fontWeight: '800', letterSpacing: -0.5 },
   countBadge: {
     backgroundColor: 'rgba(200,240,0,0.12)',

@@ -305,7 +305,7 @@ const styles = StyleSheet.create({
     letterSpacing: -0.5,
   },
   signOut: {
-    color: '#2e3247',
+    color: '#8b90a8',
     fontSize: 10,
     fontWeight: '700',
     letterSpacing: 1.5,

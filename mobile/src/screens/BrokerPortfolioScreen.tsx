@@ -231,7 +231,7 @@ const styles = StyleSheet.create({
   },
   name: { color: '#eeeef5', fontSize: 22, fontWeight: '700', letterSpacing: -0.5 },
   role: { color: '#4a4f65', fontSize: 10, fontWeight: '700', letterSpacing: 2, marginTop: 4 },
-  signOut: { color: '#2e3247', fontSize: 10, fontWeight: '700', letterSpacing: 1.5, paddingTop: 6 },
+  signOut: { color: '#8b90a8', fontSize: 10, fontWeight: '700', letterSpacing: 1.5, paddingTop: 6 },
 
   // Stats bar
   statsRow: { flexDirection: 'row', gap: 10, paddingHorizontal: 20, marginBottom: 24 },
