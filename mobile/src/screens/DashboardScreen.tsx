@@ -158,10 +158,10 @@ export function DashboardScreen({ navigation }: any) {
       {/* Stats bar */}
       <View style={styles.statsRow}>
         {/* Your Venue */}
-        <View style={styles.statCard}>
+        <Pressable style={styles.statCard} onPress={() => navigation.navigate('Live')}>
           <Text style={styles.statEyebrow}>YOUR VENUE</Text>
           <Text style={styles.statValue}>1</Text>
-        </View>
+        </Pressable>
 
         {/* Open Incidents */}
         <Pressable style={styles.statCard} onPress={() => navigation.navigate('Incidents')}>
