@@ -126,13 +126,18 @@ export function DashboardScreen() {
     >
       {/* Hero heading */}
       <View style={styles.heroSection}>
-        <Text style={styles.heroHeading}>
-          Operational{' '}
-          <Text style={styles.heroAccent}>Defense</Text>
-        </Text>
-        <Text style={styles.heroSubtitle}>
-          Your operational data — your defense against premium hikes
-        </Text>
+        <View style={styles.heroTopRow}>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.heroHeading}>
+              Operational{' '}
+              <Text style={styles.heroAccent}>Defense</Text>
+            </Text>
+            <Text style={styles.heroSubtitle}>
+              Your operational data — your defense against premium hikes
+            </Text>
+          </View>
+          <Text style={styles.signOut} onPress={signOut} accessibilityRole="button">SIGN OUT</Text>
+        </View>
       </View>
 
       {/* Stats bar */}
@@ -272,6 +277,7 @@ const styles = StyleSheet.create({
   },
 
   // Hero
+  heroTopRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' },
   heroSection: {
     marginBottom: 24,
   },
