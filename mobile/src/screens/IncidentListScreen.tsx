@@ -24,6 +24,7 @@ const STATUS_ACCENT: Record<string, string> = {
 
 export function IncidentListScreen({ navigation }: any) {
   const { user, signOut } = useAuth();
+  const isBroker = user?.role === 'broker' || user?.role === 'admin';
   const insets = useSafeAreaInsets();
   const [incidents, setIncidents] = useState<any[]>([]);
   const [filter, setFilter] = useState<Filter>('all');
