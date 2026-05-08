@@ -39,7 +39,7 @@ function formatDateTime(date: Date): string {
   return `${mm}/${dd}/${yy} ${hh}:${min}:${ss}`;
 }
 
-export function ReportIncidentScreen() {
+export function ReportIncidentScreen({ navigation }: { navigation: any }) {
   const { user, signOut } = useAuth();
   const insets = useSafeAreaInsets();
   const [form, setForm] = useState<FormState>({
@@ -143,19 +143,9 @@ export function ReportIncidentScreen() {
       }
 
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      Alert.alert('Filed', 'Incident report submitted.');
-      setForm({
-        summary: '',
-        location: '',
-        reported_by: user?.name ?? '',
-        injury_observed: false,
-        police_called: false,
-        ems_called: false,
-      });
-      setOccurredAt(null);
-      setImages([]);
-      setFootageLink('');
-      setEvidenceLinks([]);
+      Alert.alert('Filed', 'Incident report submitted.', [
+        { text: 'OK', onPress: () => navigation.goBack() },
+      ]);
     } catch (e: any) {
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       Alert.alert('Error', e.message ?? 'Submission failed');
