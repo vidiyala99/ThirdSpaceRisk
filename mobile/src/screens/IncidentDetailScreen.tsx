@@ -1,0 +1,398 @@
+import React, { useEffect, useState } from 'react';
+import {
+  ActivityIndicator,
+  Alert,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import * as Haptics from 'expo-haptics';
+import { api } from '../api/client';
+import { useAuth } from '../contexts/AuthContext';
+import { StatusBadge } from '../components/StatusBadge';
+
+const SEVERITY_COLOR: Record<string, string> = {
+  critical: '#ff4557',
+  high: '#ff4557',
+  medium: '#ff9500',
+  low: '#c8f000',
+  unknown: '#4a4f65',
+};
+
+const CORROBORATION_COLOR: Record<string, string> = {
+  CONSISTENT: '#c8f000',
+  PARTIAL: '#ff9500',
+  CONTRADICTED: '#ff4557',
+  INCONCLUSIVE: '#4a4f65',
+};
+
+const STATUS_TRANSITIONS: Record<string, { label: string; next: string; color: string }[]> = {
+  open: [{ label: 'Move to Review', next: 'under_review', color: '#5b8af5' }],
+  under_review: [
+    { label: 'Close Incident', next: 'closed', color: '#00d97e' },
+    { label: 'Reopen', next: 'open', color: '#ff9500' },
+  ],
+  closed: [{ label: 'Reopen', next: 'open', color: '#ff9500' }],
+};
+
+export function IncidentDetailScreen({ route, navigation }: any) {
+  const { incidentId } = route.params;
+  const { user } = useAuth();
+  const insets = useSafeAreaInsets();
+  const isOperator = user?.role === 'venue_operator';
+
+  const [incident, setIncident] = useState<any>(null);
+  const [packets, setPackets] = useState<any[]>([]);
+  const [evidence, setEvidence] = useState<any[]>([]);
+  const [visionAnalysis, setVisionAnalysis] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [updatingStatus, setUpdatingStatus] = useState(false);
+
+  useEffect(() => {
+    async function load() {
+      try {
+        const [inc, pkts, evs, vision] = await Promise.all([
+          api.request<any>(`/api/incidents/${incidentId}`),
+          api.request<any[]>(`/api/incidents/${incidentId}/packets`),
+          api.request<any[]>(`/api/incidents/${incidentId}/evidence`),
+          api.request<any>(`/api/incidents/${incidentId}/evidence-analysis`).catch(() => null),
+        ]);
+        setIncident(inc);
+        setPackets(Array.isArray(pkts) ? pkts : []);
+        setEvidence(Array.isArray(evs) ? evs : []);
+        setVisionAnalysis(vision);
+      } catch {
+        // non-fatal
+      } finally {
+        setLoading(false);
+      }
+    }
+    load();
+  }, [incidentId]);
+
+  async function updateStatus(newStatus: string) {
+    setUpdatingStatus(true);
+    try {
+      await api.request(`/api/incidents/${incidentId}/status`, {
+        method: 'PATCH',
+        body: JSON.stringify({ status: newStatus }),
+      });
+      setIncident((prev: any) => ({ ...prev, status: newStatus }));
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch (e: any) {
+      Alert.alert('Error', e.message ?? 'Status update failed');
+    } finally {
+      setUpdatingStatus(false);
+    }
+  }
+
+  if (loading) {
+    return <View style={styles.centered}><ActivityIndicator color="#c8f000" /></View>;
+  }
+
+  if (!incident) {
+    return <View style={styles.centered}><Text style={styles.notFound}>Incident not found</Text></View>;
+  }
+
+  const packet = packets[0];
+  const riskSignals = packet?.risk_signals ?? {};
+  const severity = riskSignals.severity ?? 'unknown';
+  const severityColor = SEVERITY_COLOR[severity] ?? '#4a4f65';
+  const confidence = riskSignals.confidence ?? 0;
+  const memo = packet?.memo ?? {};
+  const citations: any[] = riskSignals.citations ?? [];
+  const transitions = STATUS_TRANSITIONS[incident.status] ?? [];
+  const hasVision = visionAnalysis?.total_files > 0;
+
+  return (
+    <ScrollView
+      style={styles.root}
+      contentContainerStyle={[styles.content, { paddingTop: insets.top + 12 }]}
+    >
+      <Pressable style={styles.backRow} onPress={() => navigation.goBack()}>
+        <Text style={styles.backArrow}>←</Text>
+        <Text style={styles.backLabel}>Incidents</Text>
+      </Pressable>
+
+      {/* Header */}
+      <View style={styles.header}>
+        <Text style={styles.location}>{incident.location}</Text>
+        <Text style={styles.date}>
+          {new Date(incident.occurred_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+        </Text>
+        <View style={styles.statusRow}>
+          <StatusBadge status={incident.status} />
+          {incident.injury_observed && <FlagPill label="INJURY" color="#ff4557" />}
+          {incident.police_called && <FlagPill label="POLICE" color="#ff9500" />}
+          {incident.ems_called && <FlagPill label="EMS" color="#5b8af5" />}
+        </View>
+      </View>
+
+      {/* Status Actions (operators only) */}
+      {isOperator && transitions.length > 0 && (
+        <View style={styles.actionsRow}>
+          {transitions.map(t => (
+            <Pressable
+              key={t.next}
+              style={({ pressed }) => [styles.actionBtn, { borderColor: t.color }, pressed && { opacity: 0.7 }]}
+              onPress={() => updateStatus(t.next)}
+              disabled={updatingStatus}
+            >
+              {updatingStatus
+                ? <ActivityIndicator size="small" color={t.color} />
+                : <Text style={[styles.actionBtnText, { color: t.color }]}>{t.label}</Text>
+              }
+            </Pressable>
+          ))}
+        </View>
+      )}
+
+      {/* Description */}
+      <View style={styles.card}>
+        <Text style={styles.eyebrow}>DESCRIPTION</Text>
+        <Text style={styles.summary}>{incident.summary}</Text>
+        <View style={styles.metaGrid}>
+          <MetaRow label="REPORTED BY" value={incident.reported_by} />
+          <MetaRow label="TIME" value={new Date(incident.occurred_at).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })} />
+          <MetaRow label="INCIDENT ID" value={String(incident.id)} />
+        </View>
+      </View>
+
+      {/* AI Risk Assessment */}
+      {packet && (
+        <View style={[styles.card, { borderLeftWidth: 3, borderLeftColor: severityColor }]}>
+          <View style={styles.cardTitleRow}>
+            <Text style={styles.eyebrow}>AI RISK ASSESSMENT</Text>
+            <View style={[styles.packetStatusBadge, { borderColor: `${severityColor}44`, backgroundColor: `${severityColor}12` }]}>
+              <Text style={[styles.packetStatusText, { color: severityColor }]}>
+                {(packet.status ?? '').replace('_', ' ').toUpperCase()}
+              </Text>
+            </View>
+          </View>
+
+          <View style={styles.signalRow}>
+            <View style={[styles.severityPill, { backgroundColor: `${severityColor}18` }]}>
+              <Text style={[styles.severityText, { color: severityColor }]}>{severity.toUpperCase()}</Text>
+            </View>
+            <View style={styles.confidenceWrap}>
+              <View style={styles.confidenceTrack}>
+                <View style={[styles.confidenceFill, { width: `${confidence * 100}%` as any, backgroundColor: severityColor }]} />
+              </View>
+              <Text style={[styles.confidenceNum, { color: severityColor }]}>{Math.round(confidence * 100)}%</Text>
+            </View>
+          </View>
+
+          {riskSignals.explanation ? <Text style={styles.explanation}>{riskSignals.explanation}</Text> : null}
+
+          {memo.summary ? (
+            <>
+              <Text style={[styles.eyebrow, { marginTop: 8 }]}>UNDERWRITER MEMO</Text>
+              <Text style={styles.bodyText}>{memo.summary}</Text>
+            </>
+          ) : null}
+
+          {Array.isArray(memo.open_questions) && memo.open_questions.length > 0 && (
+            <>
+              <Text style={[styles.eyebrow, { marginTop: 8 }]}>OPEN QUESTIONS</Text>
+              {memo.open_questions.map((q: string, i: number) => (
+                <View key={i} style={styles.questionRow}>
+                  <Text style={styles.questionDot}>·</Text>
+                  <Text style={styles.questionText}>{q}</Text>
+                </View>
+              ))}
+            </>
+          )}
+
+          {citations.length > 0 && (
+            <>
+              <Text style={[styles.eyebrow, { marginTop: 8 }]}>CITATIONS</Text>
+              {citations.map((c: any, i: number) => (
+                <View key={i} style={styles.citationRow}>
+                  <View style={styles.citationSource}>
+                    <Text style={styles.citationSourceType}>{(c.source_type ?? '').toUpperCase()}</Text>
+                  </View>
+                  <Text style={styles.citationExcerpt} numberOfLines={2}>{c.excerpt}</Text>
+                </View>
+              ))}
+            </>
+          )}
+        </View>
+      )}
+
+      {/* Vision / AI Evidence Analysis */}
+      {hasVision && (
+        <View style={styles.card}>
+          <View style={styles.cardTitleRow}>
+            <Text style={styles.eyebrow}>AI EVIDENCE ANALYSIS</Text>
+            {visionAnalysis.status === 'processing' ? (
+              <Text style={[styles.corroborationBadge, { color: '#ff9500', borderColor: '#ff950044' }]}>PROCESSING</Text>
+            ) : visionAnalysis.analyses?.[0]?.corroboration ? (
+              <Text style={[styles.corroborationBadge, {
+                color: CORROBORATION_COLOR[visionAnalysis.analyses[0].corroboration] ?? '#4a4f65',
+                borderColor: `${CORROBORATION_COLOR[visionAnalysis.analyses[0].corroboration] ?? '#4a4f65'}44`,
+              }]}>
+                {visionAnalysis.analyses[0].corroboration}
+              </Text>
+            ) : null}
+          </View>
+
+          {(visionAnalysis.analyses ?? []).map((a: any, i: number) => {
+            const corrColor = CORROBORATION_COLOR[a.corroboration] ?? '#4a4f65';
+            return (
+              <View key={i} style={[styles.visionItem, { borderLeftColor: corrColor }]}>
+                <View style={styles.visionHeader}>
+                  <Text style={styles.visionType}>{(a.analysis_type ?? '').toUpperCase()} ANALYSIS</Text>
+                  {a.confidence_delta != null && (
+                    <Text style={[styles.visionDelta, { color: corrColor }]}>
+                      {a.confidence_delta > 0 ? '+' : ''}{Math.round(a.confidence_delta * 100)}% confidence
+                    </Text>
+                  )}
+                </View>
+                {a.raw_description ? <Text style={styles.bodyText}>{a.raw_description}</Text> : null}
+                {Array.isArray(a.findings?.incident_indicators) && a.findings.incident_indicators.length > 0 && (
+                  <View style={styles.indicatorRow}>
+                    {a.findings.incident_indicators.map((ind: string, j: number) => (
+                      <View key={j} style={styles.indicatorPill}>
+                        <Text style={styles.indicatorText}>{ind}</Text>
+                      </View>
+                    ))}
+                  </View>
+                )}
+              </View>
+            );
+          })}
+        </View>
+      )}
+
+      {/* Evidence Files */}
+      {evidence.length > 0 && (
+        <View style={styles.card}>
+          <Text style={styles.eyebrow}>EVIDENCE FILES · {evidence.length}</Text>
+          {evidence.map((ev: any) => (
+            <View key={ev.id} style={styles.evidenceRow}>
+              <View style={styles.evidenceIcon}>
+                <Text style={styles.evidenceIconText}>
+                  {ev.content_type?.startsWith('image/') ? 'IMG' : ev.content_type?.startsWith('video/') ? 'VID' : 'FILE'}
+                </Text>
+              </View>
+              <View style={styles.evidenceMeta}>
+                <Text style={styles.evidenceFilename} numberOfLines={1}>{ev.filename}</Text>
+                <Text style={styles.evidenceSize}>
+                  {ev.file_size ? `${(ev.file_size / 1024).toFixed(1)} KB` : ''}
+                  {ev.uploaded_at ? `  ·  ${new Date(ev.uploaded_at).toLocaleDateString()}` : ''}
+                </Text>
+              </View>
+            </View>
+          ))}
+        </View>
+      )}
+    </ScrollView>
+  );
+}
+
+function FlagPill({ label, color }: { label: string; color: string }) {
+  return (
+    <View style={[flagStyles.pill, { borderColor: `${color}44`, backgroundColor: `${color}12` }]}>
+      <Text style={[flagStyles.text, { color }]}>{label}</Text>
+    </View>
+  );
+}
+
+function MetaRow({ label, value }: { label: string; value: string }) {
+  return (
+    <View style={metaStyles.row}>
+      <Text style={metaStyles.label}>{label}</Text>
+      <Text style={metaStyles.value}>{value}</Text>
+    </View>
+  );
+}
+
+const flagStyles = StyleSheet.create({
+  pill: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 4, borderWidth: StyleSheet.hairlineWidth },
+  text: { fontSize: 9, fontWeight: '700', letterSpacing: 1 },
+});
+
+const metaStyles = StyleSheet.create({
+  row: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: 'rgba(255,255,255,0.05)' },
+  label: { color: '#4a4f65', fontSize: 10, fontWeight: '700', letterSpacing: 1.5 },
+  value: { color: '#8b90a8', fontSize: 12 },
+});
+
+const styles = StyleSheet.create({
+  root: { flex: 1, backgroundColor: '#07080f' },
+  content: { paddingHorizontal: 20, paddingBottom: 48 },
+  centered: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#07080f' },
+  notFound: { color: '#4a4f65', fontSize: 15 },
+
+  backRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 20 },
+  backArrow: { color: '#c8f000', fontSize: 18 },
+  backLabel: { color: '#c8f000', fontSize: 13, fontWeight: '600' },
+
+  header: { gap: 10, marginBottom: 16 },
+  location: { color: '#eeeef5', fontSize: 24, fontWeight: '800', letterSpacing: -0.5 },
+  date: { color: '#4a4f65', fontSize: 12 },
+  statusRow: { flexDirection: 'row', gap: 8, flexWrap: 'wrap', alignItems: 'center' },
+
+  actionsRow: { flexDirection: 'row', gap: 10, marginBottom: 14 },
+  actionBtn: {
+    flex: 1, borderWidth: 1, borderRadius: 10, paddingVertical: 12,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  actionBtnText: { fontSize: 12, fontWeight: '700', letterSpacing: 0.5 },
+
+  card: {
+    backgroundColor: '#0d0f1c',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255,255,255,0.07)',
+    borderRadius: 14,
+    padding: 16,
+    marginBottom: 12,
+    gap: 10,
+  },
+  cardTitleRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  eyebrow: { color: '#4a4f65', fontSize: 10, fontWeight: '700', letterSpacing: 2 },
+  packetStatusBadge: { borderWidth: StyleSheet.hairlineWidth, borderRadius: 4, paddingHorizontal: 7, paddingVertical: 3 },
+  packetStatusText: { fontSize: 9, fontWeight: '700', letterSpacing: 1 },
+
+  summary: { color: '#8b90a8', fontSize: 14, lineHeight: 22 },
+  bodyText: { color: '#8b90a8', fontSize: 13, lineHeight: 20 },
+  metaGrid: { gap: 0 },
+
+  signalRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  severityPill: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 5 },
+  severityText: { fontSize: 10, fontWeight: '700', letterSpacing: 1.2 },
+  confidenceWrap: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8 },
+  confidenceTrack: { flex: 1, height: 3, backgroundColor: 'rgba(255,255,255,0.06)', borderRadius: 2, overflow: 'hidden' },
+  confidenceFill: { height: '100%', borderRadius: 2 },
+  confidenceNum: { fontSize: 11, fontWeight: '700', width: 32, textAlign: 'right' },
+
+  explanation: { color: '#8b90a8', fontSize: 13, lineHeight: 20 },
+
+  questionRow: { flexDirection: 'row', gap: 8, alignItems: 'flex-start' },
+  questionDot: { color: '#c8f000', fontSize: 16, lineHeight: 20 },
+  questionText: { color: '#8b90a8', fontSize: 13, lineHeight: 20, flex: 1 },
+
+  citationRow: { flexDirection: 'row', gap: 10, alignItems: 'flex-start', paddingVertical: 6, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: 'rgba(255,255,255,0.04)' },
+  citationSource: { backgroundColor: 'rgba(200,240,0,0.08)', borderRadius: 4, paddingHorizontal: 6, paddingVertical: 3, alignSelf: 'flex-start' },
+  citationSourceType: { color: '#c8f000', fontSize: 8, fontWeight: '700', letterSpacing: 1 },
+  citationExcerpt: { color: '#4a4f65', fontSize: 12, lineHeight: 17, flex: 1 },
+
+  corroborationBadge: { fontSize: 9, fontWeight: '700', letterSpacing: 1, borderWidth: StyleSheet.hairlineWidth, borderRadius: 4, paddingHorizontal: 7, paddingVertical: 3 },
+  visionItem: { borderLeftWidth: 2, paddingLeft: 12, gap: 6, paddingVertical: 4 },
+  visionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  visionType: { color: '#4a4f65', fontSize: 9, fontWeight: '700', letterSpacing: 1.5 },
+  visionDelta: { fontSize: 11, fontWeight: '700' },
+  indicatorRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  indicatorPill: { backgroundColor: 'rgba(200,240,0,0.06)', borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(200,240,0,0.2)', borderRadius: 4, paddingHorizontal: 7, paddingVertical: 3 },
+  indicatorText: { color: '#c8f000', fontSize: 9, fontWeight: '600' },
+
+  evidenceRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: 'rgba(255,255,255,0.05)' },
+  evidenceIcon: { width: 44, height: 44, backgroundColor: 'rgba(255,255,255,0.04)', borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
+  evidenceIconText: { color: '#4a4f65', fontSize: 10, fontWeight: '700', letterSpacing: 1 },
+  evidenceMeta: { flex: 1 },
+  evidenceFilename: { color: '#eeeef5', fontSize: 13, fontWeight: '600' },
+  evidenceSize: { color: '#4a4f65', fontSize: 11, marginTop: 2 },
+});

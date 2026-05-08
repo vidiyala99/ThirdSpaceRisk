@@ -5,13 +5,13 @@ import { useAuth } from '../contexts/AuthContext';
 
 // Venue operator screens
 import { DashboardScreen } from '../screens/DashboardScreen';
-import { IncidentListScreen } from '../screens/IncidentListScreen';
 import { ReportIncidentScreen } from '../screens/ReportIncidentScreen';
 import { LiveTerminalScreen } from '../screens/LiveTerminalScreen';
+import { IncidentsStack } from './IncidentsStack';
 
 // Broker screens
-import { BrokerPortfolioScreen } from '../screens/BrokerPortfolioScreen';
 import { BrokerReportsScreen } from '../screens/BrokerReportsScreen';
+import { PortfolioStack } from './PortfolioStack';
 
 const Tab = createBottomTabNavigator();
 
@@ -83,7 +83,7 @@ function VenueOperatorTabs() {
       ),
     })}>
       <Tab.Screen name="Dashboard" component={DashboardScreen} />
-      <Tab.Screen name="Incidents" component={IncidentListScreen} />
+      <Tab.Screen name="Incidents" component={IncidentsStack} />
       <Tab.Screen name="Report" component={ReportIncidentScreen} />
       <Tab.Screen name="Live" component={LiveTerminalScreen} />
     </Tab.Navigator>
@@ -98,7 +98,7 @@ function BrokerTabs() {
       headerShown: false,
       tabBarIcon: ({ focused }) => <TabIcon name={route.name} focused={focused} />,
     })}>
-      <Tab.Screen name="Portfolio" component={BrokerPortfolioScreen} />
+      <Tab.Screen name="Portfolio" component={PortfolioStack} />
       <Tab.Screen name="Reports" component={BrokerReportsScreen} />
       <Tab.Screen name="Incidents" component={IncidentListScreen} />
     </Tab.Navigator>

@@ -22,7 +22,7 @@ const STATUS_ACCENT: Record<string, string> = {
   closed: '#00d97e',
 };
 
-export function IncidentListScreen() {
+export function IncidentListScreen({ navigation }: any) {
   const { user, signOut } = useAuth();
   const insets = useSafeAreaInsets();
   const [incidents, setIncidents] = useState<any[]>([]);
@@ -88,7 +88,10 @@ export function IncidentListScreen() {
         contentContainerStyle={styles.list}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchIncidents(); }} tintColor="#c8f000" />}
         renderItem={({ item }) => (
-          <View style={[styles.card, { borderLeftColor: STATUS_ACCENT[item.status] ?? '#2e3247' }]}>
+          <Pressable
+            onPress={() => navigation.navigate('IncidentDetail', { incidentId: item.id })}
+            style={({ pressed }) => [styles.card, { borderLeftColor: STATUS_ACCENT[item.status] ?? '#2e3247' }, pressed && { opacity: 0.75 }]}
+          >
             <View style={styles.cardHeader}>
               <Text style={styles.location}>{item.location}</Text>
               <Text style={styles.date}>
@@ -109,7 +112,7 @@ export function IncidentListScreen() {
                 </View>
               )}
             </View>
-          </View>
+          </Pressable>
         )}
         ListEmptyComponent={
           <View style={styles.empty}>

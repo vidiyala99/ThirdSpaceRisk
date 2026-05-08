@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
+  Pressable,
   RefreshControl,
   StyleSheet,
   Text,
@@ -18,7 +19,7 @@ const TIER_COLOR: Record<string, string> = {
   D: '#ff4557',
 };
 
-export function BrokerPortfolioScreen() {
+export function BrokerPortfolioScreen({ navigation }: any) {
   const { user, signOut } = useAuth();
   const insets = useSafeAreaInsets();
   const [venues, setVenues] = useState<any[]>([]);
@@ -96,7 +97,10 @@ export function BrokerPortfolioScreen() {
           const capacityPct = maxCapacity > 0 ? capacity / maxCapacity : 0;
 
           return (
-            <View style={[styles.venueCard, { borderLeftColor: tierColor }]}>
+            <Pressable
+              style={({ pressed }) => [styles.venueCard, { borderLeftColor: tierColor }, pressed && { opacity: 0.75 }]}
+              onPress={() => navigation.navigate('VenueDetail', { venueId: item.venue_id ?? item.id, venueName: item.name ?? item.venue_id })}
+            >
               <View style={styles.venueHeader}>
                 <View style={styles.venueInfo}>
                   <Text style={styles.venueName}>{item.name ?? item.venue_id}</Text>
@@ -125,7 +129,7 @@ export function BrokerPortfolioScreen() {
                   <Text style={styles.incidentPillText}>{item.open_incident_count} open incident{item.open_incident_count > 1 ? 's' : ''}</Text>
                 </View>
               )}
-            </View>
+            </Pressable>
           );
         }}
         ListEmptyComponent={

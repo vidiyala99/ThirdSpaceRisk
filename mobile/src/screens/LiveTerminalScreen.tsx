@@ -28,6 +28,13 @@ interface LiveData {
   compliance_queue: QueueItem[];
 }
 
+const TIER_COLOR: Record<string, string> = {
+  A: '#c8f000',
+  B: '#00d97e',
+  C: '#ff9500',
+  D: '#ff4557',
+};
+
 const STATUS_DOT: Record<string, string> = {
   operational: '#c8f000',
   active: '#c8f000',
@@ -45,13 +52,21 @@ export function LiveTerminalScreen() {
   const { user, signOut } = useAuth();
   const insets = useSafeAreaInsets();
   const [data, setData] = useState<LiveData | null>(null);
+  const [riskData, setRiskData] = useState<any>(null);
+  const [quoteData, setQuoteData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const fetchLive = useCallback(async () => {
     if (!user?.tenant_id) return;
     try {
-      const raw = await api.request<any>(`/api/venues/${user.tenant_id}/live`);
+      const [raw, risk, quote] = await Promise.all([
+        api.request<any>(`/api/venues/${user.tenant_id}/live`),
+        api.request<any>(`/api/venues/${user.tenant_id}/risk-score`).catch(() => null),
+        api.request<any>(`/api/venues/${user.tenant_id}/quote`).catch(() => null),
+      ]);
+      setRiskData(risk);
+      setQuoteData(quote);
       // Normalize infrastructure to a flat array of {name, status}
       let infra: InfraItem[] = [];
       if (Array.isArray(raw.infrastructure)) {
@@ -116,6 +131,28 @@ export function LiveTerminalScreen() {
           <Text style={styles.signOut} onPress={signOut}>SIGN OUT</Text>
         </View>
       </View>
+
+      {/* Risk Score + Premium */}
+      {riskData && (
+        <View style={styles.statsRow}>
+          <View style={[styles.statCard, { borderColor: `${TIER_COLOR[riskData.tier] ?? '#4a4f65'}33` }]}>
+            <Text style={styles.statEyebrow}>RISK TIER</Text>
+            <Text style={[styles.statBig, { color: TIER_COLOR[riskData.tier] ?? '#eeeef5' }]}>
+              {riskData.tier ?? '—'}
+            </Text>
+            <Text style={[styles.statSub, { color: TIER_COLOR[riskData.tier] ?? '#4a4f65' }]}>
+              {riskData.total_score ?? 0} / 100
+            </Text>
+          </View>
+          {quoteData && (
+            <View style={styles.statCard}>
+              <Text style={styles.statEyebrow}>PREMIUM</Text>
+              <Text style={styles.statBig}>${(quoteData.annual_premium ?? 0).toLocaleString()}</Text>
+              <Text style={styles.statSub}>${(quoteData.monthly_premium ?? 0).toLocaleString()} / mo</Text>
+            </View>
+          )}
+        </View>
+      )}
 
       <View style={[styles.card, capacityPct > 0.85 && styles.cardDanger]}>
         <Text style={styles.sectionEyebrow}>CAPACITY</Text>
@@ -190,6 +227,20 @@ const styles = StyleSheet.create({
   liveDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#c8f000' },
   liveText: { color: '#c8f000', fontSize: 10, fontWeight: '700', letterSpacing: 1.5 },
   signOut: { color: '#2e3247', fontSize: 10, fontWeight: '700', letterSpacing: 1.5 },
+
+  statsRow: { flexDirection: 'row', gap: 10 },
+  statCard: {
+    flex: 1,
+    backgroundColor: '#0d0f1c',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255,255,255,0.07)',
+    borderRadius: 14,
+    padding: 14,
+    gap: 4,
+  },
+  statEyebrow: { color: '#4a4f65', fontSize: 9, fontWeight: '700', letterSpacing: 2 },
+  statBig: { color: '#eeeef5', fontSize: 28, fontWeight: '800', letterSpacing: -1 },
+  statSub: { color: '#4a4f65', fontSize: 12 },
 
   card: {
     backgroundColor: '#0d0f1c',
