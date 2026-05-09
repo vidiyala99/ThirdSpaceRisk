@@ -93,10 +93,10 @@ export function BrokerPortfolioScreen({ navigation }: any) {
 
       {/* Stats bar: 3 cards */}
       <View style={styles.statsRow}>
-        <View style={styles.statCard}>
+        <Pressable style={styles.statCard} onPress={() => navigation.navigate('Venues')}>
           <Text style={styles.statNum}>{totalVenues}</Text>
           <Text style={styles.statLabel}>TOTAL VENUES</Text>
-        </View>
+        </Pressable>
         <Pressable style={styles.statCard} onPress={() => navigation.navigate('Incidents')}>
           <Text style={[styles.statNum, openIncidents > 0 && styles.statNumRed]}>
             {openIncidents}

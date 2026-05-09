@@ -50,6 +50,7 @@ export function DashboardScreen({ navigation }: any) {
   const [riskData, setRiskData] = useState<RiskScore | null>(null);
   const [quoteData, setQuoteData] = useState<PremiumQuote | null>(null);
   const [openIncidents, setOpenIncidents] = useState<number>(0);
+  const [complianceCount, setComplianceCount] = useState<number>(0);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [fetchError, setFetchError] = useState<string | null>(null);
@@ -95,10 +96,11 @@ export function DashboardScreen({ navigation }: any) {
     if (!selectedVenueId) return;
     setFetchError(null);
     try {
-      const [risk, quote, incidents] = await Promise.all([
+      const [risk, quote, incidents, live] = await Promise.all([
         api.request<any>(`/api/venues/${selectedVenueId}/risk-score`),
         api.request<any>(`/api/venues/${selectedVenueId}/quote`),
         api.request<any[]>(`/api/venues/${selectedVenueId}/incidents?status=open`),
+        api.request<any>(`/api/venues/${selectedVenueId}/live-state`),
       ]);
 
       // Normalize factors to plain numbers so they never reach JSX as objects
@@ -116,6 +118,7 @@ export function DashboardScreen({ navigation }: any) {
       setRiskData(risk);
       setQuoteData(quote);
       setOpenIncidents(Array.isArray(incidents) ? incidents.length : 0);
+      setComplianceCount((live?.compliance_queue ?? []).length);
     } catch (e: any) {
       const msg: string = e?.message ?? '';
       // 404 means the venue hasn't been set up yet — not a real error
@@ -272,10 +275,12 @@ export function DashboardScreen({ navigation }: any) {
         </Pressable>
 
         {/* Compliance Actions */}
-        <View style={styles.statCard}>
+        <Pressable style={styles.statCard} onPress={() => navigation.navigate('Compliance')}>
           <Text style={styles.statEyebrow}>COMPLIANCE</Text>
-          <Text style={styles.statValue}>0</Text>
-        </View>
+          <Text style={[styles.statValue, complianceCount > 0 && styles.statError]}>
+            {complianceCount}
+          </Text>
+        </Pressable>
       </View>
 
       {/* Error state — venue exists but data failed to load */}

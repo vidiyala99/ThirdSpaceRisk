@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
+  Pressable,
   RefreshControl,
   StyleSheet,
   Text,
@@ -18,7 +19,7 @@ const SEVERITY_COLOR: Record<string, string> = {
   low: '#4a4f65',
 };
 
-export function BrokerComplianceScreen() {
+export function BrokerComplianceScreen({ navigation }: any) {
   const { signOut } = useAuth();
   const insets = useSafeAreaInsets();
   const [venues, setVenues] = useState<any[]>([]);
@@ -70,7 +71,10 @@ export function BrokerComplianceScreen() {
           contentContainerStyle={styles.list}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchData(); }} tintColor="#c8f000" />}
           renderItem={({ item }) => (
-            <View style={styles.card}>
+            <Pressable
+              style={({ pressed }) => [styles.card, pressed && { opacity: 0.75 }]}
+              onPress={() => navigation.navigate('VenueDetail', { venueId: item.id, venueName: item.name })}
+            >
               <View style={styles.cardHeader}>
                 <View style={styles.venueInfo}>
                   <Text style={styles.venueName}>{item.name ?? item.venue_id}</Text>
@@ -101,7 +105,7 @@ export function BrokerComplianceScreen() {
                   })}
                 </View>
               )}
-            </View>
+            </Pressable>
           )}
         />
       )}
