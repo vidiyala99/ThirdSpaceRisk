@@ -408,8 +408,8 @@ EVIDENCE_DIR.mkdir(exist_ok=True)
 
 @app.get("/api/debug/llm-provider")
 def debug_llm_provider() -> dict:
-    """Returns which LLM provider is currently active. No secrets exposed —
-    just provider name + which env vars are set (presence only)."""
+    """Returns which LLM provider is active and runs a tiny live call to
+    surface configuration errors. No secrets exposed."""
     import os
     from app.providers import get_default_provider
     try:
@@ -417,12 +417,38 @@ def debug_llm_provider() -> dict:
         active = {"provider_name": prov.provider_name, "mode": prov.mode.value}
     except Exception as exc:
         active = {"provider_name": "ERROR", "mode": "error", "error": f"{exc.__class__.__name__}: {exc}"}
+
+    # Tiny live ping — same shape as a real memo call but with toy inputs
+    test_call: dict = {"ok": False}
+    try:
+        prov = get_default_provider()
+        result = prov.draft_memo(
+            incident_summary="Patron tripped over a chair. Minor bruise.",
+            incident_location="Test bar",
+            risk_type="general_incident",
+            severity="low",
+            confidence=0.7,
+            citation_excerpts=["Test policy: standard documentation."],
+        )
+        test_call = {
+            "ok": True,
+            "provider": result.provider,
+            "summary_first_80_chars": result.summary[:80],
+        }
+    except Exception as exc:
+        test_call = {
+            "ok": False,
+            "error_class": exc.__class__.__name__,
+            "error_message": str(exc)[:500],
+        }
+
     return {
         "active": active,
         "env": {
             "ANTHROPIC_API_KEY_set": bool(os.getenv("ANTHROPIC_API_KEY")),
             "GEMINI_API_KEY_set": bool(os.getenv("GEMINI_API_KEY")),
         },
+        "test_call": test_call,
     }
 
 
