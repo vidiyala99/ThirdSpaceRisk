@@ -6,8 +6,6 @@ import {
   Text,
   View,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useAuth } from '../contexts/AuthContext';
 import { CapacityBar } from '../components/CapacityBar';
 
 const TIER_COLOR: Record<string, string> = {
@@ -66,8 +64,6 @@ function getFactorColor(score: number): string {
 
 export function RiskProfileDetailScreen({ route, navigation }: any) {
   const { riskData, quoteData, venueName, isBroker } = route.params;
-  const { signOut } = useAuth();
-  const insets = useSafeAreaInsets();
 
   const tier = riskData?.tier ?? '—';
   const score = riskData?.total_score ?? 0;
@@ -86,7 +82,7 @@ export function RiskProfileDetailScreen({ route, navigation }: any) {
   return (
     <ScrollView
       style={styles.root}
-      contentContainerStyle={[styles.content, { paddingTop: insets.top + 12 }]}
+      contentContainerStyle={[styles.content, { paddingTop: 12 }]}
     >
       {/* Header */}
       <View style={styles.headerRow}>
@@ -94,7 +90,6 @@ export function RiskProfileDetailScreen({ route, navigation }: any) {
           <Text style={styles.backArrow}>←</Text>
           <Text style={styles.backLabel}>Dashboard</Text>
         </Pressable>
-        <Text style={styles.signOut} onPress={signOut}>SIGN OUT</Text>
       </View>
 
       {venueName && <Text style={styles.venueName}>{venueName}</Text>}

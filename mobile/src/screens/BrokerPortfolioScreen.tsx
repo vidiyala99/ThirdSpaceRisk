@@ -11,7 +11,6 @@ import {
 } from 'react-native';
 import { useAuth } from '../contexts/AuthContext';
 import { api } from '../api/client';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const TIER_COLOR: Record<string, string> = {
   A: '#c8f000',
@@ -37,8 +36,7 @@ interface PortfolioVenue {
 }
 
 export function BrokerPortfolioScreen({ navigation }: any) {
-  const { user, signOut } = useAuth();
-  const insets = useSafeAreaInsets();
+  const { user } = useAuth();
   const [venues, setVenues] = useState<PortfolioVenue[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -83,12 +81,11 @@ export function BrokerPortfolioScreen({ navigation }: any) {
   return (
     <View style={styles.root}>
       {/* Header */}
-      <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
+      <View style={styles.header}>
         <View>
           <Text style={styles.name}>{user?.name}</Text>
           <Text style={styles.role}>BROKER · THIRDSPACE RISK</Text>
         </View>
-        <Text style={styles.signOut} onPress={signOut} accessibilityRole="button">SIGN OUT</Text>
       </View>
 
       {/* Stats bar: 3 cards */}

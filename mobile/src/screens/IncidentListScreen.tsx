@@ -8,9 +8,8 @@ import {
   Text,
   View,
 } from 'react-native';
-import { useAuth } from '../contexts/AuthContext';
 import * as Haptics from 'expo-haptics';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useAuth } from '../contexts/AuthContext';
 import { api } from '../api/client';
 import { StatusBadge } from '../components/StatusBadge';
 
@@ -23,9 +22,8 @@ const STATUS_ACCENT: Record<string, string> = {
 };
 
 export function IncidentListScreen({ navigation, route }: any) {
-  const { user, signOut } = useAuth();
+  const { user } = useAuth();
   const isBroker = user?.role === 'broker' || user?.role === 'admin';
-  const insets = useSafeAreaInsets();
   const [incidents, setIncidents] = useState<any[]>([]);
   const initialFilter: Filter = (route?.params?.initialFilter as Filter) ?? 'all';
   const [filter, setFilter] = useState<Filter>(initialFilter);
@@ -66,7 +64,7 @@ export function IncidentListScreen({ navigation, route }: any) {
 
   return (
     <View style={styles.root}>
-      <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
+      <View style={styles.header}>
         <View style={styles.titleRow}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
             <Text style={styles.title}>Incidents</Text>
@@ -74,17 +72,14 @@ export function IncidentListScreen({ navigation, route }: any) {
               <Text style={styles.countText}>{filtered.length}</Text>
             </View>
           </View>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-            {!isBroker && (
-              <Pressable
-                onPress={() => navigation.navigate('ReportIncident')}
-                style={styles.addBtn}
-              >
-                <Text style={styles.addBtnText}>+</Text>
-              </Pressable>
-            )}
-            <Text style={styles.signOut} onPress={signOut}>SIGN OUT</Text>
-          </View>
+          {!isBroker && (
+            <Pressable
+              onPress={() => navigation.navigate('ReportIncident')}
+              style={styles.addBtn}
+            >
+              <Text style={styles.addBtnText}>+</Text>
+            </Pressable>
+          )}
         </View>
         <View style={styles.filters}>
           {(['all', 'open', 'under_review', 'closed'] as Filter[]).map(f => {

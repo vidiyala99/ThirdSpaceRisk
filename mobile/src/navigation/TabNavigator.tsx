@@ -8,7 +8,7 @@ import { DashboardStack } from './DashboardStack';
 import { IncidentsStack } from './IncidentsStack';
 import { LiveStack } from './LiveStack';
 import { VenuesStack } from './VenuesStack';
-import { OperatorComplianceScreen } from '../screens/OperatorComplianceScreen';
+import { OperatorComplianceStack } from './OperatorComplianceStack';
 
 // Broker screens
 import { PortfolioStack } from './PortfolioStack';
@@ -51,41 +51,42 @@ function SignOutButton({ onPress }: { onPress: () => void }) {
   );
 }
 
-const screenOptions = {
-  headerShown: false,
-  tabBarStyle: {
-    backgroundColor: '#0a0b14',
-    borderTopColor: 'rgba(255,255,255,0.06)',
-    borderTopWidth: StyleSheet.hairlineWidth,
-    height: 64,
-    paddingBottom: 10,
-    paddingTop: 8,
-  },
-  tabBarActiveTintColor: '#c8f000',
-  tabBarInactiveTintColor: '#ffffff',
-  tabBarLabelStyle: {
-    fontSize: 10,
-    fontWeight: '700' as const,
-    letterSpacing: 0.5,
-    marginTop: 2,
-  },
+const tabBarStyle = {
+  backgroundColor: '#0a0b14',
+  borderTopColor: 'rgba(255,255,255,0.06)',
+  borderTopWidth: StyleSheet.hairlineWidth,
+  height: 64,
+  paddingBottom: 10,
+  paddingTop: 8,
+};
+
+const headerStyle = {
+  backgroundColor: '#07080f',
+  shadowOpacity: 0,
+  borderBottomWidth: 0,
+  elevation: 0,
 };
 
 function VenueOperatorTabs() {
   const { signOut } = useAuth();
   return (
     <Tab.Navigator screenOptions={({ route }) => ({
-      ...screenOptions,
-      headerShown: false,
-      tabBarIcon: ({ focused }) => (
-        <TabIcon name={route.name} focused={focused} />
-      ),
+      headerShown: true,
+      headerTitle: '',
+      headerStyle,
+      headerShadowVisible: false,
+      headerRight: () => <SignOutButton onPress={signOut} />,
+      tabBarStyle,
+      tabBarActiveTintColor: '#c8f000',
+      tabBarInactiveTintColor: '#ffffff',
+      tabBarLabelStyle: { fontSize: 10, fontWeight: '700' as const, letterSpacing: 0.5, marginTop: 2 },
+      tabBarIcon: ({ focused }) => <TabIcon name={route.name} focused={focused} />,
     })}>
       <Tab.Screen name="Dashboard" component={DashboardStack} />
       <Tab.Screen name="Venues" component={VenuesStack} />
       <Tab.Screen name="Incidents" component={IncidentsStack} />
       <Tab.Screen name="Live" component={LiveStack} />
-      <Tab.Screen name="Compliance" component={OperatorComplianceScreen} />
+      <Tab.Screen name="Compliance" component={OperatorComplianceStack} />
     </Tab.Navigator>
   );
 }
@@ -94,8 +95,15 @@ function BrokerTabs() {
   const { signOut } = useAuth();
   return (
     <Tab.Navigator screenOptions={({ route }) => ({
-      ...screenOptions,
-      headerShown: false,
+      headerShown: true,
+      headerTitle: '',
+      headerStyle,
+      headerShadowVisible: false,
+      headerRight: () => <SignOutButton onPress={signOut} />,
+      tabBarStyle,
+      tabBarActiveTintColor: '#c8f000',
+      tabBarInactiveTintColor: '#ffffff',
+      tabBarLabelStyle: { fontSize: 10, fontWeight: '700' as const, letterSpacing: 0.5, marginTop: 2 },
       tabBarIcon: ({ focused }) => <TabIcon name={route.name} focused={focused} />,
     })}>
       <Tab.Screen name="Portfolio" component={PortfolioStack} />

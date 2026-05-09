@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useTenantId, useAuth, useRole } from "@/contexts/AuthContext";
 import { toastSuccess, toastError } from "@/lib/toast";
@@ -221,7 +222,12 @@ export default function CompliancePage() {
         ) : (
           <div className="compliance-grid">
             {complianceItems.map((item) => (
-              <div key={item.id} className="compliance-card">
+              <Link
+                key={item.id}
+                href={`/compliance/${encodeURIComponent(detailVenueId!)}/${encodeURIComponent(item.id)}`}
+                className="compliance-card"
+                style={{ display: "block", textDecoration: "none", color: "inherit" }}
+              >
                 <div className="compliance-header">
                   <AlertCircle size={18} />
                   <span>{item.title || item.id.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase())}</span>
@@ -234,7 +240,14 @@ export default function CompliancePage() {
                   </span>
                 </div>
                 {!isBroker && (
-                  <div className="compliance-actions">
+                  // stopPropagation only — preventDefault would block the
+                  // label→input file picker activation (per HTML spec, a
+                  // click whose defaultPrevented is true on a label does
+                  // not forward to the associated input).
+                  <div
+                    className="compliance-actions"
+                    onClick={(e) => e.stopPropagation()}
+                  >
                     <input
                       type="file"
                       accept="video/*,image/*,application/pdf"
@@ -255,7 +268,7 @@ export default function CompliancePage() {
                     </label>
                   </div>
                 )}
-              </div>
+              </Link>
             ))}
           </div>
         )

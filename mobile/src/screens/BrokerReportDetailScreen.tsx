@@ -9,7 +9,6 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import { useAuth } from '../contexts/AuthContext';
 import { api } from '../api/client';
@@ -24,8 +23,7 @@ const CORROBORATION_COLOR: Record<string, string> = {
 
 export function BrokerReportDetailScreen({ route, navigation }: any) {
   const { packetId } = route.params;
-  const { signOut, user } = useAuth();
-  const insets = useSafeAreaInsets();
+  const { user } = useAuth();
 
   const [packet, setPacket] = useState<any>(null);
   const [incident, setIncident] = useState<any>(null);
@@ -81,14 +79,13 @@ export function BrokerReportDetailScreen({ route, navigation }: any) {
   const confidence = Math.round((packet.risk_signals?.confidence ?? 0) * 100);
 
   return (
-    <ScrollView style={styles.root} contentContainerStyle={[styles.content, { paddingTop: insets.top + 12 }]}>
+    <ScrollView style={styles.root} contentContainerStyle={[styles.content, { paddingTop: 12 }]}>
       {/* Header */}
       <View style={styles.headerRow}>
         <Pressable style={styles.backBtn} onPress={() => navigation.goBack()}>
           <Text style={styles.backArrow}>←</Text>
           <Text style={styles.backLabel}>Reports</Text>
         </Pressable>
-        <Text style={styles.signOut} onPress={signOut}>SIGN OUT</Text>
       </View>
 
       <Text style={styles.venueName}>

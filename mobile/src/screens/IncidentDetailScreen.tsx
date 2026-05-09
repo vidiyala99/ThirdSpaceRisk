@@ -8,7 +8,6 @@ import {
   Text,
   View,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import { api } from '../api/client';
 import { useAuth } from '../contexts/AuthContext';
@@ -40,8 +39,7 @@ const STATUS_TRANSITIONS: Record<string, { label: string; next: string; color: s
 
 export function IncidentDetailScreen({ route, navigation }: any) {
   const { incidentId } = route.params;
-  const { user, signOut } = useAuth();
-  const insets = useSafeAreaInsets();
+  const { user } = useAuth();
   const isBroker = user?.role === 'broker' || user?.role === 'admin';
 
   const [incident, setIncident] = useState<any>(null);
@@ -110,14 +108,13 @@ export function IncidentDetailScreen({ route, navigation }: any) {
   return (
     <ScrollView
       style={styles.root}
-      contentContainerStyle={[styles.content, { paddingTop: insets.top + 12 }]}
+      contentContainerStyle={[styles.content, { paddingTop: 12 }]}
     >
       <View style={styles.backRow}>
         <Pressable style={styles.backBtn} onPress={() => navigation.goBack()}>
           <Text style={styles.backArrow}>←</Text>
           <Text style={styles.backLabel}>Incidents</Text>
         </Pressable>
-        <Text style={styles.signOut} onPress={signOut}>SIGN OUT</Text>
       </View>
 
       {/* Header */}

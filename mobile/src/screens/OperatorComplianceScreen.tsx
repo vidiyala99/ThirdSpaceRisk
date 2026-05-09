@@ -28,7 +28,7 @@ interface ComplianceItem {
   priority: string;
 }
 
-export function OperatorComplianceScreen({ route }: any) {
+export function OperatorComplianceScreen({ navigation, route }: any) {
   const { user } = useAuth();
   const insets = useSafeAreaInsets();
   const [queue, setQueue] = useState<ComplianceItem[]>([]);
@@ -109,13 +109,26 @@ export function OperatorComplianceScreen({ route }: any) {
         queue.map(item => {
           const color = PRIORITY_COLOR[item.priority] ?? '#4a4f65';
           return (
-            <View key={item.id} style={[styles.card, { borderLeftColor: color }]}>
+            <Pressable
+              key={item.id}
+              style={({ pressed }) => [
+                styles.card,
+                { borderLeftColor: color },
+                pressed && { opacity: 0.75 },
+              ]}
+              onPress={() =>
+                navigation.navigate('ComplianceDetail', {
+                  venueId,
+                  itemId: item.id,
+                })
+              }
+            >
               <Text style={[styles.itemId, { color }]}>{item.id}</Text>
               <Text style={styles.itemAction}>{item.action}</Text>
               <View style={styles.cardFooter}>
                 <Text style={[styles.severity, { color }]}>{item.priority.toUpperCase()}</Text>
                 <Pressable
-                  onPress={() => handleUpload(item)}
+                  onPress={(e) => { e.stopPropagation(); handleUpload(item); }}
                   disabled={uploadingId === item.id}
                   style={({ pressed }) => [styles.uploadBtn, pressed && { opacity: 0.7 }]}
                 >
@@ -124,7 +137,7 @@ export function OperatorComplianceScreen({ route }: any) {
                   </Text>
                 </Pressable>
               </View>
-            </View>
+            </Pressable>
           );
         })
       )}

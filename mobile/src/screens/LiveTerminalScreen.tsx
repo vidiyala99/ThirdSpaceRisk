@@ -11,7 +11,6 @@ import * as ImagePicker from 'expo-image-picker';
 import * as Haptics from 'expo-haptics';
 import { api } from '../api/client';
 import { useAuth } from '../contexts/AuthContext';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CapacityBar } from '../components/CapacityBar';
 
 interface InfraItem {
@@ -55,8 +54,7 @@ const PRIORITY_COLOR: Record<string, string> = {
 };
 
 export function LiveTerminalScreen({ navigation }: any) {
-  const { user, signOut } = useAuth();
-  const insets = useSafeAreaInsets();
+  const { user } = useAuth();
   const [data, setData] = useState<LiveData | null>(null);
   const [riskData, setRiskData] = useState<any>(null);
   const [quoteData, setQuoteData] = useState<any>(null);
@@ -164,15 +162,12 @@ export function LiveTerminalScreen({ navigation }: any) {
   const capacityPct = data.current_capacity / data.max_capacity;
 
   return (
-    <ScrollView style={styles.root} contentContainerStyle={[styles.content, { paddingTop: insets.top + 12 }]}>
+    <ScrollView style={styles.root} contentContainerStyle={[styles.content, { paddingTop: 12 }]}>
       <View style={styles.topRow}>
         <Text style={styles.title}>Live Terminal</Text>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-          <View style={styles.livePill}>
-            <View style={styles.liveDot} />
-            <Text style={styles.liveText}>LIVE</Text>
-          </View>
-          <Text style={styles.signOut} onPress={signOut}>SIGN OUT</Text>
+        <View style={styles.livePill}>
+          <View style={styles.liveDot} />
+          <Text style={styles.liveText}>LIVE</Text>
         </View>
       </View>
 

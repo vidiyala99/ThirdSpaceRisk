@@ -10,7 +10,6 @@ import {
   View,
 } from 'react-native';
 import { useAuth } from '../contexts/AuthContext';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { api } from '../api/client';
 import { CapacityBar } from '../components/CapacityBar';
 
@@ -45,8 +44,7 @@ interface VenueSummary {
 }
 
 export function DashboardScreen({ navigation }: any) {
-  const { user, signOut } = useAuth();
-  const insets = useSafeAreaInsets();
+  const { user } = useAuth();
   const [riskData, setRiskData] = useState<RiskScore | null>(null);
   const [quoteData, setQuoteData] = useState<PremiumQuote | null>(null);
   const [openIncidents, setOpenIncidents] = useState<number>(0);
@@ -165,9 +163,6 @@ export function DashboardScreen({ navigation }: any) {
         <Text style={styles.brokerBody}>
           Use Portfolio tab to view all venues.
         </Text>
-        <Text style={styles.signOut} onPress={signOut} accessibilityRole="button">
-          SIGN OUT
-        </Text>
       </View>
     );
   }
@@ -188,7 +183,7 @@ export function DashboardScreen({ navigation }: any) {
   return (
     <ScrollView
       style={styles.root}
-      contentContainerStyle={[styles.content, { paddingTop: insets.top + 16 }]}
+      contentContainerStyle={[styles.content, { paddingTop: 16 }]}
       refreshControl={
         <RefreshControl
           refreshing={refreshing}
@@ -199,18 +194,13 @@ export function DashboardScreen({ navigation }: any) {
     >
       {/* Hero heading */}
       <View style={styles.heroSection}>
-        <View style={styles.heroTopRow}>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.heroHeading}>
-              Operational{' '}
-              <Text style={styles.heroAccent}>Defense</Text>
-            </Text>
-            <Text style={styles.heroSubtitle}>
-              Your operational data — your defense against premium hikes
-            </Text>
-          </View>
-          <Text style={styles.signOut} onPress={signOut} accessibilityRole="button">SIGN OUT</Text>
-        </View>
+        <Text style={styles.heroHeading}>
+          Operational{' '}
+          <Text style={styles.heroAccent}>Defense</Text>
+        </Text>
+        <Text style={styles.heroSubtitle}>
+          Your operational data — your defense against premium hikes
+        </Text>
       </View>
 
       {/* Venue switcher — only render when the operator has more than one venue */}
@@ -283,7 +273,10 @@ export function DashboardScreen({ navigation }: any) {
         {/* Compliance Actions */}
         <Pressable
           style={styles.statCard}
-          onPress={() => navigation.getParent()?.navigate('Compliance', { venueId: selectedVenueId })}
+          onPress={() => navigation.getParent()?.navigate('Compliance', {
+            screen: 'ComplianceList',
+            params: { venueId: selectedVenueId },
+          })}
         >
           <Text style={styles.statEyebrow}>COMPLIANCE</Text>
           <Text style={[styles.statValue, complianceCount > 0 && styles.statError]}>

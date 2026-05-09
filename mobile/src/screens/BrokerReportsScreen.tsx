@@ -9,9 +9,7 @@ import {
   View,
 } from 'react-native';
 
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { api } from '../api/client';
-import { useAuth } from '../contexts/AuthContext';
 
 type Filter = 'all' | 'needs_review' | 'approved' | 'blocked';
 
@@ -76,8 +74,6 @@ function EmptyState({ filter, totalPackets }: { filter: Filter; totalPackets: nu
 }
 
 export function BrokerReportsScreen({ navigation }: any) {
-  const { signOut } = useAuth();
-  const insets = useSafeAreaInsets();
   const [packets, setPackets] = useState<Packet[]>([]);
   const [filter, setFilter] = useState<Filter>('all');
   const [loading, setLoading] = useState(true);
@@ -116,7 +112,7 @@ export function BrokerReportsScreen({ navigation }: any) {
 
   if (loading) {
     return (
-      <View style={[styles.centered, { paddingTop: insets.top }]}>
+      <View style={styles.centered}>
         <ActivityIndicator color="#c8f000" size="large" />
       </View>
     );
@@ -125,13 +121,10 @@ export function BrokerReportsScreen({ navigation }: any) {
   return (
     <View style={styles.root}>
       {/* ── Header ── */}
-      <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
+      <View style={styles.header}>
         {/* Title row */}
         <View style={styles.titleRow}>
           <Text style={styles.title}>Reports</Text>
-          <Pressable onPress={signOut} hitSlop={10}>
-            <Text style={styles.signOut}>SIGN OUT</Text>
-          </Pressable>
         </View>
 
         {/* Stats bar: TOTAL | PENDING | HIGH/CRIT | APPROVED | BLOCKED */}

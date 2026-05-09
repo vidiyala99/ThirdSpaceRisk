@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useRole, useTenantId, useAuth } from "@/contexts/AuthContext";
 import { Building2, AlertTriangle, CheckSquare, LogOut, DollarSign, MapPin, ArrowRight, WifiOff } from "lucide-react";
 import Link from "next/link";
@@ -67,6 +67,7 @@ interface VenueSummary {
 
 export default function DashboardPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { signOut, isSignedIn, isLoaded, user } = useAuth();
   const role = useRole();
   const tenantId = useTenantId();
@@ -78,17 +79,13 @@ export default function DashboardPage() {
   const [quote, setQuote] = useState<PremiumQuote | null>(null);
   const [stats, setStats] = useState<Stats>({ venues: 0, incidents: 0, compliance: 0 });
 
-  // Multi-venue switcher (operator view): which venue's risk/quote/live data
-  // we're currently displaying. Defaults to primary tenant_id.
-  const [selectedVenueId, setSelectedVenueId] = useState<string | null>(null);
+  // Venue selection lives in the URL (?venue=<id>) so other pages and the
+  // sidebar can preserve it. Falls back to primary tenant_id when absent.
+  const venueParam = searchParams.get("venue");
+  const selectedVenueId = venueParam ?? tenantId ?? null;
   const [venuesList, setVenuesList] = useState<VenueSummary[]>([]);
 
   const isBroker = role === "broker" || role === "admin";
-
-  // Initialise the selection once tenant loads
-  useEffect(() => {
-    if (!selectedVenueId && tenantId) setSelectedVenueId(tenantId);
-  }, [tenantId, selectedVenueId]);
 
   // Load the venue list (primary + extras) for chip-row labels.
   useEffect(() => {
@@ -241,8 +238,8 @@ export default function DashboardPage() {
                   key={v.id}
                   onClick={() => {
                     if (v.id !== selectedVenueId) {
-                      setSelectedVenueId(v.id);
                       setLoading(true);
+                      router.replace(`/dashboard?venue=${encodeURIComponent(v.id)}`);
                     }
                   }}
                   style={{

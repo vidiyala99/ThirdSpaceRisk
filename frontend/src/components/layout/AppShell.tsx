@@ -2,7 +2,7 @@
 
 import { ReactNode, useState } from "react";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   LayoutDashboard,
   Building2,
@@ -29,30 +29,33 @@ const ROLE_LABELS: Record<string, string> = {
 export function AppShell({ children }: AppShellProps) {
   const pathname = usePathname();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { signOut, user } = useAuth();
   const role = useRole();
   const tenantId = useTenantId();
   const [mobileOpen, setMobileOpen] = useState(false);
 
-  // When the user is viewing a specific venue's terminal, the Incidents and
-  // Compliance links should keep that venue context so they don't get bounced
-  // to a global view.
+  // Resolve the active venue context so cross-page nav preserves the user's
+  // selection. Priority: explicit ?venue= query (set by dashboard switcher and
+  // /compliance/?incidents pages) > /terminal/<id> path > primary tenantId.
+  const queryVenueId = searchParams.get("venue");
   const terminalVenueMatch = pathname?.match(/^\/terminal\/([^/]+)/);
-  const contextVenueId = terminalVenueMatch?.[1];
-  const incidentsHref = contextVenueId
-    ? `/incidents?venue=${encodeURIComponent(contextVenueId)}`
-    : "/incidents";
-  const complianceHref = contextVenueId
-    ? `/compliance?venue=${encodeURIComponent(contextVenueId)}`
-    : "/compliance";
+  const pathVenueId = terminalVenueMatch?.[1];
+  const contextVenueId = queryVenueId ?? pathVenueId ?? tenantId ?? null;
+  const venueQuery = contextVenueId ? `?venue=${encodeURIComponent(contextVenueId)}` : "";
+
+  const dashboardHref = `/dashboard${venueQuery}`;
+  const incidentsHref = `/incidents${venueQuery}`;
+  const complianceHref = `/compliance${venueQuery}`;
+  const liveHref = contextVenueId ? `/terminal/${contextVenueId}` : "/terminal";
 
   // Operators with no tenant_id (mid-onboarding) shouldn't see a Live Terminal
   // link at all — better than silently routing them to someone else's venue.
   const navItems: Array<{ href: string; label: string; icon: typeof LayoutDashboard; roles?: string[] }> = [
-    { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+    { href: dashboardHref, label: "Dashboard", icon: LayoutDashboard },
     { href: "/underwriter", label: "Reports", icon: FileSearch, roles: ["broker", "admin"] },
     ...(tenantId
-      ? [{ href: `/terminal/${tenantId}`, label: "Live Terminal", icon: Activity, roles: ["venue_operator"] }]
+      ? [{ href: liveHref, label: "Live Terminal", icon: Activity, roles: ["venue_operator"] }]
       : []),
     { href: "/venues", label: "Venues", icon: Building2, roles: ["broker", "admin", "venue_operator"] },
     { href: incidentsHref, label: "Incidents", icon: AlertTriangle },

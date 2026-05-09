@@ -18,7 +18,6 @@ import * as ImagePicker from 'expo-image-picker';
 import * as Haptics from 'expo-haptics';
 import { api } from '../api/client';
 import { useAuth } from '../contexts/AuthContext';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 interface FormState {
   summary: string;
@@ -40,8 +39,7 @@ function formatDateTime(date: Date): string {
 }
 
 export function ReportIncidentScreen({ navigation }: { navigation: any }) {
-  const { user, signOut } = useAuth();
-  const insets = useSafeAreaInsets();
+  const { user } = useAuth();
   const [form, setForm] = useState<FormState>({
     summary: '',
     location: '',
@@ -157,18 +155,10 @@ export function ReportIncidentScreen({ navigation }: { navigation: any }) {
   return (
     <KeyboardAvoidingView style={styles.root} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
       <ScrollView
-        contentContainerStyle={[styles.content, { paddingTop: insets.top + 12 }]}
+        contentContainerStyle={[styles.content, { paddingTop: 12 }]}
         keyboardShouldPersistTaps="handled"
       >
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 32 }}>
-          <Text style={[styles.heading, { marginBottom: 0 }]}>Report{'\n'}Incident</Text>
-          <Text
-            style={{ color: '#8b90a8', fontSize: 10, fontWeight: '700', letterSpacing: 1.5, paddingTop: 8, fontFamily: 'JetBrainsMono_700Bold' }}
-            onPress={signOut}
-          >
-            SIGN OUT
-          </Text>
-        </View>
+        <Text style={styles.heading}>Report{'\n'}Incident</Text>
 
         {/* ── DATE & TIME ── */}
         <View style={styles.fieldGroup}>
