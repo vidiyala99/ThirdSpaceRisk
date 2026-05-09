@@ -244,7 +244,9 @@ class UnderwritingPacketAgentRuntime:
     ) -> UnderwritingMemo:
         # Try the configured provider; fall back to deterministic so a transient
         # LLM hiccup (network, rate limit, malformed JSON) never blocks an
-        # incident from getting a packet.
+        # incident from getting a packet. Capture the failure reason so it's
+        # visible in the response (and not just buried in logs).
+        fallback_reason: str | None = None
         try:
             memo_output = self._memo_provider.draft_memo(
                 incident_summary=incident.summary,
@@ -256,11 +258,9 @@ class UnderwritingPacketAgentRuntime:
             )
         except Exception as exc:
             import logging
-            logging.warning(
-                "Memo provider %s failed (%s); falling back to deterministic.",
-                getattr(self._memo_provider, "provider_name", "unknown"),
-                exc.__class__.__name__,
-            )
+            primary_provider = getattr(self._memo_provider, "provider_name", "unknown")
+            fallback_reason = f"{primary_provider} failed: {exc.__class__.__name__}: {str(exc)[:200]}"
+            logging.warning("Memo: %s — falling back to deterministic.", fallback_reason)
             from app.providers.deterministic import DeterministicProvider
             memo_output = DeterministicProvider().draft_memo(
                 incident_summary=incident.summary,
@@ -277,6 +277,7 @@ class UnderwritingPacketAgentRuntime:
             citations=citations,
             provider=memo_output.provider,
             model=memo_output.model,
+            fallback_reason=fallback_reason,
         )
 
 

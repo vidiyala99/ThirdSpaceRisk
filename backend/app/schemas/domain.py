@@ -52,6 +52,7 @@ class UnderwritingMemo(BaseModel):
     citations: List[Citation]
     provider: Optional[str] = None  # e.g. "gemini/gemini-2.5-flash" or "deterministic/template-v1"
     model: Optional[str] = None
+    fallback_reason: Optional[str] = None  # populated when LLM call failed and we fell back
 
 class InfrastructureItem(BaseModel):
     name: str
