@@ -6,9 +6,11 @@ VENUES = {
         "address": "599 Johnson Ave, Brooklyn, NY 11237",
         "current_carrier": "Admitted Market A",
         "renewal_date": "2026-10-15",
-        # Scoring attributes
-        "incident_count": 6,
-        "compliance_items": 2,
+        # Scoring attributes — underwriter view of 12-month claim history.
+        # Intentionally decoupled from SEED_INCIDENTS / seed_compliance below,
+        # which represent the operator's recent active queue.
+        "incident_count": 2,
+        "compliance_items": 1,
         "security_level": "high",
         "years_in_operation": 12,
         "prior_carrier": "Admitted Market A",
