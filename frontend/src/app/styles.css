@@ -1329,6 +1329,22 @@ a:hover { color: var(--text-primary); }
   align-items: center;
   justify-content: center;
   padding: var(--space-lg);
+  overflow-y: auto;
+}
+
+@media (max-width: 640px) {
+  .incident-modal-backdrop {
+    align-items: flex-start;
+    padding: var(--space-sm);
+    padding-top: calc(var(--space-sm) + env(safe-area-inset-top, 0px));
+  }
+
+  .incident-form {
+    padding: var(--space-md);
+    max-height: none !important;
+    overflow-y: visible !important;
+    border-radius: var(--radius-md);
+  }
 }
 
 .incident-form-header {

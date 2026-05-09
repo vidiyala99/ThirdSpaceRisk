@@ -147,30 +147,33 @@ async def lifespan(app: FastAPI):
                     print(f"[REHYDRATE] Loaded venue {v.id} from DB")
                 except Exception:
                     pass
-        # Reseed incidents if DB has no seed incidents (fresh start or after reset)
-        existing_count = session.exec(select(func.count(IncidentRecord.id))).one()
-        if existing_count == 0:
-            print(f"[SEED] Inserting {len(SEED_INCIDENTS)} seed incidents...")
-            for raw in SEED_INCIDENTS:
-                from uuid import uuid4
-                from datetime import datetime
-                occurred = raw["occurred_at"]
-                if isinstance(occurred, str):
-                    occurred = datetime.fromisoformat(occurred)
-                session.add(IncidentRecord(
-                    id=f"inc-{raw['venue_id']}-{uuid4().hex[:12]}",
-                    venue_id=raw["venue_id"],
-                    occurred_at=occurred,
-                    location=raw["location"],
-                    summary=raw["summary"],
-                    reported_by=raw["reported_by"],
-                    injury_observed=raw["injury_observed"],
-                    police_called=raw["police_called"],
-                    ems_called=raw["ems_called"],
-                    status="open",
-                ))
+        # Upsert seed incidents using deterministic IDs so new entries
+        # are added on deploy without re-seeding the whole table.
+        from datetime import datetime as _dt
+        inserted = 0
+        for idx, raw in enumerate(SEED_INCIDENTS):
+            seed_id = f"seed-{raw['venue_id']}-{idx:03d}"
+            if session.get(IncidentRecord, seed_id):
+                continue
+            occurred = raw["occurred_at"]
+            if isinstance(occurred, str):
+                occurred = _dt.fromisoformat(occurred)
+            session.add(IncidentRecord(
+                id=seed_id,
+                venue_id=raw["venue_id"],
+                occurred_at=occurred,
+                location=raw["location"],
+                summary=raw["summary"],
+                reported_by=raw["reported_by"],
+                injury_observed=raw["injury_observed"],
+                police_called=raw["police_called"],
+                ems_called=raw["ems_called"],
+                status=raw.get("status", "open"),
+            ))
+            inserted += 1
+        if inserted:
             session.commit()
-            print("[SEED] Done.")
+            print(f"[SEED] Inserted {inserted} new seed incident(s).")
         # Backfill packets for any incidents that don't have one yet
         _backfill_incident_packets(session)
     yield

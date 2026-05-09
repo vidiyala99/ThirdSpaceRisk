@@ -7,8 +7,9 @@ class LiveStateManager:
     def get_state(self, venue_id: str, max_capacity: int, venue_data: dict | None = None) -> LiveVenueState:
         if venue_id not in self._states:
             seeded_capacity = int(max_capacity * 0.93)
+            vd = venue_data or {}
             # Use venue-specific infrastructure if available, else a generic fallback
-            raw_infra = (venue_data or {}).get("infrastructure", [
+            raw_infra = vd.get("infrastructure", [
                 {"name": "DOOR_ID_SCANNER", "status": "ACTIVE", "detail": "[ONLINE]", "is_degraded": False},
             ])
             infrastructure = [
@@ -20,13 +21,23 @@ class LiveStateManager:
                 )
                 for item in raw_infra
             ]
+            # Pre-seed compliance items defined in venue seed data (demo use)
+            seed_compliance = [
+                ComplianceItem(
+                    id=c["id"],
+                    title=c["title"],
+                    description=c["description"],
+                    severity=c["severity"],
+                )
+                for c in vd.get("seed_compliance", [])
+            ]
             self._states[venue_id] = LiveVenueState(
                 venue_id=venue_id,
                 current_capacity=seeded_capacity,
                 max_capacity=max_capacity,
                 premium_impact=0.0,
                 infrastructure=infrastructure,
-                compliance_queue=[]
+                compliance_queue=seed_compliance,
             )
         return self._states[venue_id]
 

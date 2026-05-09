@@ -10,6 +10,7 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
 
 interface ComplianceItem {
   id: string;
+  title?: string;
   description: string;
   severity: string;
 }
@@ -223,7 +224,7 @@ export default function CompliancePage() {
               <div key={item.id} className="compliance-card">
                 <div className="compliance-header">
                   <AlertCircle size={18} />
-                  <span>{item.description || item.id.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase())}</span>
+                  <span>{item.title || item.id.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase())}</span>
                 </div>
                 <p className="compliance-desc">{item.description}</p>
                 <div className="compliance-meta">
