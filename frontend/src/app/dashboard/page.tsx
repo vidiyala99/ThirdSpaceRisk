@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useRole, useTenantId, useAuth } from "@/contexts/AuthContext";
 import { Building2, AlertTriangle, CheckSquare, LogOut, DollarSign, MapPin, ArrowRight, WifiOff } from "lucide-react";
@@ -66,6 +66,14 @@ interface VenueSummary {
 }
 
 export default function DashboardPage() {
+  return (
+    <Suspense fallback={<div className="theme-venue min-h-screen page-loading"><div className="loading-spinner" /></div>}>
+      <DashboardPageInner />
+    </Suspense>
+  );
+}
+
+function DashboardPageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { signOut, isSignedIn, isLoaded, user } = useAuth();

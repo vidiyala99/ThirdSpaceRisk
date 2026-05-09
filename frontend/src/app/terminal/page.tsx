@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect } from "react";
+import { Suspense, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth, useTenantId } from "@/contexts/AuthContext";
 
-export default function TerminalRedirect() {
+function TerminalRedirectInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { isSignedIn, isLoaded } = useAuth();
@@ -22,4 +22,13 @@ export default function TerminalRedirect() {
   }, [isLoaded, isSignedIn, tenantId, venueParam, router]);
 
   return <div className="page-loading"><div className="loading-spinner" /></div>;
+}
+
+// Wrap in Suspense so static prerender doesn't bail out on useSearchParams().
+export default function TerminalRedirect() {
+  return (
+    <Suspense fallback={<div className="page-loading"><div className="loading-spinner" /></div>}>
+      <TerminalRedirectInner />
+    </Suspense>
+  );
 }

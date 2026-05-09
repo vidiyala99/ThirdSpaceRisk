@@ -1,6 +1,6 @@
 "use client";
 
-import { ReactNode, useState } from "react";
+import { ReactNode, Suspense, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
@@ -26,45 +26,74 @@ const ROLE_LABELS: Record<string, string> = {
   venue_operator: "Venue Operator",
 };
 
-export function AppShell({ children }: AppShellProps) {
-  const pathname = usePathname();
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const { signOut, user } = useAuth();
-  const role = useRole();
-  const tenantId = useTenantId();
-  const [mobileOpen, setMobileOpen] = useState(false);
+interface NavLinksProps {
+  role: string | null;
+  tenantId: string | null;
+  onNavigate: () => void;
+}
 
-  // Resolve the active venue context so cross-page nav preserves the user's
-  // selection. Priority: explicit ?venue= query (set by dashboard switcher and
-  // /compliance/?incidents pages) > /terminal/<id> path > primary tenantId.
+// Reads useSearchParams() — must be wrapped in <Suspense> by the caller, or
+// any page that goes through this layout will fail static prerender.
+function NavLinks({ role, tenantId, onNavigate }: NavLinksProps) {
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
+  // Priority: ?venue= query (set by dashboard switcher and /compliance,
+  // /incidents pages) > /terminal/<id> path > primary tenantId.
   const queryVenueId = searchParams.get("venue");
   const terminalVenueMatch = pathname?.match(/^\/terminal\/([^/]+)/);
   const pathVenueId = terminalVenueMatch?.[1];
   const contextVenueId = queryVenueId ?? pathVenueId ?? tenantId ?? null;
   const venueQuery = contextVenueId ? `?venue=${encodeURIComponent(contextVenueId)}` : "";
 
-  const dashboardHref = `/dashboard${venueQuery}`;
-  const incidentsHref = `/incidents${venueQuery}`;
-  const complianceHref = `/compliance${venueQuery}`;
-  const liveHref = contextVenueId ? `/terminal/${contextVenueId}` : "/terminal";
-
-  // Operators with no tenant_id (mid-onboarding) shouldn't see a Live Terminal
-  // link at all — better than silently routing them to someone else's venue.
   const navItems: Array<{ href: string; label: string; icon: typeof LayoutDashboard; roles?: string[] }> = [
-    { href: dashboardHref, label: "Dashboard", icon: LayoutDashboard },
+    { href: `/dashboard${venueQuery}`, label: "Dashboard", icon: LayoutDashboard },
     { href: "/underwriter", label: "Reports", icon: FileSearch, roles: ["broker", "admin"] },
     ...(tenantId
-      ? [{ href: liveHref, label: "Live Terminal", icon: Activity, roles: ["venue_operator"] }]
+      ? [{
+          href: contextVenueId ? `/terminal/${contextVenueId}` : "/terminal",
+          label: "Live Terminal",
+          icon: Activity,
+          roles: ["venue_operator"],
+        }]
       : []),
     { href: "/venues", label: "Venues", icon: Building2, roles: ["broker", "admin", "venue_operator"] },
-    { href: incidentsHref, label: "Incidents", icon: AlertTriangle },
-    { href: complianceHref, label: "Compliance", icon: CheckSquare },
+    { href: `/incidents${venueQuery}`, label: "Incidents", icon: AlertTriangle },
+    { href: `/compliance${venueQuery}`, label: "Compliance", icon: CheckSquare },
   ];
 
-  const filteredNav = navItems.filter(
+  const filtered = navItems.filter(
     (item) => !item.roles || item.roles.includes(role || "")
   );
+
+  return (
+    <>
+      {filtered.map((item) => {
+        const Icon = item.icon;
+        const itemPath = item.href.split("?")[0];
+        const isActive = pathname === itemPath || pathname?.startsWith(itemPath + "/");
+        return (
+          <Link
+            key={item.label}
+            href={item.href}
+            className={`sidebar-nav-item ${isActive ? "active" : ""}`}
+            onClick={onNavigate}
+          >
+            <Icon size={18} />
+            <span>{item.label}</span>
+          </Link>
+        );
+      })}
+    </>
+  );
+}
+
+export function AppShell({ children }: AppShellProps) {
+  const router = useRouter();
+  const { signOut, user } = useAuth();
+  const role = useRole();
+  const tenantId = useTenantId();
+  const [mobileOpen, setMobileOpen] = useState(false);
 
   const handleSignOut = () => {
     signOut();
@@ -73,44 +102,33 @@ export function AppShell({ children }: AppShellProps) {
 
   const sidebarContent = (
     <>
-        <div className="sidebar-brand">
-          <h1>Third Space</h1>
-          <p>Risk OS</p>
-          <span className="sidebar-mission">Keep venues alive.</span>
-        </div>
+      <div className="sidebar-brand">
+        <h1>Third Space</h1>
+        <p>Risk OS</p>
+        <span className="sidebar-mission">Keep venues alive.</span>
+      </div>
 
-        <div className="sidebar-user">
-          <span className="user-name">{user?.name}</span>
-          <span className="user-role">{ROLE_LABELS[user?.role ?? ""] ?? user?.role}</span>
-        </div>
+      <div className="sidebar-user">
+        <span className="user-name">{user?.name}</span>
+        <span className="user-role">{ROLE_LABELS[user?.role ?? ""] ?? user?.role}</span>
+      </div>
 
-        <nav className="sidebar-nav">
-          {filteredNav.map((item) => {
-            const Icon = item.icon;
-            // Compare against the path portion only — query strings (e.g. ?venue=)
-            // shouldn't break the active state.
-            const itemPath = item.href.split("?")[0];
-            const isActive = pathname === itemPath || pathname?.startsWith(itemPath + "/");
-            return (
-              <Link
-                key={item.label}
-                href={item.href}
-                className={`sidebar-nav-item ${isActive ? "active" : ""}`}
-                onClick={() => setMobileOpen(false)}
-              >
-                <Icon size={18} />
-                <span>{item.label}</span>
-              </Link>
-            );
-          })}
-        </nav>
+      <nav className="sidebar-nav">
+        <Suspense fallback={null}>
+          <NavLinks
+            role={role}
+            tenantId={tenantId}
+            onNavigate={() => setMobileOpen(false)}
+          />
+        </Suspense>
+      </nav>
 
-        <div className="sidebar-footer">
-          <button onClick={handleSignOut} className="sidebar-nav-item">
-            <LogOut size={18} />
-            <span>Sign Out</span>
-          </button>
-        </div>
+      <div className="sidebar-footer">
+        <button onClick={handleSignOut} className="sidebar-nav-item">
+          <LogOut size={18} />
+          <span>Sign Out</span>
+        </button>
+      </div>
     </>
   );
 

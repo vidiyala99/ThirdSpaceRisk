@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useTenantId, useAuth, useRole } from "@/contexts/AuthContext";
@@ -24,6 +24,14 @@ interface VenueWithCompliance {
 }
 
 export default function CompliancePage() {
+  return (
+    <Suspense fallback={<div className="page-loading"><div className="loading-spinner" /></div>}>
+      <CompliancePageInner />
+    </Suspense>
+  );
+}
+
+function CompliancePageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { isSignedIn, isLoaded } = useAuth();
