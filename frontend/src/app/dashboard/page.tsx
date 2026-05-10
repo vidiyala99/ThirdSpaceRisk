@@ -3,7 +3,7 @@
 import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useRole, useTenantId, useAuth } from "@/contexts/AuthContext";
-import { Building2, AlertTriangle, CheckSquare, LogOut, DollarSign, MapPin, ArrowRight, WifiOff } from "lucide-react";
+import { Building2, AlertTriangle, CheckSquare, LogOut, DollarSign, MapPin, ArrowRight, WifiOff, Search } from "lucide-react";
 import Link from "next/link";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
@@ -86,6 +86,7 @@ function DashboardPageInner() {
   const [riskScore, setRiskScore] = useState<RiskScore | null>(null);
   const [quote, setQuote] = useState<PremiumQuote | null>(null);
   const [stats, setStats] = useState<Stats>({ venues: 0, incidents: 0, compliance: 0 });
+  const [searchQuery, setSearchQuery] = useState("");
 
   // Venue selection lives in the URL (?venue=<id>) so other pages and the
   // sidebar can preserve it. Falls back to primary tenant_id when absent.
@@ -94,6 +95,15 @@ function DashboardPageInner() {
   const [venuesList, setVenuesList] = useState<VenueSummary[]>([]);
 
   const isBroker = role === "broker" || role === "admin";
+
+  const filteredPortfolioVenues = searchQuery.trim()
+    ? portfolioVenues.filter(v => {
+        const q = searchQuery.toLowerCase();
+        return v.name.toLowerCase().includes(q)
+          || v.address?.toLowerCase().includes(q)
+          || v.venue_type?.toLowerCase().includes(q);
+      })
+    : portfolioVenues;
 
   // Load the venue list (primary + extras) for chip-row labels.
   useEffect(() => {
@@ -331,14 +341,32 @@ function DashboardPageInner() {
       {/* Broker: venue portfolio grid */}
       {isBroker && (
         <>
-          <h2 className="text-xs uppercase tracking-wide text-secondary mb-lg">
-            Portfolio — {portfolioVenues.length} Venues
-          </h2>
-          <div className="stagger-children" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(440px, 100%), 1fr))', gap: 'var(--space-md)' }}>
-            {portfolioVenues.map((venue) => (
-              <VenuePortfolioCard key={venue.id} venue={venue} />
-            ))}
+          <div className="flex justify-between items-end mb-lg" style={{ gap: "var(--space-md)", flexWrap: "wrap" }}>
+            <h2 className="text-xs uppercase tracking-wide text-secondary">
+              Portfolio — {searchQuery.trim() ? `${filteredPortfolioVenues.length} of ${portfolioVenues.length}` : portfolioVenues.length} Venues
+            </h2>
+            <div style={{ position: "relative", minWidth: 240, flex: "0 1 320px" }}>
+              <Search size={15} style={{ position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)", color: "var(--text-tertiary)", pointerEvents: "none" }} />
+              <input
+                className="input-field"
+                placeholder="Search venues..."
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                style={{ paddingLeft: 38 }}
+              />
+            </div>
           </div>
+          {filteredPortfolioVenues.length === 0 && searchQuery.trim() ? (
+            <div className="card" style={{ padding: "var(--space-xl)", textAlign: "center" }}>
+              <p className="text-secondary">No venues match &ldquo;{searchQuery}&rdquo;</p>
+            </div>
+          ) : (
+            <div className="stagger-children" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(440px, 100%), 1fr))', gap: 'var(--space-md)' }}>
+              {filteredPortfolioVenues.map((venue) => (
+                <VenuePortfolioCard key={venue.id} venue={venue} />
+              ))}
+            </div>
+          )}
         </>
       )}
 

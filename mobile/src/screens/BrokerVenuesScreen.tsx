@@ -6,6 +6,7 @@ import {
   RefreshControl,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -27,6 +28,16 @@ export function BrokerVenuesScreen({ navigation }: any) {
   const [venues, setVenues] = useState<Venue[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const filteredVenues = searchQuery.trim()
+    ? venues.filter(v => {
+        const q = searchQuery.toLowerCase();
+        return v.name.toLowerCase().includes(q)
+          || v.address?.toLowerCase().includes(q)
+          || v.venue_type?.toLowerCase().includes(q);
+      })
+    : venues;
 
   const fetchVenues = useCallback(async () => {
     try {
@@ -53,10 +64,27 @@ export function BrokerVenuesScreen({ navigation }: any) {
         <Text style={styles.title}>Venues</Text>
       </View>
 
-      <Text style={styles.sectionEyebrow}>{venues.length} VENUES</Text>
+      <View style={styles.searchWrap}>
+        <Text style={styles.searchIcon}>⌕</Text>
+        <TextInput
+          style={styles.searchInput}
+          placeholder="Search venues..."
+          placeholderTextColor="#4a4f65"
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+          autoCorrect={false}
+          autoCapitalize="none"
+        />
+      </View>
+
+      <Text style={styles.sectionEyebrow}>
+        {searchQuery.trim()
+          ? `${filteredVenues.length} OF ${venues.length} VENUES`
+          : `${venues.length} VENUES`}
+      </Text>
 
       <FlatList
-        data={venues}
+        data={filteredVenues}
         keyExtractor={item => item.id}
         contentContainerStyle={styles.list}
         refreshControl={
@@ -91,8 +119,14 @@ export function BrokerVenuesScreen({ navigation }: any) {
         )}
         ListEmptyComponent={
           <View style={styles.empty}>
-            <Text style={styles.emptyTitle}>No venues</Text>
-            <Text style={styles.emptySub}>Portfolio is empty.</Text>
+            <Text style={styles.emptyTitle}>
+              {searchQuery.trim() ? 'No matches' : 'No venues'}
+            </Text>
+            <Text style={styles.emptySub}>
+              {searchQuery.trim()
+                ? `No venues match "${searchQuery}".`
+                : 'Portfolio is empty.'}
+            </Text>
           </View>
         }
       />
@@ -107,6 +141,28 @@ const styles = StyleSheet.create({
   header: { paddingHorizontal: 20, paddingBottom: 16 },
   eyebrow: { color: '#4a4f65', fontSize: 10, fontWeight: '700', letterSpacing: 2, fontFamily: 'JetBrainsMono_700Bold', marginBottom: 4 },
   title: { color: '#eeeef5', fontSize: 32, fontWeight: '800', letterSpacing: -1, fontFamily: 'CormorantGaramond_700Bold' },
+
+  searchWrap: {
+    marginHorizontal: 20,
+    marginBottom: 16,
+    backgroundColor: '#0d0f1c',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255,255,255,0.07)',
+    borderRadius: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 14,
+    height: 44,
+    gap: 10,
+  },
+  searchIcon: { color: '#4a4f65', fontSize: 18 },
+  searchInput: {
+    flex: 1,
+    color: '#eeeef5',
+    fontSize: 14,
+    fontFamily: 'DMSans_400Regular',
+    paddingVertical: 0,
+  },
 
   sectionEyebrow: { color: '#4a4f65', fontSize: 10, fontWeight: '700', letterSpacing: 2, paddingHorizontal: 20, marginBottom: 12, fontFamily: 'JetBrainsMono_700Bold' },
 
