@@ -146,6 +146,34 @@ _SCENARIO_OVERRIDES: dict[str, dict[str, Any]] = {
         "police_called": True,
         "ems_called": False,
     },
+    "SCENARIO-012-CAPACITY-CREEP-SLIP": {
+        "summary": "Patron slipped and fell in main corridor with documented overcapacity, 250 patrons in zone exceeding posted limit",
+        "location": "main-corridor",
+        "injury_observed": True,
+        "police_called": False,
+        "ems_called": False,
+    },
+    "SCENARIO-013-ALLERGIC-REACTION-DELAYED": {
+        "summary": "Patron showed acute respiratory distress consistent with allergic reaction at main bar, staff delayed calling EMS for several minutes",
+        "location": "main-bar",
+        "injury_observed": True,
+        "police_called": False,
+        "ems_called": True,
+    },
+    "SCENARIO-014-KITCHEN-FIRE-CONTAINED": {
+        "summary": "Small kitchen fire behind the line, staff deployed extinguisher within 30 seconds, no evacuation required, no injuries reported",
+        "location": "kitchen",
+        "injury_observed": False,
+        "police_called": False,
+        "ems_called": False,
+    },
+    "SCENARIO-015-FORESEEABLE-THIRD-PARTY": {
+        "summary": "Patron physically assaulted at rear exit, three prior similar assaults documented in 60 days, no security staff detected in zone",
+        "location": "rear-exit",
+        "injury_observed": True,
+        "police_called": True,
+        "ems_called": False,
+    },
 }
 
 

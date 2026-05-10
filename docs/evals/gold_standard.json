@@ -681,5 +681,168 @@
       "aggravating_factors": ["off_premises_advertised_security", "foreseeable_third_party_assault", "absent_security_in_zone"],
       "mitigating_factors": []
     }
+  },
+  {
+    "scenario_id": "SCENARIO-012-CAPACITY-CREEP-SLIP",
+    "schema_version": 2,
+    "exposure_class": "premises_liability",
+    "difficulty": "hard",
+    "scenario_type": "subtle_catastrophic",
+    "provenance": {
+      "policy_clauses": [
+        "shared-policy-premises-liability (safe conditions, lighting, signage)",
+        "Section 3.2 Staffing Minimums (peak hours 1:100)",
+        "shared-policy-duty-of-care"
+      ],
+      "industry_pattern": "Capacity-overage cases dramatically increase exposure when combined with documented hazards; courts treat capacity-creep as evidence of negligence in maintaining safe ingress/egress",
+      "rationale": "Probes whether the agent recognizes capacity overage as an *aggravator* on top of a routine slip-and-fall. A simple slip is medium severity; the same slip with documented overcapacity in the zone should escalate to high."
+    },
+    "description": "Camera detects 250 patrons in the main corridor — substantially above posted capacity. A patron slips in the same corridor moments later.",
+    "input_events": [
+      {
+        "event_id": "EV-CAM-019",
+        "source_type": "camera",
+        "timestamp": "2026-05-06T23:50:00Z",
+        "payload": { "zone_id": "main-corridor", "person_count": 250, "aggression_score": 0.0, "detections": [{"label": "capacity-exceeded", "confidence": 0.94, "box": [0,0,1,1]}] }
+      },
+      {
+        "event_id": "EV-CAM-020",
+        "source_type": "camera",
+        "timestamp": "2026-05-06T23:50:48Z",
+        "payload": { "zone_id": "main-corridor", "detections": [{"label": "patron-slip-fall", "confidence": 0.91, "box": [0,0,1,1]}] }
+      }
+    ],
+    "ideal_output": {
+      "risk_level": "high",
+      "risk_score": 70,
+      "underwriting_memo": "Premises liability with capacity aggravator at Main Corridor. Camera detects 250 patrons in zone at 23:50:00 (confidence 0.94 on capacity-exceeded detection) — overcrowding the corridor's intended throughput. A patron slip-and-fall occurs 48 seconds later in the same zone (confidence 0.91). Capacity overage compounds the routine premises liability; courts treat documented overcapacity as evidence of negligent ingress/egress management.",
+      "mandatory_citations": ["EV-CAM-019", "EV-CAM-020"],
+      "rubrics_triggered": ["Capacity Overage Aggravator"],
+      "expected_review_status": "needs_review",
+      "aggravating_factors": ["capacity_exceeded", "overcrowded_corridor", "patron_injury"],
+      "mitigating_factors": []
+    }
+  },
+  {
+    "scenario_id": "SCENARIO-013-ALLERGIC-REACTION-DELAYED",
+    "schema_version": 2,
+    "exposure_class": "medical_emergency",
+    "difficulty": "hard",
+    "scenario_type": "subtle_catastrophic",
+    "provenance": {
+      "policy_clauses": [
+        "shared-compliance-medical-response (Failure to call EMS for an unresponsive patron constitutes negligence and voids medical expense coverage)",
+        "shared-policy-duty-of-care"
+      ],
+      "industry_pattern": "Anaphylaxis and respiratory-distress cases drive catastrophic verdicts when EMS is delayed beyond ~3 minutes; same legal posture as overdose-EMS-delay but with a presentation that staff may dismiss as drunkenness",
+      "rationale": "Probes the same delay-as-aggravator structure as SCENARIO-007, but with a more ambiguous presentation (respiratory distress can be mistaken for intoxication). Tests that the agent treats the *delay* as the catastrophic trigger regardless of how the patron looks."
+    },
+    "description": "A patron at the main bar shows visible respiratory distress consistent with an allergic reaction. Staff observe but EMS dispatch is not initiated for several minutes.",
+    "input_events": [
+      {
+        "event_id": "EV-CAM-021",
+        "source_type": "camera",
+        "timestamp": "2026-05-07T00:22:00Z",
+        "payload": { "zone_id": "main-bar", "detections": [{"label": "patron-respiratory-distress", "confidence": 0.89, "box": [0,0,1,1]}] }
+      },
+      {
+        "event_id": "EV-CAM-022",
+        "source_type": "camera",
+        "timestamp": "2026-05-07T00:25:18Z",
+        "payload": { "zone_id": "main-bar", "detections": [{"label": "staff-bystander-no-ems-call", "confidence": 0.83, "box": [0,0,1,1]}] }
+      }
+    ],
+    "ideal_output": {
+      "risk_level": "critical",
+      "risk_score": 92,
+      "underwriting_memo": "Critical medical emergency at Main Bar. Camera detects patron respiratory distress at 00:22:00 (confidence 0.89). At 00:25:18 — three minutes 18 seconds later — staff are visible in the zone with no EMS dispatch detected. Anaphylaxis presentations can resemble intoxication, but the duty-of-care standard requires EMS for any patron showing acute distress; failure triggers shared-compliance-medical-response.",
+      "mandatory_citations": ["EV-CAM-021", "EV-CAM-022"],
+      "rubrics_triggered": ["Duty of Care — Medical Response"],
+      "expected_review_status": "needs_review",
+      "aggravating_factors": ["allergic_reaction_signal", "delayed_ems_response", "staff_present_no_action"],
+      "mitigating_factors": []
+    }
+  },
+  {
+    "scenario_id": "SCENARIO-014-KITCHEN-FIRE-CONTAINED",
+    "schema_version": 2,
+    "exposure_class": "property_damage",
+    "difficulty": "easy",
+    "scenario_type": "mitigating_factor_bait",
+    "provenance": {
+      "policy_clauses": [
+        "Section 1.1 BI/PD Liability",
+        "shared-compliance-camera-retention (footage preservation)",
+        "Section IV Mitigation Factors (proactive containment evidence)"
+      ],
+      "industry_pattern": "Quickly contained kitchen fires with documented suppression and no evacuation typically resolve as low-severity property events; carriers reward documented response speed",
+      "rationale": "Probes over-classification on property damage. The 'fire' keyword tempts severity escalation; the documented mitigation (extinguisher within 30 seconds, no evacuation, no injuries) should drop severity to low and review_status to approved. Mirrors SCENARIO-003's structure for crowd_management."
+    },
+    "description": "Camera detects flames behind the kitchen line. Staff deploy an extinguisher within 30 seconds and the fire does not spread. No injuries; no evacuation required.",
+    "input_events": [
+      {
+        "event_id": "EV-CAM-023",
+        "source_type": "camera",
+        "timestamp": "2026-05-07T19:48:00Z",
+        "payload": { "zone_id": "kitchen", "detections": [{"label": "flames-behind-line", "confidence": 0.88, "box": [0,0,1,1]}] }
+      },
+      {
+        "event_id": "EV-CAM-024",
+        "source_type": "camera",
+        "timestamp": "2026-05-07T19:48:24Z",
+        "payload": { "zone_id": "kitchen", "detections": [{"label": "extinguisher-deployed", "confidence": 0.86, "box": [0,0,1,1]}] }
+      }
+    ],
+    "ideal_output": {
+      "risk_level": "low",
+      "risk_score": 28,
+      "underwriting_memo": "Contained kitchen fire at Kitchen zone. Camera detects flames behind the line at 19:48:00 (confidence 0.88). Extinguisher deployment is detected 24 seconds later (confidence 0.86) — well within the ~60-second window that distinguishes a near-miss from a property loss event. No spread, no evacuation, no injuries. Mitigation evidence under Section IV; recommend approving with note to confirm fire-suppression equipment inspection log is current.",
+      "mandatory_citations": ["EV-CAM-023", "EV-CAM-024"],
+      "rubrics_triggered": ["Containment — Rapid Suppression"],
+      "expected_review_status": "approved",
+      "aggravating_factors": ["kitchen_fire"],
+      "mitigating_factors": ["extinguisher_deployed_within_30s", "no_evacuation_required", "no_injuries_reported"]
+    }
+  },
+  {
+    "scenario_id": "SCENARIO-015-FORESEEABLE-THIRD-PARTY",
+    "schema_version": 2,
+    "exposure_class": "negligent_security",
+    "difficulty": "hard",
+    "scenario_type": "subtle_catastrophic",
+    "provenance": {
+      "policy_clauses": [
+        "shared-policy-duty-of-care",
+        "Section 2.1 A&B Exclusion (does NOT bar negligent-security claims based on prior-incident foreseeability)",
+        "Section 3.2 Staffing Minimums"
+      ],
+      "industry_pattern": "Foreseeability is the doctrinal hinge in negligent-security cases — when prior similar incidents are documented and the venue does not adjust security posture, courts find heightened duty. This pattern drives 7-figure settlements alongside Valentine-style advertised-duty cases.",
+      "rationale": "Second negligent_security scenario, distinct from SCENARIO-011. Tests *foreseeability* (prior incidents) rather than *advertised duty*. Probes whether the agent recognizes that prior-pattern context is itself a severity multiplier."
+    },
+    "description": "A patron is physically assaulted at the rear exit. The venue's records reflect three similar assaults at the same exit in the prior 60 days; security posture was not adjusted. No security staff detected in zone at the time of the incident.",
+    "input_events": [
+      {
+        "event_id": "EV-CAM-025",
+        "source_type": "camera",
+        "timestamp": "2026-05-08T01:14:00Z",
+        "payload": { "zone_id": "rear-exit", "aggression_score": 0.95, "detections": [{"label": "physical-assault-armed", "confidence": 0.91, "box": [0,0,1,1]}] }
+      },
+      {
+        "event_id": "EV-CAM-026",
+        "source_type": "camera",
+        "timestamp": "2026-05-08T01:14:12Z",
+        "payload": { "zone_id": "rear-exit", "detections": [{"label": "no-security-staff-detected", "confidence": 0.84, "box": [0,0,1,1]}] }
+      }
+    ],
+    "ideal_output": {
+      "risk_level": "critical",
+      "risk_score": 88,
+      "underwriting_memo": "Critical negligent-security exposure at Rear Exit. Camera detects an armed physical assault at 01:14:00 (confidence 0.91, aggression 0.95). The same zone shows no security staff during the incident window (01:14:12, confidence 0.84). Three similar assaults at this location are documented in the prior 60 days without a corresponding security posture change — establishing foreseeability under standard negligent-security doctrine. Section 2.1 A&B exclusion does not bar a negligent-security claim grounded in prior-pattern foreseeability.",
+      "mandatory_citations": ["EV-CAM-025", "EV-CAM-026"],
+      "rubrics_triggered": ["Negligent Security — Foreseeability"],
+      "expected_review_status": "needs_review",
+      "aggravating_factors": ["foreseeable_third_party_assault", "prior_similar_incidents", "absent_security_in_zone"],
+      "mitigating_factors": []
+    }
   }
 ]
