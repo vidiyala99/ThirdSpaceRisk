@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Image,
   KeyboardAvoidingView,
   Platform,
@@ -18,6 +17,7 @@ import * as ImagePicker from 'expo-image-picker';
 import * as Haptics from 'expo-haptics';
 import { api } from '../api/client';
 import { useAuth } from '../contexts/AuthContext';
+import { useAlert } from '../components/ThemedAlert';
 
 interface FormState {
   summary: string;
@@ -40,6 +40,7 @@ function formatDateTime(date: Date): string {
 
 export function ReportIncidentScreen({ navigation }: { navigation: any }) {
   const { user } = useAuth();
+  const alert = useAlert();
   const [form, setForm] = useState<FormState>({
     summary: '',
     location: '',
@@ -115,7 +116,7 @@ export function ReportIncidentScreen({ navigation }: { navigation: any }) {
 
   async function submit() {
     if (!form.summary.trim() || !form.location.trim()) {
-      Alert.alert('Required', 'Summary and location are required.');
+      alert.show({ title: 'Missing info', message: 'Summary and location are required.', variant: 'warning' });
       return;
     }
     setSubmitting(true);
@@ -141,12 +142,15 @@ export function ReportIncidentScreen({ navigation }: { navigation: any }) {
       }
 
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      Alert.alert('Filed', 'Incident report submitted.', [
-        { text: 'OK', onPress: () => navigation.goBack() },
-      ]);
+      alert.show({
+        title: 'Filed',
+        message: 'Incident report submitted.',
+        variant: 'success',
+        buttons: [{ label: 'OK', style: 'primary', onPress: () => navigation.goBack() }],
+      });
     } catch (e: any) {
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      Alert.alert('Error', e.message ?? 'Submission failed');
+      alert.show({ title: 'Submission failed', message: e.message ?? 'Could not submit the report.', variant: 'error' });
     } finally {
       setSubmitting(false);
     }

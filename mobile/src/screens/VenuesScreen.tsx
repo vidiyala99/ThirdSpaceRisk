@@ -1,7 +1,6 @@
 import React, { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -15,6 +14,7 @@ import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../contexts/AuthContext';
 import { api } from '../api/client';
+import { useAlert } from '../components/ThemedAlert';
 
 const VENUE_TYPES = [
   'bar', 'nightclub', 'music venue and bar', 'nightclub and performance space',
@@ -44,6 +44,7 @@ function VenueCard({
   onDelete: (id: string) => Promise<void>;
   onPress: () => void;
 }) {
+  const alert = useAlert();
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [name, setName] = useState(venue.name);
@@ -65,7 +66,7 @@ function VenueCard({
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setEditing(false);
     } catch (e: any) {
-      Alert.alert('Save failed', e.message ?? 'Something went wrong');
+      alert.show({ title: 'Save failed', message: e.message ?? 'Something went wrong', variant: 'error' });
     } finally {
       setSaving(false);
     }
@@ -162,14 +163,15 @@ function VenueCard({
             <Pressable
               style={styles.deleteBtn}
               onPress={() =>
-                Alert.alert(
-                  'Delete Venue',
-                  `Are you sure you want to delete "${venue.name}"? This cannot be undone.`,
-                  [
-                    { text: 'Cancel', style: 'cancel' },
-                    { text: 'Delete', style: 'destructive', onPress: () => onDelete(venue.id) },
-                  ]
-                )
+                alert.show({
+                  title: 'Delete venue?',
+                  message: `Are you sure you want to delete "${venue.name}"? This cannot be undone.`,
+                  variant: 'warning',
+                  buttons: [
+                    { label: 'Cancel', style: 'cancel' },
+                    { label: 'Delete', style: 'destructive', onPress: () => onDelete(venue.id) },
+                  ],
+                })
               }
             >
               <Text style={styles.deleteBtnText}>DELETE VENUE</Text>
@@ -183,6 +185,7 @@ function VenueCard({
 
 export function VenuesScreen({ navigation }: any) {
   const { user, refreshUser } = useAuth();
+  const alert = useAlert();
   const insets = useSafeAreaInsets();
   const [venues, setVenues] = useState<VenueData[]>([]);
   const [loading, setLoading] = useState(true);
@@ -224,7 +227,7 @@ export function VenuesScreen({ navigation }: any) {
       await refreshUser();
       setVenues((prev) => prev.filter((v) => v.id !== venueId));
     } catch (e: any) {
-      Alert.alert('Cannot delete', e.message ?? 'Something went wrong');
+      alert.show({ title: 'Cannot delete', message: e.message ?? 'Something went wrong', variant: 'error' });
     }
   }
 

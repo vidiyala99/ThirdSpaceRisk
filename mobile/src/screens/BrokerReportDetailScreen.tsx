@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -12,6 +11,7 @@ import {
 import * as Haptics from 'expo-haptics';
 import { useAuth } from '../contexts/AuthContext';
 import { api } from '../api/client';
+import { useAlert } from '../components/ThemedAlert';
 
 const SEVERITY_COLOR: Record<string, string> = {
   critical: '#ff4557', high: '#ff4557', medium: '#ff9500', low: '#c8f000', unknown: '#4a4f65',
@@ -24,6 +24,7 @@ const CORROBORATION_COLOR: Record<string, string> = {
 export function BrokerReportDetailScreen({ route, navigation }: any) {
   const { packetId } = route.params;
   const { user } = useAuth();
+  const alert = useAlert();
 
   const [packet, setPacket] = useState<any>(null);
   const [incident, setIncident] = useState<any>(null);
@@ -65,7 +66,7 @@ export function BrokerReportDetailScreen({ route, navigation }: any) {
       setDecisionMade(dec);
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (e: any) {
-      Alert.alert('Error', e.message ?? 'Failed to submit decision');
+      alert.show({ title: 'Error', message: e.message ?? 'Failed to submit decision', variant: 'error' });
     } finally {
       setSubmitting(false);
     }

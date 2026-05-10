@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -14,6 +13,7 @@ import {
 import * as Haptics from 'expo-haptics';
 import { useAuth } from '../contexts/AuthContext';
 import { api } from '../api/client';
+import { useAlert } from '../components/ThemedAlert';
 
 
 const VENUE_TYPES = [
@@ -30,6 +30,7 @@ const VENUE_TYPES = [
 
 export function VenueSetupScreen({ navigation, route }: any) {
   const { user, refreshUser } = useAuth();
+  const alert = useAlert();
   // isExtra=true means this is an additional venue (not the primary tenant_id one)
   const isExtra = route?.params?.isExtra === true;
   const [name, setName] = useState('');
@@ -41,13 +42,13 @@ export function VenueSetupScreen({ navigation, route }: any) {
 
   async function handleCreate() {
     if (!name.trim()) {
-      Alert.alert('Missing info', 'Venue name is required');
+      alert.show({ title: 'Missing info', message: 'Venue name is required.', variant: 'warning' });
       return;
     }
     if (!isExtra) {
       const tenantId = user?.tenant_id;
       if (!tenantId) {
-        Alert.alert('Error', 'No venue ID found. Please sign out and sign back in.');
+        alert.show({ title: 'No venue ID', message: 'Please sign out and sign back in.', variant: 'error' });
         return;
       }
     }
@@ -73,7 +74,7 @@ export function VenueSetupScreen({ navigation, route }: any) {
       navigation.goBack();
     } catch (e: any) {
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      Alert.alert('Failed to create venue', e.message ?? 'Something went wrong');
+      alert.show({ title: 'Failed to create venue', message: e.message ?? 'Something went wrong', variant: 'error' });
     } finally {
       setLoading(false);
     }

@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -12,6 +11,7 @@ import * as Haptics from 'expo-haptics';
 import { api } from '../api/client';
 import { useAuth } from '../contexts/AuthContext';
 import { StatusBadge } from '../components/StatusBadge';
+import { useAlert } from '../components/ThemedAlert';
 
 const SEVERITY_COLOR: Record<string, string> = {
   critical: '#ff4557',
@@ -40,6 +40,7 @@ const STATUS_TRANSITIONS: Record<string, { label: string; next: string; color: s
 export function IncidentDetailScreen({ route, navigation }: any) {
   const { incidentId } = route.params;
   const { user } = useAuth();
+  const alert = useAlert();
   const isBroker = user?.role === 'broker' || user?.role === 'admin';
 
   const [incident, setIncident] = useState<any>(null);
@@ -81,7 +82,7 @@ export function IncidentDetailScreen({ route, navigation }: any) {
       setIncident((prev: any) => ({ ...prev, status: newStatus }));
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (e: any) {
-      Alert.alert('Error', e.message ?? 'Status update failed');
+      alert.show({ title: 'Error', message: e.message ?? 'Status update failed', variant: 'error' });
     } finally {
       setUpdatingStatus(false);
     }

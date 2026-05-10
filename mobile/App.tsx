@@ -26,6 +26,7 @@ import {
 import { AuthProvider, useAuth } from './src/contexts/AuthContext';
 import { TabNavigator } from './src/navigation/TabNavigator';
 import { AuthStack } from './src/navigation/AuthStack';
+import { ThemedAlertProvider } from './src/components/ThemedAlert';
 
 enableScreens();
 
@@ -65,12 +66,14 @@ export default function App() {
 
   return (
     <SafeAreaProvider>
-      <AuthProvider>
-        <NavigationContainer>
-          <StatusBar style="light" />
-          <RootNavigator />
-        </NavigationContainer>
-      </AuthProvider>
+      <ThemedAlertProvider>
+        <AuthProvider>
+          <NavigationContainer>
+            <StatusBar style="light" />
+            <RootNavigator />
+          </NavigationContainer>
+        </AuthProvider>
+      </ThemedAlertProvider>
     </SafeAreaProvider>
   );
 }
