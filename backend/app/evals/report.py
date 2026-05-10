@@ -8,6 +8,13 @@ from pathlib import Path
 
 
 @dataclass
+class ProviderInfo:
+    name: str
+    mode: str  # "deterministic" or "llm"
+    model: str | None = None
+
+
+@dataclass
 class ScorerResult:
     name: str
     passed: bool
@@ -50,6 +57,7 @@ def write_markdown_report(
     path: Path,
     *,
     timestamp: str,
+    provider: ProviderInfo | None = None,
 ) -> None:
     total = len(results)
     passed = sum(1 for r in results if r.passed)
@@ -57,6 +65,9 @@ def write_markdown_report(
     lines: list[str] = []
     lines.append(f"# Eval run — {timestamp}")
     lines.append("")
+    if provider is not None:
+        lines.append(f"**Provider:** `{provider.name}` ({provider.mode})")
+        lines.append("")
     lines.append(f"**Aggregate:** {passed}/{total} scenarios passed all scorers")
     lines.append("")
 
@@ -108,7 +119,7 @@ def write_json_snapshot(
     path: Path,
     *,
     timestamp: str,
-    provider: str = "deterministic-stub",
+    provider: ProviderInfo | None = None,
 ) -> None:
     """Emit a structured snapshot consumable by the frontend dashboard."""
     total = len(results)
@@ -132,9 +143,14 @@ def write_json_snapshot(
             "count": len(scores),
         })
 
+    provider_payload: dict[str, str | None] = (
+        asdict(provider) if provider is not None
+        else {"name": "deterministic-stub", "mode": "deterministic", "model": None}
+    )
+
     snapshot = {
         "timestamp": timestamp,
-        "provider": provider,
+        "provider": provider_payload,
         "aggregate": {
             "total": total,
             "passed": passed,

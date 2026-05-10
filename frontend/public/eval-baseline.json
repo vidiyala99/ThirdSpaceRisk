@@ -1,6 +1,10 @@
 {
-  "timestamp": "2026-05-10T06-21-35Z",
-  "provider": "deterministic-stub",
+  "timestamp": "2026-05-10T06-57-58Z",
+  "provider": {
+    "name": "deterministic-v1",
+    "mode": "deterministic",
+    "model": null
+  },
   "aggregate": {
     "total": 15,
     "passed": 0,

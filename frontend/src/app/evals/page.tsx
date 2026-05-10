@@ -21,12 +21,25 @@ interface ScenarioSnapshot {
   scorers: ScorerResult[];
 }
 
+interface ProviderInfo {
+  name: string;
+  mode: string; // "deterministic" | "llm"
+  model: string | null;
+}
+
 interface Snapshot {
   timestamp: string;
-  provider: string;
+  provider: ProviderInfo | string; // legacy string supported for old snapshots
   aggregate: { total: number; passed: number; pass_rate: number };
   scorer_averages: { name: string; pass_rate: number; avg_score: number; count: number }[];
   scenarios: ScenarioSnapshot[];
+}
+
+function normalizeProvider(p: Snapshot["provider"]): ProviderInfo {
+  if (typeof p === "string") {
+    return { name: p, mode: p.includes("stub") || p.includes("deterministic") ? "deterministic" : "llm", model: null };
+  }
+  return p;
 }
 
 const EXPOSURE_LABEL: Record<string, string> = {
@@ -104,10 +117,20 @@ export default function EvalsPage() {
     );
   }
 
+  const provider = normalizeProvider(data.provider);
+  const isLLM = provider.mode === "llm";
+  const modeColor = isLLM ? "var(--brand-secondary)" : "var(--text-tertiary)";
+
   return (
     <main style={pageStyle}>
       <header style={{ marginBottom: "var(--space-2xl)" }}>
-        <p style={eyebrowStyle}>AGENT EVAL SET · v2 · {data.provider}</p>
+        <div style={providerBarStyle}>
+          <span style={eyebrowStyle}>AGENT EVAL SET · v2</span>
+          <span style={{ ...providerBadgeStyle, color: modeColor, borderColor: modeColor }}>
+            {isLLM ? "LLM" : "DETERMINISTIC"}
+          </span>
+          <span style={providerNameStyle}>{provider.name}</span>
+        </div>
         <h1 style={titleStyle}>
           Underwriting Agent <span style={{ color: "var(--brand-primary)" }}>Scoreboard</span>
         </h1>
@@ -252,8 +275,32 @@ const eyebrowStyle: React.CSSProperties = {
   fontSize: "0.7rem",
   fontWeight: 700,
   letterSpacing: "0.18em",
-  marginBottom: "var(--space-sm)",
   fontFamily: "var(--font-mono)",
+};
+
+const providerBarStyle: React.CSSProperties = {
+  display: "flex",
+  alignItems: "center",
+  gap: "var(--space-sm)",
+  marginBottom: "var(--space-sm)",
+  flexWrap: "wrap",
+};
+
+const providerBadgeStyle: React.CSSProperties = {
+  fontSize: "0.65rem",
+  fontFamily: "var(--font-mono)",
+  fontWeight: 700,
+  letterSpacing: "0.15em",
+  padding: "2px 8px",
+  border: "1px solid",
+  borderRadius: "var(--radius-sm)",
+};
+
+const providerNameStyle: React.CSSProperties = {
+  fontSize: "0.7rem",
+  fontFamily: "var(--font-mono)",
+  color: "var(--text-secondary)",
+  letterSpacing: "0.05em",
 };
 
 const titleStyle: React.CSSProperties = {

@@ -2,11 +2,21 @@
 
 Bridges the gold_standard.json shape (camera/POS event streams + ideal_output)
 into the pipeline's expected inputs (IncidentCreate + stream_events list).
+
+Provider selection:
+  --provider stub | gemini | anthropic | auto   (default: stub)
+  EVAL_PROVIDER=...                              (env-var fallback)
+
+`stub` uses DeterministicProvider regardless of env keys; `auto` defers to
+get_default_provider() (whichever API key is set). LLM modes will raise
+ProviderNotConfiguredError if the corresponding key is absent.
 """
 
 from __future__ import annotations
 
+import argparse
 import json
+import os
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
@@ -14,12 +24,21 @@ from typing import Any
 
 from app.agents.runtime import (
     UnderwritingPacketAgentResult,
-    execute_underwriting_packet_agents,
+    UnderwritingPacketAgentRuntime,
 )
+from app.providers import (
+    AnthropicProvider,
+    DeterministicProvider,
+    GeminiProvider,
+    MemoProvider,
+    get_default_provider,
+)
+from app.providers.anthropic_provider import ProviderNotConfiguredError
 from app.schemas import IncidentCreate
 
 from app.evals import scorers
 from app.evals.report import (
+    ProviderInfo,
     ScenarioResult,
     ScorerResult,
     write_json_snapshot,
@@ -209,11 +228,51 @@ class _RunOutput:
     scorer_results: list[ScorerResult] = field(default_factory=list)
 
 
-def run_scenario(scenario: dict) -> _RunOutput:
+_PROVIDER_ALIASES = {
+    "stub": "stub",
+    "deterministic": "stub",
+    "gemini": "gemini",
+    "anthropic": "anthropic",
+    "claude": "anthropic",
+    "auto": "auto",
+}
+
+
+def resolve_provider(name: str | None) -> MemoProvider:
+    """Map a CLI/env provider name to a concrete MemoProvider instance.
+
+    Raises ValueError for unknown names and ProviderNotConfiguredError when an
+    LLM provider is requested without the corresponding API key.
+    """
+    raw = (name or "stub").lower()
+    canonical = _PROVIDER_ALIASES.get(raw)
+    if canonical is None:
+        raise ValueError(
+            f"Unknown provider {name!r}. Use one of: stub, gemini, anthropic, auto."
+        )
+    if canonical == "stub":
+        return DeterministicProvider()
+    if canonical == "gemini":
+        return GeminiProvider()
+    if canonical == "anthropic":
+        return AnthropicProvider()
+    if canonical == "auto":
+        return get_default_provider()
+    # Unreachable but keeps mypy happy
+    raise ValueError(f"Unhandled provider {name!r}")
+
+
+def _provider_info(provider: MemoProvider) -> ProviderInfo:
+    name = provider.provider_name
+    model = name.split("/", 1)[1] if "/" in name else None
+    return ProviderInfo(name=name, mode=provider.mode.value, model=model)
+
+
+def run_scenario(scenario: dict, runtime: UnderwritingPacketAgentRuntime) -> _RunOutput:
     try:
         incident = _scenario_to_incident(scenario)
         stream_events = _scenario_to_stream_events(scenario, EVAL_VENUE_ID)
-        actual = execute_underwriting_packet_agents(
+        actual = runtime.execute(
             venue_id=EVAL_VENUE_ID,
             venue=EVAL_VENUE,
             incident=incident,
@@ -234,11 +293,14 @@ def run_scenario(scenario: dict) -> _RunOutput:
         )
 
 
-def run_all(gold_path: Path = GOLD_STANDARD_PATH) -> list[ScenarioResult]:
+def run_all(
+    runtime: UnderwritingPacketAgentRuntime,
+    gold_path: Path = GOLD_STANDARD_PATH,
+) -> list[ScenarioResult]:
     scenarios = json.loads(gold_path.read_text(encoding="utf-8"))
     results: list[ScenarioResult] = []
     for scenario in scenarios:
-        run = run_scenario(scenario)
+        run = run_scenario(scenario, runtime)
         scorer_results: list[ScorerResult] = []
         if run.actual is not None:
             ideal = scenario["ideal_output"]
@@ -261,14 +323,41 @@ def run_all(gold_path: Path = GOLD_STANDARD_PATH) -> list[ScenarioResult]:
     return results
 
 
-def main() -> int:
+def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        prog="app.evals.runner",
+        description="Run the agent eval set against a chosen provider.",
+    )
+    parser.add_argument(
+        "--provider",
+        default=os.getenv("EVAL_PROVIDER", "stub"),
+        help="stub | gemini | anthropic | auto (default: stub; env: EVAL_PROVIDER)",
+    )
+    return parser.parse_args(argv)
+
+
+def main(argv: list[str] | None = None) -> int:
+    args = _parse_args(argv)
+    try:
+        provider = resolve_provider(args.provider)
+    except ProviderNotConfiguredError as exc:
+        print(f"Provider not configured: {exc}")
+        return 2
+    except ValueError as exc:
+        print(f"Bad --provider: {exc}")
+        return 2
+
+    runtime = UnderwritingPacketAgentRuntime(memo_provider=provider)
+    info = _provider_info(provider)
+
     RESULTS_DIR.mkdir(exist_ok=True)
-    results = run_all()
+    results = run_all(runtime)
     timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H-%M-%SZ")
     report_path = RESULTS_DIR / f"{timestamp}.md"
     json_path = RESULTS_DIR / f"{timestamp}.json"
-    write_markdown_report(results, report_path, timestamp=timestamp)
-    write_json_snapshot(results, json_path, timestamp=timestamp)
+    write_markdown_report(results, report_path, timestamp=timestamp, provider=info)
+    write_json_snapshot(results, json_path, timestamp=timestamp, provider=info)
+    print(f"Provider: {info.name} ({info.mode})")
     print(f"Wrote {report_path}")
     print(f"Wrote {json_path}")
     passed = sum(1 for r in results if r.passed)

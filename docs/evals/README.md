@@ -206,13 +206,24 @@ This lives in the future-work section, not v1.
 
 ```bash
 cd backend
-python -m app.evals.runner
+python -m app.evals.runner                         # default: stub
+python -m app.evals.runner --provider gemini       # requires GEMINI_API_KEY
+python -m app.evals.runner --provider anthropic    # requires ANTHROPIC_API_KEY
+python -m app.evals.runner --provider auto         # uses get_default_provider()
+EVAL_PROVIDER=gemini python -m app.evals.runner    # env-var equivalent
 ```
 
-Writes a dated markdown report to `backend/app/evals/results/<timestamp>.md`.
-Exits non-zero if any scenario fails any scorer (CI-friendly).
+Each run writes a dated markdown report and a JSON snapshot to
+`backend/app/evals/results/<timestamp>.{md,json}`. The runner exits
+non-zero when any scenario fails any scorer (CI-friendly). LLM-mode
+runs exit with code 2 if the corresponding API key is missing.
 
-To run a single scenario or score a specific provider, see `runner.py`.
+The frontend dashboard at `/evals` reads
+`frontend/public/eval-baseline.json` — to publish a new baseline:
+
+```bash
+cp backend/app/evals/results/<timestamp>.json frontend/public/eval-baseline.json
+```
 
 ### Interpreting the report
 
