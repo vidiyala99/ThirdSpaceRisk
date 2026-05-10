@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useRole, useTenantId, useAuth } from "@/contexts/AuthContext";
-import { Building2, MapPin, Users, Plus, ArrowRight, X, Edit2, Check } from "lucide-react";
+import { Building2, MapPin, Users, Plus, ArrowRight, X, Edit2, Check, Search } from "lucide-react";
 import Link from "next/link";
 import { toastSuccess, toastError } from "@/lib/toast";
 
@@ -42,9 +42,19 @@ export default function VenuesPage() {
   const [editData, setEditData] = useState<Partial<Venue>>({});
   const [savingEdit, setSavingEdit] = useState(false);
   const [formData, setFormData] = useState(EMPTY_FORM);
+  const [searchQuery, setSearchQuery] = useState("");
 
   const isBroker = role === "broker" || role === "admin";
   const isOperator = role === "venue_operator";
+
+  const filteredVenues = searchQuery.trim()
+    ? venues.filter(v => {
+        const q = searchQuery.toLowerCase();
+        return v.name.toLowerCase().includes(q)
+          || v.address?.toLowerCase().includes(q)
+          || v.venue_type?.toLowerCase().includes(q);
+      })
+    : venues;
 
   useEffect(() => {
     if (!isSignedIn) router.push("/login");
@@ -265,8 +275,21 @@ export default function VenuesPage() {
         </div>
       )}
 
+      {isBroker && (
+        <div style={{ position: "relative", marginBottom: "var(--space-lg)" }}>
+          <Search size={15} style={{ position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)", color: "var(--text-tertiary)", pointerEvents: "none" }} />
+          <input
+            className="input-field"
+            placeholder="Search venues..."
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            style={{ paddingLeft: 38 }}
+          />
+        </div>
+      )}
+
       <div className="venues-grid">
-        {venues.map((venue) => (
+        {filteredVenues.map((venue) => (
           <div key={venue.id} className="venue-card" style={{ textDecoration: "none", display: "block" }}>
             {editingId === venue.id ? (
               /* Inline edit form */
@@ -353,11 +376,11 @@ export default function VenuesPage() {
         ))}
       </div>
 
-      {venues.length === 0 && !loading && (
+      {filteredVenues.length === 0 && !loading && (
         <div className="page-empty">
           <Building2 size={48} />
           <h3>No Venues Yet</h3>
-          <p>{isBroker ? "No venues on record yet" : "Set up your venue to generate a risk profile and premium quote"}</p>
+          <p>{searchQuery.trim() ? `No venues match "${searchQuery}"` : isBroker ? "No venues on record yet" : "Set up your venue to generate a risk profile and premium quote"}</p>
           {!isBroker && (
             <button className="btn btn-primary" style={{ marginTop: "16px" }} onClick={() => setShowForm(true)}>
               <Plus size={16} /> Add Your Venue
