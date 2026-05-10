@@ -335,6 +335,7 @@ Provider switching requires changing one function per agent, not the architectur
 - ✅ **Compliance per-item detail pages** — `/compliance/[venueId]/[itemId]` (web) and `ComplianceItemDetailScreen` (mobile) with venue-scoped URL params; broker and operator routing through dedicated stacks
 - ✅ **Mobile broker Venues tab** — dedicated `BrokerVenuesScreen` and `BrokerVenueDetailScreen` mirroring the web venue terminal layout
 - ✅ **Portfolio venue search** — broker-only search-and-filter on web `/dashboard`, web `/venues`, and mobile broker portfolio + venues tab; filters by name, address, and venue type
+- ✅ **Eval harness for agent outputs** — `backend/app/evals/` runner scores each `gold_standard.json` scenario on structural validity + citation coverage, writes dated markdown report; baseline 3/3 green vs deterministic stub provider
 
 ### Phase 2 — LLM-backed agents
 - Wire real Claude API calls behind existing interfaces
