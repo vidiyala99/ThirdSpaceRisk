@@ -69,10 +69,20 @@ Supporting citations:
 Return JSON with keys: summary (string), open_questions (list of strings)."""
 
         client = anthropic.Anthropic(api_key=self._api_key)
+        # Mark the system prompt as cacheable. Anthropic prompt-cache TTL is
+        # 5 minutes — back-to-back eval runs (15 scenarios) and bursts of
+        # incident submissions both stay well within that window, so the
+        # system block ends up amortized across the burst.
         response = client.messages.create(
             model=self.MODEL,
             max_tokens=512,
-            system=SYSTEM_PROMPT,
+            system=[
+                {
+                    "type": "text",
+                    "text": SYSTEM_PROMPT,
+                    "cache_control": {"type": "ephemeral"},
+                }
+            ],
             messages=[{"role": "user", "content": user_prompt}],
         )
 
