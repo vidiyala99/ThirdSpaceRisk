@@ -1,6 +1,7 @@
 # Third Space Risk OS
 
-[![Tests](https://github.com/vidiyala99/ThirdSpaceRisk/actions/workflows/test.yml/badge.svg)](https://github.com/vidiyala99/ThirdSpaceRisk/actions/workflows/test.yml)
+[![CI](https://github.com/vidiyala99/ThirdSpaceRisk/actions/workflows/ci.yml/badge.svg)](https://github.com/vidiyala99/ThirdSpaceRisk/actions/workflows/ci.yml)
+[![E2E](https://github.com/vidiyala99/ThirdSpaceRisk/actions/workflows/e2e.yml/badge.svg)](https://github.com/vidiyala99/ThirdSpaceRisk/actions/workflows/e2e.yml)
 
 Evidence-first underwriting infrastructure for nightlife venues. Built as a working prototype of what Third Space's core platform could look like.
 
