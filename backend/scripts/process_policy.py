@@ -44,7 +44,7 @@ def chunk_policy_text(text: str) -> List[Dict]:
 
 def run_ingestion():
     from app.database import get_session
-    from app.rag_v2 import VenueKnowledgeBase
+    from app.rag import VenueKnowledgeBase
 
     with open("docs/policies/nightlife_liability_2026.md", "r") as f:
         policy_text = f.read()

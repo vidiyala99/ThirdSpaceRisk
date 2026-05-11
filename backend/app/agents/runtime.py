@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from pathlib import Path
 
-from app.rag_v2 import SemanticKnowledgeBase as VenueKnowledgeBase
+from app.rag import SemanticKnowledgeBase as VenueKnowledgeBase
 from app.providers import MemoProvider, get_default_provider
 from app.schemas import ActionItem, Citation, IncidentCreate, RiskSignal, TimelineEvent, UnderwritingMemo
 
