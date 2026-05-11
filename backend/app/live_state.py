@@ -1,12 +1,25 @@
 from app.schemas import LiveVenueState, InfrastructureItem, ComplianceItem, StreamEvent
 
+# Demo: venues start at 93% of stated capacity so dashboards look like a busy night.
+DEMO_INITIAL_CAPACITY_FRACTION = 0.93
+
+# Auto-generate a compliance item when a camera anomaly scores above this.
+CAMERA_ANOMALY_THRESHOLD = 0.4
+
+# Cap auto-generated compliance items per venue so the queue does not flood from a noisy camera.
+MAX_AUTO_GENERATED_COMPLIANCE_ITEMS = 3
+
+# Premium delta applied per unresolved auto-generated compliance item; removed when the item is resolved.
+UNRESOLVED_INCIDENT_PREMIUM_PENALTY = 0.5
+
+
 class LiveStateManager:
     def __init__(self):
         self._states = {}
 
     def get_state(self, venue_id: str, max_capacity: int, venue_data: dict) -> LiveVenueState:
         if venue_id not in self._states:
-            seeded_capacity = int(max_capacity * 0.93)
+            seeded_capacity = int(max_capacity * DEMO_INITIAL_CAPACITY_FRACTION)
             infrastructure = [
                 InfrastructureItem(
                     name=item["name"],
@@ -52,27 +65,28 @@ class LiveStateManager:
             
             elif event.event_type == "camera_metadata":
                 anomaly_score = event.payload.get("anomaly_score", 0.0)
-                if anomaly_score > 0.4 and len(state.compliance_queue) < 3:
+                if (
+                    anomaly_score > CAMERA_ANOMALY_THRESHOLD
+                    and len(state.compliance_queue) < MAX_AUTO_GENERATED_COMPLIANCE_ITEMS
+                ):
                     state.compliance_queue.append(ComplianceItem(
                         id=f"INCIDENT_{event.event_id[:6].upper()}",
                         title=f"ANOMALY_DETECTED_{event.payload.get('camera_id', 'UKN').upper()}",
                         description="Upload verified security footage to preserve claims defensibility.",
                         severity="URGENT"
                     ))
-                    # Apply penalty for unresolved incident
-                    state.premium_impact += 0.5
+                    state.premium_impact += UNRESOLVED_INCIDENT_PREMIUM_PENALTY
 
     def resolve_compliance_item(self, venue_id: str, item_id: str) -> bool:
         if venue_id not in self._states:
             return False
-        
+
         state = self._states[venue_id]
         initial_length = len(state.compliance_queue)
         state.compliance_queue = [item for item in state.compliance_queue if item.id != item_id]
-        
+
         if len(state.compliance_queue) < initial_length:
-            # Remove the penalty
-            state.premium_impact = max(0.0, state.premium_impact - 0.5)
+            state.premium_impact = max(0.0, state.premium_impact - UNRESOLVED_INCIDENT_PREMIUM_PENALTY)
             return True
         return False
 
