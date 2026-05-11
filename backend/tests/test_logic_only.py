@@ -1,7 +1,7 @@
 import pytest
 from pydantic import ValidationError
 from app.schemas.events import POSEvent, CameraEvent
-from scripts.process_policy import chunk_policy_text
+from app.policy_parser import chunk_policy_text
 
 # --- SCHEMA TESTS ---
 
