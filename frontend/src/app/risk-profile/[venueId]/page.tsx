@@ -1,9 +1,54 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useAuth, useRole } from "@/contexts/AuthContext";
-import { ArrowLeft, TrendingUp, AlertTriangle, CheckCircle2, DollarSign } from "lucide-react";
+import { ArrowLeft, AlertTriangle, CheckCircle2, DollarSign, FileText, Upload, Minus, ChevronDown, ChevronRight, Eye } from "lucide-react";
+import { toastSuccess, toastError } from "@/lib/toast";
+
+interface IngestedSource {
+  id: string;
+  source_type: string;
+  excerpt: string;
+  created_at: string;
+}
+
+interface PreviewChunk {
+  section: string;
+  clause: string;
+  is_exclusion: boolean;
+  content: string;
+}
+
+/** Client-side port of backend/app/policy_parser.py:chunk_policy_text.
+ *  Kept structurally identical so the preview matches the server's parse exactly. */
+function chunkPolicyText(text: string): PreviewChunk[] {
+  const chunks: PreviewChunk[] = [];
+  const sections = text.split(/\n## /);
+  for (const section of sections) {
+    const sectionMatch = section.match(/^([^\n]+)/);
+    if (!sectionMatch) continue;
+    const sectionTitle = sectionMatch[1].trim();
+    const clauses = section.split(/\n### /);
+    for (let i = 1; i < clauses.length; i++) {
+      const clause = clauses[i];
+      const clauseMatch = clause.match(/^([^\n]+)/);
+      if (!clauseMatch) continue;
+      const clauseTitle = clauseMatch[1].trim();
+      const content = clause.trim();
+      const isExclusion =
+        sectionTitle.toUpperCase().includes("EXCLUSION") ||
+        clauseTitle.toUpperCase().includes("EXCLUSION");
+      chunks.push({
+        section: sectionTitle,
+        clause: clauseTitle,
+        is_exclusion: isExclusion,
+        content: `${sectionTitle} > ${content}`,
+      });
+    }
+  }
+  return chunks;
+}
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
 
@@ -63,6 +108,27 @@ function getFactorColor(score: number): string {
   return "var(--state-error)";
 }
 
+/** Icon paired with the score tier — supplements color so tier is conveyed twice (a11y: color-not-only). */
+function FactorTierIcon({ tier, color }: { tier: "good" | "moderate" | "poor"; color: string }) {
+  const props = { size: 14, style: { color }, "aria-hidden": true as const };
+  if (tier === "good") return <CheckCircle2 {...props} />;
+  if (tier === "moderate") return <Minus {...props} />;
+  return <AlertTriangle {...props} />;
+}
+
+/** Visually-hidden label — keeps the input accessible to screen readers without changing layout. */
+const SR_ONLY_STYLE: React.CSSProperties = {
+  position: "absolute",
+  width: 1,
+  height: 1,
+  padding: 0,
+  margin: -1,
+  overflow: "hidden",
+  clip: "rect(0,0,0,0)",
+  whiteSpace: "nowrap",
+  border: 0,
+};
+
 export default function RiskProfilePage() {
   const { venueId } = useParams<{ venueId: string }>();
   const router = useRouter();
@@ -74,6 +140,137 @@ export default function RiskProfilePage() {
   const [quoteData, setQuoteData] = useState<any>(null);
   const [venueName, setVenueName] = useState<string>("");
   const [loading, setLoading] = useState(true);
+  // Override-calibration aggregates for this venue. Null until first fetch
+  // settles; absent fields rendered as "no signal yet" rather than zero.
+  const [overrideStats, setOverrideStats] = useState<{
+    override_total: number;
+    override_approved: number;
+    override_rejected: number;
+    override_pending: number;
+    override_right_rate: number | null;
+    non_override_total: number;
+    non_override_approved: number;
+    non_override_rejected: number;
+    non_override_right_rate: number | null;
+    by_reason: Record<string, { total: number; approved: number; rejected: number; pending: number }>;
+  } | null>(null);
+
+  // Master policy ingestion (broker-only) — see backend POST /api/venues/{id}/policy-docs
+  const [policyText, setPolicyText] = useState("");
+  const [sourceFile, setSourceFile] = useState("master_policy.md");
+  const [uploadingPolicy, setUploadingPolicy] = useState(false);
+  const [ingestedSources, setIngestedSources] = useState<IngestedSource[]>([]);
+  const [showAdvancedPolicy, setShowAdvancedPolicy] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
+  const [isDraggingFile, setIsDraggingFile] = useState(false);
+  const policyTextareaRef = useRef<HTMLTextAreaElement | null>(null);
+
+  // Recompute preview chunks whenever the textarea content changes.
+  // Cheap (regex splits) so we don't need to memoize unless lists get huge.
+  const previewChunks: PreviewChunk[] = policyText.trim() ? chunkPolicyText(policyText) : [];
+  const hasNoHeadings = policyText.trim().length > 0 && previewChunks.length === 0;
+
+  async function refreshIngestedSources() {
+    if (!venueId) return;
+    try {
+      const res = await fetch(`${API_URL}/api/venues/${venueId}/sources`);
+      if (!res.ok) return;
+      const all: IngestedSource[] = await res.json();
+      // Filter to policy-ingestion sources (id prefix matches the backend hash convention)
+      setIngestedSources(all.filter(s => s.id.startsWith("ingested-")));
+    } catch {
+      // non-fatal
+    }
+  }
+
+  async function handleUploadPolicy() {
+    if (!policyText.trim()) {
+      toastError("Paste the policy markdown before uploading.");
+      return;
+    }
+    // F3: client-side validation — catch the no-heading case before a wasted round trip.
+    if (previewChunks.length === 0) {
+      toastError("No clauses detected. Use ## Section / ### Clause headings so the parser can extract content.");
+      return;
+    }
+    setUploadingPolicy(true);
+    try {
+      const token = typeof window !== "undefined" ? localStorage.getItem("auth_token") : null;
+      if (!token) {
+        toastError("Sign in as a broker to upload policy documents.");
+        return;
+      }
+      const res = await fetch(`${API_URL}/api/venues/${venueId}/policy-docs`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`,
+        },
+        body: JSON.stringify({ text: policyText, source_file: sourceFile || "master_policy.md" }),
+      });
+      if (res.status === 403) {
+        toastError("Only brokers can upload policy documents.");
+        return;
+      }
+      if (!res.ok) {
+        const detail = await res.json().catch(() => ({}));
+        toastError(detail.detail || "Policy upload failed.");
+        return;
+      }
+      const body = await res.json();
+      // M7: distinguish "all new" / "some new" / "everything already on file"
+      if (body.chunks_inserted === 0 && body.chunks_extracted > 0) {
+        toastSuccess(`Policy is already up to date — ${body.chunks_extracted} clauses on file, no new content.`);
+      } else if (body.chunks_inserted === body.chunks_extracted) {
+        toastSuccess(`Ingested ${body.chunks_inserted} new clause${body.chunks_inserted === 1 ? "" : "s"}.`);
+      } else {
+        toastSuccess(`Ingested ${body.chunks_inserted} new clause${body.chunks_inserted === 1 ? "" : "s"}; ${body.chunks_extracted - body.chunks_inserted} already on file.`);
+      }
+      setPolicyText("");
+      setShowPreview(false);
+      await refreshIngestedSources();
+    } catch (err) {
+      toastError("Network error during policy upload.");
+    } finally {
+      setUploadingPolicy(false);
+    }
+  }
+
+  function handleFileDrop(file: File) {
+    if (file.size > 2 * 1024 * 1024) {
+      toastError("File too large. Markdown policies should be under 2MB; for larger PDFs, contact engineering.");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      const text = String(reader.result || "");
+      setPolicyText(text);
+      setSourceFile(file.name || "master_policy.md");
+      setShowPreview(true);
+    };
+    reader.onerror = () => toastError("Couldn't read file. Try pasting the markdown instead.");
+    reader.readAsText(file);
+  }
+
+  useEffect(() => {
+    if (isBroker && venueId) refreshIngestedSources();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isBroker, venueId]);
+
+  // F4: auto-focus the textarea once for new-venue brokers — but only after
+  // the sources list has loaded and we've confirmed it's empty.
+  const [hasAutoFocused, setHasAutoFocused] = useState(false);
+  useEffect(() => {
+    if (
+      isBroker &&
+      ingestedSources.length === 0 &&
+      !hasAutoFocused &&
+      policyTextareaRef.current
+    ) {
+      policyTextareaRef.current.focus();
+      setHasAutoFocused(true);
+    }
+  }, [isBroker, ingestedSources.length, hasAutoFocused]);
 
   useEffect(() => {
     if (isLoaded && !isSignedIn) router.push("/login");
@@ -82,14 +279,16 @@ export default function RiskProfilePage() {
   useEffect(() => {
     async function load() {
       try {
-        const [riskRes, quoteRes, venueRes] = await Promise.all([
+        const [riskRes, quoteRes, venueRes, statsRes] = await Promise.all([
           fetch(`${API_URL}/api/venues/${venueId}/risk-score`),
           fetch(`${API_URL}/api/venues/${venueId}/quote`),
           fetch(`${API_URL}/api/venues/${venueId}`),
+          fetch(`${API_URL}/api/venues/${venueId}/override-stats`),
         ]);
         if (riskRes.ok) setRiskData(await riskRes.json());
         if (quoteRes.ok) setQuoteData(await quoteRes.json());
         if (venueRes.ok) { const v = await venueRes.json(); setVenueName(v.name ?? venueId); }
+        if (statsRes.ok) setOverrideStats(await statsRes.json());
       } catch {
         // non-fatal
       } finally {
@@ -99,7 +298,14 @@ export default function RiskProfilePage() {
     if (venueId) load();
   }, [venueId]);
 
-  if (loading) return <div className="page-loading"><div className="loading-spinner" /></div>;
+  if (loading) {
+    return (
+      <div className="page-loading" role="status" aria-live="polite">
+        <div className="loading-spinner" aria-hidden="true" />
+        <span style={SR_ONLY_STYLE}>Loading risk profile…</span>
+      </div>
+    );
+  }
 
   const tier = riskData?.tier ?? "—";
   const score = riskData?.total_score ?? 0;
@@ -118,40 +324,341 @@ export default function RiskProfilePage() {
 
   const backHref = isBroker ? `/terminal/${venueId}` : "/dashboard";
 
+  const backLabel = isBroker ? `Back to ${venueName}` : "Back to Dashboard";
+
+  const isPolicyEmpty = isBroker && ingestedSources.length === 0;
+
+  const masterPolicyCard = isBroker ? (
+    <div
+      className="card"
+      style={
+        isPolicyEmpty
+          ? { borderColor: "var(--brand-primary)", boxShadow: "0 0 0 1px var(--brand-primary)22" }
+          : undefined
+      }
+    >
+      <div className="flex items-center gap-sm mb-lg" style={{ justifyContent: "space-between" }}>
+        <div className="flex items-center gap-sm">
+          <FileText size={16} className="text-secondary" aria-hidden="true" />
+          <h3 className="rp-section-title text-xs uppercase tracking-wide text-secondary">Master Policy</h3>
+        </div>
+        {isPolicyEmpty && (
+          <span
+            className="text-xs font-mono"
+            style={{
+              color: "var(--brand-primary)",
+              textTransform: "uppercase",
+              letterSpacing: "0.08em",
+              fontSize: "0.65rem",
+            }}
+          >
+            Onboarding · Step 1
+          </span>
+        )}
+      </div>
+
+      {ingestedSources.length > 0 && (
+        <div className="mb-md">
+          <p className="text-xs text-secondary mb-sm">
+            {ingestedSources.length} clause{ingestedSources.length === 1 ? "" : "s"} on file. These are cited in generated underwriting memos for this venue.
+          </p>
+          <div className="flex flex-col gap-xs" style={{ maxHeight: 180, overflowY: "auto" }} role="list" aria-label="Ingested policy clauses">
+            {ingestedSources.slice(0, 8).map(s => (
+              <div key={s.id} role="listitem" className="p-sm" style={{ background: "var(--bg-elevated)", borderRadius: "var(--radius-sm)", border: "1px solid var(--border-subtle)" }}>
+                <div className="flex items-center gap-sm mb-xs">
+                  <span className="text-xs font-mono" style={{
+                    color: s.source_type === "policy_exclusion" ? "var(--state-warning)" : "var(--brand-primary)",
+                    textTransform: "uppercase",
+                    letterSpacing: "0.05em",
+                  }}>
+                    {s.source_type.replace("_", " ")}
+                  </span>
+                </div>
+                <p className="text-xs text-secondary" style={{ lineHeight: 1.5 }}>
+                  {s.excerpt.length > 180 ? s.excerpt.slice(0, 180) + "…" : s.excerpt}
+                </p>
+              </div>
+            ))}
+          </div>
+          {ingestedSources.length > 8 && (
+            <p className="text-xs text-secondary mt-xs" style={{ fontStyle: "italic" }}>
+              Showing 8 of {ingestedSources.length} clauses — scroll within the list to see the rest.
+            </p>
+          )}
+        </div>
+      )}
+
+      {isPolicyEmpty && (
+        <p className="text-xs text-secondary mb-md" style={{ lineHeight: 1.6 }}>
+          Upload the carrier&apos;s master policy so every underwriting memo generated for this venue cites the actual contract language — not generic best-practice text.
+        </p>
+      )}
+
+      <div className="flex flex-col gap-sm">
+        {/* M1: drag-drop zone for .md/.txt uploads. Textarea remains as the paste-fallback below. */}
+        <div
+          onDragEnter={(e) => { e.preventDefault(); setIsDraggingFile(true); }}
+          onDragOver={(e) => { e.preventDefault(); setIsDraggingFile(true); }}
+          onDragLeave={(e) => { e.preventDefault(); setIsDraggingFile(false); }}
+          onDrop={(e) => {
+            e.preventDefault();
+            setIsDraggingFile(false);
+            const file = e.dataTransfer.files?.[0];
+            if (file) handleFileDrop(file);
+          }}
+          style={{
+            border: `1px dashed ${isDraggingFile ? "var(--brand-primary)" : "var(--border-default)"}`,
+            background: isDraggingFile ? "var(--brand-primary)11" : "var(--bg-elevated)",
+            borderRadius: "var(--radius-sm)",
+            padding: "var(--space-md)",
+            textAlign: "center",
+            transition: "border-color 150ms, background 150ms",
+          }}
+        >
+          <Upload size={18} aria-hidden="true" style={{ color: "var(--text-tertiary)", marginBottom: 4 }} />
+          <p className="text-xs text-secondary" style={{ margin: 0, lineHeight: 1.5 }}>
+            Drop a <code style={{ fontFamily: "var(--font-mono)", fontSize: "0.85em" }}>.md</code> or <code style={{ fontFamily: "var(--font-mono)", fontSize: "0.85em" }}>.txt</code> file here, or paste markdown below.
+          </p>
+          <input
+            type="file"
+            accept=".md,.txt,text/markdown,text/plain"
+            style={SR_ONLY_STYLE}
+            id="rp-policy-file"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) handleFileDrop(file);
+              e.target.value = "";
+            }}
+          />
+          <label htmlFor="rp-policy-file" className="text-xs font-mono" style={{ color: "var(--brand-primary)", cursor: "pointer", textDecoration: "underline", display: "inline-block", marginTop: 4 }}>
+            Browse files
+          </label>
+        </div>
+
+        <label htmlFor="rp-policy-text" className="text-xs uppercase tracking-wide text-secondary mt-sm">
+          Policy markdown
+        </label>
+        <textarea
+          ref={policyTextareaRef}
+          id="rp-policy-text"
+          value={policyText}
+          onChange={(e) => setPolicyText(e.target.value)}
+          placeholder={"## Coverage Section\n\n### 4.2 Premises Liability\nThe carrier shall cover..."}
+          disabled={uploadingPolicy}
+          rows={8}
+          className="rp-textarea"
+          aria-describedby="rp-policy-text-help"
+          aria-invalid={hasNoHeadings ? "true" : "false"}
+        />
+        <span id="rp-policy-text-help" className="text-xs text-secondary" style={{ lineHeight: 1.5 }}>
+          Use <code style={{ fontFamily: "var(--font-mono)", fontSize: "0.85em" }}>## Section</code> for top-level groups and <code style={{ fontFamily: "var(--font-mono)", fontSize: "0.85em" }}>### Clause</code> for individual provisions. Re-uploading the same content is a no-op — clause IDs are content-hashed.
+        </span>
+
+        {/* F3 inline warning: surface the no-heading problem as the user types, not at submit time. */}
+        {hasNoHeadings && (
+          <p className="text-xs" role="alert" style={{ color: "var(--state-warning)", lineHeight: 1.5 }}>
+            ⚠ No <code style={{ fontFamily: "var(--font-mono)" }}>## Section</code> / <code style={{ fontFamily: "var(--font-mono)" }}>### Clause</code> headings detected. Add headings before submitting or the parser will extract 0 clauses.
+          </p>
+        )}
+
+        {/* M2: client-side preview using the same chunker as the backend. */}
+        {previewChunks.length > 0 && (
+          <div>
+            <button
+              type="button"
+              onClick={() => setShowPreview(v => !v)}
+              className="text-xs font-mono"
+              style={{
+                background: "none",
+                border: "none",
+                color: "var(--text-secondary)",
+                cursor: "pointer",
+                padding: "var(--space-xs) 0",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 4,
+              }}
+              aria-expanded={showPreview}
+              aria-controls="rp-preview-list"
+            >
+              {showPreview ? <ChevronDown size={12} aria-hidden="true" /> : <ChevronRight size={12} aria-hidden="true" />}
+              <Eye size={12} aria-hidden="true" />
+              Preview {previewChunks.length} clause{previewChunks.length === 1 ? "" : "s"} that will be ingested
+            </button>
+            {showPreview && (
+              <div id="rp-preview-list" className="flex flex-col gap-xs mt-xs" style={{ maxHeight: 200, overflowY: "auto" }}>
+                {previewChunks.slice(0, 12).map((c, i) => (
+                  <div key={i} className="p-sm" style={{ background: "var(--bg-elevated)", borderRadius: "var(--radius-sm)", border: "1px solid var(--border-subtle)" }}>
+                    <span className="text-xs font-mono" style={{
+                      color: c.is_exclusion ? "var(--state-warning)" : "var(--brand-primary)",
+                      textTransform: "uppercase",
+                      letterSpacing: "0.05em",
+                    }}>
+                      {c.is_exclusion ? "exclusion" : "policy"} · {c.section}
+                    </span>
+                    <p className="text-xs text-secondary mt-xs" style={{ lineHeight: 1.5 }}>
+                      <strong style={{ color: "var(--text-primary)" }}>{c.clause}</strong> — {c.content.replace(`${c.section} > `, "").slice(0, 160)}{c.content.length > 160 ? "…" : ""}
+                    </p>
+                  </div>
+                ))}
+                {previewChunks.length > 12 && (
+                  <p className="text-xs text-secondary" style={{ fontStyle: "italic" }}>
+                    + {previewChunks.length - 12} more clause{previewChunks.length - 12 === 1 ? "" : "s"} (will be ingested but not previewed here)
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* M5: source filename is rarely useful — collapse behind an Advanced disclosure. */}
+        <button
+          type="button"
+          onClick={() => setShowAdvancedPolicy(v => !v)}
+          className="text-xs font-mono"
+          style={{
+            background: "none",
+            border: "none",
+            color: "var(--text-tertiary)",
+            cursor: "pointer",
+            padding: "var(--space-xs) 0",
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 4,
+            textAlign: "left",
+          }}
+          aria-expanded={showAdvancedPolicy}
+          aria-controls="rp-advanced-policy"
+        >
+          {showAdvancedPolicy ? <ChevronDown size={12} aria-hidden="true" /> : <ChevronRight size={12} aria-hidden="true" />}
+          Advanced
+        </button>
+        {showAdvancedPolicy && (
+          <div id="rp-advanced-policy" className="flex flex-col gap-xs">
+            <label htmlFor="rp-source-file" className="text-xs uppercase tracking-wide text-secondary">
+              Source filename
+            </label>
+            <input
+              id="rp-source-file"
+              type="text"
+              value={sourceFile}
+              onChange={(e) => setSourceFile(e.target.value)}
+              placeholder="master_policy.md"
+              disabled={uploadingPolicy}
+              className="rp-input"
+              aria-describedby="rp-source-file-help"
+            />
+            <span id="rp-source-file-help" className="text-xs text-tertiary" style={{ lineHeight: 1.5 }}>
+              Recorded in the audit trail for this upload. Defaults to <code style={{ fontFamily: "var(--font-mono)", fontSize: "0.85em" }}>master_policy.md</code>.
+            </span>
+          </div>
+        )}
+
+        {/* M3: unified button label — same verb regardless of state. */}
+        <button
+          onClick={handleUploadPolicy}
+          disabled={uploadingPolicy || !policyText.trim() || hasNoHeadings}
+          aria-disabled={uploadingPolicy || !policyText.trim() || hasNoHeadings}
+          className="btn btn-secondary"
+          style={{
+            cursor: uploadingPolicy || !policyText.trim() || hasNoHeadings ? "not-allowed" : "pointer",
+            opacity: uploadingPolicy || !policyText.trim() || hasNoHeadings ? 0.6 : 1,
+            minHeight: 44,
+          }}
+        >
+          {uploadingPolicy ? (
+            <><div className="loading-spinner loading-spinner-sm" aria-hidden="true" />Ingesting…</>
+          ) : (
+            <><Upload size={14} aria-hidden="true" />Ingest Policy</>
+          )}
+        </button>
+      </div>
+    </div>
+  ) : null;
+
   return (
-    <div className="theme-venue min-h-screen p-xl">
-      {/* Back nav */}
-      <button
-        onClick={() => router.push(backHref)}
-        className="flex items-center gap-xs text-secondary text-sm mb-xl"
-        style={{ background: "none", border: "none", cursor: "pointer", padding: 0 }}
-      >
-        <ArrowLeft size={14} /> {isBroker ? `Back to ${venueName}` : "Back to Dashboard"}
-      </button>
+    <div className="theme-venue min-h-screen rp-page">
+      {/* Page-scoped responsive rules: 1024px breakpoint for the two-column grid,
+          responsive padding so 375px phones aren't choked by 32px outer padding,
+          max-width cap so the page doesn't stretch on ultrawide monitors. */}
+      <style>{`
+        .rp-page { padding: var(--space-md); }
+        @media (min-width: 640px) { .rp-page { padding: var(--space-lg); } }
+        @media (min-width: 1024px) { .rp-page { padding: var(--space-xl); } }
+        .rp-container { max-width: 1280px; margin: 0 auto; }
+        .rp-grid { display: flex; flex-direction: column; gap: var(--space-lg); }
+        @media (min-width: 1024px) { .rp-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-xl); } }
+        .rp-back { display: inline-flex; align-items: center; gap: var(--space-xs); background: none; border: none; cursor: pointer;
+                   padding: var(--space-sm) var(--space-md) var(--space-sm) 0; margin: 0 0 var(--space-lg); min-height: 44px;
+                   color: var(--text-secondary); font-size: 0.875rem; border-radius: var(--radius-sm); }
+        .rp-back:hover { color: var(--text-primary); }
+        .rp-back:focus-visible { outline: 2px solid var(--brand-primary); outline-offset: 2px; }
+        .rp-tier { font-size: clamp(3.5rem, 12vw, 6rem); font-weight: 800; line-height: 1; letter-spacing: -4px; font-family: var(--font-display); }
+        .rp-score { font-size: clamp(2rem, 7vw, 3rem); font-weight: 800; line-height: 1; }
+        .rp-input, .rp-textarea { background: var(--bg-elevated); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm);
+                                    padding: var(--space-sm); color: var(--text-primary); font-family: var(--font-mono); font-size: 0.75rem; width: 100%; }
+        .rp-input:focus-visible, .rp-textarea:focus-visible { outline: 2px solid var(--brand-primary); outline-offset: 2px; border-color: transparent; }
+        .rp-textarea { resize: vertical; min-height: 120px; }
+        .rp-section-title { margin: 0; font-weight: inherit; }
+      `}</style>
+      <div className="rp-container">
+        {/* Back nav — padded to meet 44pt minimum tap target */}
+        <button
+          onClick={() => router.push(backHref)}
+          className="rp-back"
+          aria-label={backLabel}
+        >
+          <ArrowLeft size={16} aria-hidden="true" />
+          <span>{backLabel}</span>
+        </button>
 
-      <header className="mb-xl">
-        {venueName && <p className="text-xs uppercase tracking-wide text-secondary mb-xs">{venueName}</p>}
-        <h1 className="text-4xl font-bold glow-text">Risk Profile</h1>
-      </header>
+        <header className="mb-xl">
+          <div className="flex items-center gap-sm mb-xs" style={{ flexWrap: "wrap" }}>
+            {venueName && <p className="text-xs uppercase tracking-wide text-secondary" style={{ margin: 0 }}>{venueName}</p>}
+            {/* P1: persona chip — makes the view-as context unambiguous */}
+            <span
+              className="text-xs font-mono"
+              style={{
+                padding: "2px 8px",
+                borderRadius: 999,
+                border: `1px solid ${isBroker ? "var(--brand-secondary)" : "var(--brand-primary)"}33`,
+                background: `${isBroker ? "var(--brand-secondary)" : "var(--brand-primary)"}14`,
+                color: isBroker ? "var(--brand-secondary)" : "var(--brand-primary)",
+                textTransform: "uppercase",
+                letterSpacing: "0.06em",
+                fontSize: "0.65rem",
+              }}
+            >
+              {isBroker ? "Viewing as broker" : "Your venue"}
+            </span>
+          </div>
+          <h1 className="text-4xl font-bold glow-text">Risk Profile</h1>
+          <p style={{ ...SR_ONLY_STYLE }} aria-live="polite">
+            Tier {tier}, score {score} out of 100.
+          </p>
+        </header>
 
-      <div className="grid grid-cols-2 gap-xl">
+        <div className="rp-grid">
         {/* Left column */}
         <div className="flex flex-col gap-lg">
 
-          {/* Score hero */}
+          {/* Score hero — tier and score are responsive via clamp() so they don't overflow on 375px phones */}
           <div className="card" style={{ border: `1px solid ${tierColor}33` }}>
             <div className="flex items-center gap-xl">
-              <div style={{ fontSize: "6rem", fontWeight: 800, color: tierColor, lineHeight: 1, letterSpacing: "-4px", fontFamily: "var(--font-display)" }}>
+              <div className="rp-tier" style={{ color: tierColor }} aria-hidden="true">
                 {tier}
               </div>
               <div>
-                <div style={{ fontSize: "3rem", fontWeight: 800, color: tierColor, lineHeight: 1 }}>
+                <div className="rp-score" style={{ color: tierColor }}>
                   {score}<span className="text-xl text-secondary font-normal"> / 100</span>
                 </div>
                 <p className="text-xs font-mono text-secondary mt-xs">Tier {tier} · Evidence-First Underwriting</p>
-                {savingsAnnual > 0 && !isBroker && (
+                {/* P3: surface savings to both personas with persona-appropriate framing */}
+                {savingsAnnual > 0 && (
                   <p className="text-xs mt-xs" style={{ color: "var(--brand-primary)" }}>
-                    Saving ${savingsAnnual.toLocaleString()}/yr vs market rate
+                    {isBroker
+                      ? `Customer saving $${savingsAnnual.toLocaleString()}/yr vs market`
+                      : `Saving $${savingsAnnual.toLocaleString()}/yr vs market rate`}
                   </p>
                 )}
               </div>
@@ -187,7 +694,7 @@ export default function RiskProfilePage() {
 
           {/* Factor breakdown */}
           <div className="card">
-            <div className="text-xs uppercase tracking-wide text-secondary mb-lg">Factor Breakdown</div>
+            <h3 className="rp-section-title text-xs uppercase tracking-wide text-secondary mb-lg">Factor Breakdown</h3>
             <div className="flex flex-col gap-lg">
               {Object.entries(factors).map(([key, val]) => {
                 const s = Number(val);
@@ -198,9 +705,12 @@ export default function RiskProfilePage() {
                   <div key={key}>
                     <div className="flex items-center justify-between mb-xs">
                       <span className="text-xs uppercase tracking-wide text-secondary">{info?.label ?? key.replace(/_/g, " ")}</span>
-                      <span className="text-sm font-bold font-mono" style={{ color }}>{s}</span>
+                      <span className="flex items-center gap-xs">
+                        <FactorTierIcon tier={ft} color={color} />
+                        <span className="text-sm font-bold font-mono" style={{ color }} aria-label={`${s} out of 100, ${ft}`}>{s}</span>
+                      </span>
                     </div>
-                    <div className="capacity-bar-track" style={{ height: 4, background: "var(--bg-elevated)", borderRadius: 2, overflow: "hidden" }}>
+                    <div className="capacity-bar-track" style={{ height: 4, background: "var(--bg-elevated)", borderRadius: 2, overflow: "hidden" }} aria-hidden="true">
                       <div style={{ width: `${s}%`, height: "100%", background: color, borderRadius: 2 }} />
                     </div>
                     <p className="text-xs text-secondary mt-xs" style={{ lineHeight: 1.6 }}>{info?.[ft]}</p>
@@ -214,12 +724,15 @@ export default function RiskProfilePage() {
         {/* Right column */}
         <div className="flex flex-col gap-lg">
 
+          {/* P2: empty-state onboarding placement — Master Policy is Step 1 for a new venue */}
+          {isPolicyEmpty && masterPolicyCard}
+
           {/* What's working */}
           {goodFactors.length > 0 && (
             <div className="card">
               <div className="flex items-center gap-sm mb-lg">
-                <CheckCircle2 size={16} style={{ color: "var(--brand-primary)" }} />
-                <span className="text-xs uppercase tracking-wide text-secondary">What's Working</span>
+                <CheckCircle2 size={16} style={{ color: "var(--brand-primary)" }} aria-hidden="true" />
+                <h3 className="rp-section-title text-xs uppercase tracking-wide text-secondary">What's Working</h3>
               </div>
               <div className="flex flex-col gap-md">
                 {goodFactors.map(([key]) => {
@@ -239,10 +752,10 @@ export default function RiskProfilePage() {
           {needsAttention.length > 0 && (
             <div className="card">
               <div className="flex items-center gap-sm mb-lg">
-                <AlertTriangle size={16} style={{ color: isBroker ? "var(--state-error)" : "var(--state-warning)" }} />
-                <span className="text-xs uppercase tracking-wide text-secondary">
+                <AlertTriangle size={16} style={{ color: isBroker ? "var(--state-error)" : "var(--state-warning)" }} aria-hidden="true" />
+                <h3 className="rp-section-title text-xs uppercase tracking-wide text-secondary">
                   {isBroker ? "Risk Exposure" : "What to Improve"}
-                </span>
+                </h3>
               </div>
               <div className="flex flex-col gap-lg">
                 {needsAttention.map(([key, val]) => {
@@ -268,8 +781,8 @@ export default function RiskProfilePage() {
           {quoteData && (
             <div className="card">
               <div className="flex items-center gap-sm mb-lg">
-                <DollarSign size={16} className="text-secondary" />
-                <span className="text-xs uppercase tracking-wide text-secondary">Premium Impact</span>
+                <DollarSign size={16} className="text-secondary" aria-hidden="true" />
+                <h3 className="rp-section-title text-xs uppercase tracking-wide text-secondary">Premium Impact</h3>
               </div>
               <div className="flex flex-col gap-sm">
                 <div className="flex justify-between items-center py-sm" style={{ borderBottom: "1px solid var(--border-subtle)" }}>
@@ -297,6 +810,136 @@ export default function RiskProfilePage() {
             </div>
           )}
 
+          {/* Master Policy ingestion — broker-only.
+              Uploaded chunks are scoped to this venue and fed to the retriever
+              so generated memos cite the carrier's actual policy language. */}
+          {/* Populated-state placement: Master Policy lives at the bottom of the right column once a venue has clauses on file */}
+          {!isPolicyEmpty && masterPolicyCard}
+
+          {/* Override Calibration — visible to both roles.
+              Shows whether operator overrides of the claim recommender tend
+              to be validated by broker decisions at this venue. Empty state
+              is graceful: no override history means no signal yet. */}
+          {overrideStats && (() => {
+            const right = overrideStats.override_right_rate;
+            const baseline = overrideStats.non_override_right_rate;
+            const decided = overrideStats.override_approved + overrideStats.override_rejected;
+            // Color the rate against the baseline — only meaningful if both exist
+            const rateColor =
+              right == null
+                ? "var(--text-secondary)"
+                : baseline == null
+                ? "var(--brand-primary)"
+                : right >= baseline
+                ? "var(--brand-primary)"
+                : right >= baseline * 0.6
+                ? "var(--state-warning)"
+                : "var(--state-error)";
+            return (
+              <section className="card" style={{ gridColumn: "1 / -1" }}>
+                <div
+                  className="flex items-center justify-between mb-lg"
+                  style={{ borderBottom: "1px solid var(--border-subtle)", paddingBottom: "var(--space-sm)" }}
+                >
+                  <div>
+                    <h2 className="text-xs uppercase tracking-wide text-secondary" style={{ margin: 0 }}>
+                      Override Calibration
+                    </h2>
+                    <p className="text-xs text-secondary" style={{ margin: "4px 0 0" }}>
+                      How often this venue's operator overrides of the claim recommender are validated by broker decisions
+                    </p>
+                  </div>
+                </div>
+
+                {overrideStats.override_total === 0 ? (
+                  <p className="text-sm text-secondary" style={{ fontStyle: "italic" }}>
+                    No operator overrides recorded yet for this venue. Stats appear once the operator proposes a claim against a "don't file" recommendation.
+                  </p>
+                ) : (
+                  <>
+                    <div className="grid grid-cols-2 gap-lg mb-lg">
+                      {/* Headline: override approval rate */}
+                      <div className="p-md" style={{ border: `1px solid ${rateColor}55`, borderRadius: "var(--radius-sm)" }}>
+                        <p className="text-xs uppercase tracking-wide text-secondary" style={{ margin: 0 }}>Override approval rate</p>
+                        <p className="text-3xl font-bold font-mono" style={{ color: rateColor, margin: "4px 0" }}>
+                          {right == null ? "—" : `${Math.round(right * 100)}%`}
+                        </p>
+                        <p className="text-xs text-secondary" style={{ margin: 0 }}>
+                          {right == null
+                            ? `${overrideStats.override_pending} pending · no decisions yet`
+                            : `${overrideStats.override_approved} of ${decided} decided overrides approved`}
+                        </p>
+                      </div>
+                      {/* Baseline */}
+                      <div className="p-md" style={{ border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-sm)" }}>
+                        <p className="text-xs uppercase tracking-wide text-secondary" style={{ margin: 0 }}>Baseline (non-overrides)</p>
+                        <p className="text-3xl font-bold font-mono text-secondary" style={{ margin: "4px 0" }}>
+                          {baseline == null ? "—" : `${Math.round(baseline * 100)}%`}
+                        </p>
+                        <p className="text-xs text-secondary" style={{ margin: 0 }}>
+                          {baseline == null
+                            ? "No decided non-override proposals to compare"
+                            : `${overrideStats.non_override_approved} of ${overrideStats.non_override_approved + overrideStats.non_override_rejected} decided non-overrides approved`}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Reason breakdown — actionable signal: which override reasons hold up */}
+                    {Object.keys(overrideStats.by_reason).length > 0 && (
+                      <div>
+                        <p className="text-xs uppercase tracking-wide text-secondary mb-sm">By override reason</p>
+                        <div className="flex flex-col gap-sm">
+                          {Object.entries(overrideStats.by_reason).map(([reason, counts]) => {
+                            const reasonDecided = counts.approved + counts.rejected;
+                            const reasonRate = reasonDecided > 0 ? counts.approved / reasonDecided : null;
+                            return (
+                              <div
+                                key={reason}
+                                className="flex items-center justify-between p-sm"
+                                style={{ border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-sm)" }}
+                              >
+                                <div>
+                                  <p className="text-sm font-semibold" style={{ margin: 0 }}>
+                                    {reason.replace(/_/g, " ")}
+                                  </p>
+                                  <p className="text-xs text-secondary" style={{ margin: 0 }}>
+                                    {counts.total} total · {counts.approved} approved · {counts.rejected} rejected
+                                    {counts.pending > 0 ? ` · ${counts.pending} pending` : ""}
+                                  </p>
+                                </div>
+                                <span
+                                  className="text-sm font-mono font-bold"
+                                  style={{
+                                    color:
+                                      reasonRate == null
+                                        ? "var(--text-secondary)"
+                                        : reasonRate >= 0.7
+                                        ? "var(--brand-primary)"
+                                        : reasonRate >= 0.4
+                                        ? "var(--state-warning)"
+                                        : "var(--state-error)",
+                                  }}
+                                >
+                                  {reasonRate == null ? "—" : `${Math.round(reasonRate * 100)}%`}
+                                </span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+
+                    <p className="text-xs text-tertiary mt-md" style={{ fontStyle: "italic", lineHeight: 1.5 }}>
+                      Every operator override becomes labeled training data for the next rubric version. Patterns that
+                      hold up here strengthen the recommender; patterns that don't get re-weighted at the next rubric bump.
+                    </p>
+                  </>
+                )}
+              </section>
+            );
+          })()}
+
+        </div>
         </div>
       </div>
     </div>

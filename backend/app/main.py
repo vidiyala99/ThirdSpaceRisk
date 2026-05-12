@@ -12,8 +12,10 @@ import time
 
 from app.claim_proposals import (
     ClaimProposalValidationError,
+    compute_override_stats,
     create_proposal as create_claim_proposal,
     record_broker_decision as record_claim_broker_decision,
+    stats_to_dict as override_stats_to_dict,
 )
 from app.claim_recommendation import recommend_claim_filing, recommendation_to_dict
 from app.incident_flow import create_brawl_incident_flow
@@ -998,6 +1000,31 @@ def get_claim_for_packet(packet_id: str, session: Session = Depends(get_session)
     if proposal is None:
         raise HTTPException(status_code=404, detail="No claim proposal for this packet")
     return _claim_proposal_to_dict(proposal)
+
+
+@app.get("/api/override-stats")
+def get_cross_venue_override_stats(session: Session = Depends(get_session)) -> dict:
+    """Cross-venue override-accuracy aggregates.
+
+    The broker's portfolio view of "how well-calibrated are operator overrides
+    across all my venues?" Empty DB returns the same shape with zeros and
+    None rates — contract stable so the frontend can render unconditionally.
+    """
+    stats = compute_override_stats(session=session)
+    return override_stats_to_dict(stats)
+
+
+@app.get("/api/venues/{venue_id}/override-stats")
+def get_venue_override_stats(venue_id: str, session: Session = Depends(get_session)) -> dict:
+    """Per-venue override-accuracy aggregates.
+
+    `_resolve_venue` runs first — unknown venue is a hard 404, matching the
+    pattern of /api/venues/{venue_id}/risk-score etc. Empty stats for a
+    valid venue still return 200 with the zero-shape.
+    """
+    _resolve_venue(venue_id, session)
+    stats = compute_override_stats(session=session, venue_id=venue_id)
+    return override_stats_to_dict(stats)
 
 
 @app.get("/api/packets")

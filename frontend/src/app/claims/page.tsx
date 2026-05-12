@@ -51,13 +51,21 @@ export default function ClaimsPortfolioPage() {
   const [filter, setFilter] = useState<StateFilter>("all");
   const [sort, setSort] = useState<SortKey>("proposed_at");
   const [overrideOnly, setOverrideOnly] = useState(false);
+  // Broker-only cross-venue override calibration. Null until first fetch.
+  const [overrideStats, setOverrideStats] = useState<{
+    override_total: number;
+    override_approved: number;
+    override_rejected: number;
+    override_right_rate: number | null;
+    non_override_right_rate: number | null;
+  } | null>(null);
 
   useEffect(() => {
     async function load() {
       try {
-        const res = await fetch(`${API_URL}/api/claims`);
-        if (res.ok) {
-          const all: ClaimProposal[] = await res.json();
+        const proposalsRes = await fetch(`${API_URL}/api/claims`);
+        if (proposalsRes.ok) {
+          const all: ClaimProposal[] = await proposalsRes.json();
           // Server returns everything; client filters to the operator's
           // scope when applicable. Brokers see all.
           const scoped = operatorScope
@@ -65,12 +73,18 @@ export default function ClaimsPortfolioPage() {
             : all;
           setProposals(scoped);
         }
+        // Cross-venue stats are a broker-only surface. Skip the fetch for
+        // operators — their per-venue calibration lives on /risk-profile.
+        if (isBroker) {
+          const statsRes = await fetch(`${API_URL}/api/override-stats`);
+          if (statsRes.ok) setOverrideStats(await statsRes.json());
+        }
       } finally {
         setLoading(false);
       }
     }
     if (isLoaded && user) load();
-  }, [isLoaded, user, operatorScope]);
+  }, [isLoaded, user, operatorScope, isBroker]);
 
   const visible = useMemo(() => {
     let result = proposals;
@@ -113,6 +127,74 @@ export default function ClaimsPortfolioPage() {
           </div>
         </div>
       </header>
+
+      {/* Broker-only: cross-venue override calibration summary.
+          One-glance signal for "are operator overrides well-calibrated across
+          the whole portfolio?" — sits above filters so it's the first thing
+          a broker sees on this page. */}
+      {isBroker && overrideStats && overrideStats.override_total > 0 && (() => {
+        const right = overrideStats.override_right_rate;
+        const baseline = overrideStats.non_override_right_rate;
+        const decided = overrideStats.override_approved + overrideStats.override_rejected;
+        const rateColor =
+          right == null
+            ? "var(--text-secondary)"
+            : baseline == null
+            ? "var(--brand-primary)"
+            : right >= baseline
+            ? "var(--brand-primary)"
+            : right >= baseline * 0.6
+            ? "var(--state-warning)"
+            : "var(--state-error)";
+        const delta = right != null && baseline != null ? Math.round((right - baseline) * 100) : null;
+        return (
+          <section className="card mb-lg" style={{ borderLeft: `3px solid ${rateColor}` }}>
+            <div className="flex items-center justify-between flex-wrap gap-md">
+              <div>
+                <p className="text-xs uppercase tracking-wide text-secondary" style={{ margin: 0 }}>
+                  Portfolio override calibration
+                </p>
+                <p className="text-xs text-secondary" style={{ margin: "4px 0 0" }}>
+                  Operator-override approval rate compared to recommender-supported proposals
+                </p>
+              </div>
+              <div className="flex gap-lg items-baseline">
+                <div>
+                  <p className="text-xs uppercase tracking-wide text-secondary" style={{ margin: 0 }}>Overrides</p>
+                  <p className="text-2xl font-bold font-mono" style={{ color: rateColor, margin: 0 }}>
+                    {right == null ? "—" : `${Math.round(right * 100)}%`}
+                  </p>
+                  <p className="text-xs text-secondary" style={{ margin: 0 }}>
+                    {decided} of {overrideStats.override_total} decided
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs uppercase tracking-wide text-secondary" style={{ margin: 0 }}>Baseline</p>
+                  <p className="text-2xl font-bold font-mono text-secondary" style={{ margin: 0 }}>
+                    {baseline == null ? "—" : `${Math.round(baseline * 100)}%`}
+                  </p>
+                  <p className="text-xs text-secondary" style={{ margin: 0 }}>Non-overrides</p>
+                </div>
+                {delta != null && (
+                  <div>
+                    <p className="text-xs uppercase tracking-wide text-secondary" style={{ margin: 0 }}>Δ</p>
+                    <p
+                      className="text-2xl font-bold font-mono"
+                      style={{
+                        color: delta >= 0 ? "var(--brand-primary)" : "var(--state-error)",
+                        margin: 0,
+                      }}
+                    >
+                      {delta >= 0 ? "+" : ""}{delta} pp
+                    </p>
+                    <p className="text-xs text-secondary" style={{ margin: 0 }}>vs baseline</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </section>
+        );
+      })()}
 
       <section className="card mb-lg">
         <div className="flex gap-md items-end flex-wrap">
