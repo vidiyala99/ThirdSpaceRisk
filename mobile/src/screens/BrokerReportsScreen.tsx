@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 
 import { api } from '../api/client';
+import { useAuth } from '../contexts/AuthContext';
 
 type Filter = 'all' | 'needs_review' | 'approved' | 'blocked';
 
@@ -74,6 +75,17 @@ function EmptyState({ filter, totalPackets }: { filter: Filter; totalPackets: nu
 }
 
 export function BrokerReportsScreen({ navigation }: any) {
+  const { user } = useAuth();
+  const isOperator = user?.role === 'venue_operator';
+
+  const operatorVenues = React.useMemo(() => {
+    if (!isOperator || !user) return null;
+    const ids = new Set<string>();
+    if (user.tenant_id) ids.add(user.tenant_id);
+    (user.extra_venue_ids ?? []).forEach(v => ids.add(v));
+    return ids;
+  }, [isOperator, user]);
+
   const [packets, setPackets] = useState<Packet[]>([]);
   const [filter, setFilter] = useState<Filter>('all');
   const [loading, setLoading] = useState(true);
@@ -82,14 +94,15 @@ export function BrokerReportsScreen({ navigation }: any) {
   const fetchPackets = useCallback(async () => {
     try {
       const data = await api.request<Packet[]>('/api/packets?limit=50');
-      setPackets(Array.isArray(data) ? data : []);
+      const all = Array.isArray(data) ? data : [];
+      setPackets(operatorVenues ? all.filter(p => operatorVenues.has(p.venue_id)) : all);
     } catch {
       // keep stale
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, []);
+  }, [operatorVenues]);
 
   useEffect(() => {
     fetchPackets();
@@ -124,7 +137,7 @@ export function BrokerReportsScreen({ navigation }: any) {
       <View style={styles.header}>
         {/* Title row */}
         <View style={styles.titleRow}>
-          <Text style={styles.title}>Reports</Text>
+          <Text style={styles.title}>{isOperator ? 'My Reports' : 'Reports'}</Text>
         </View>
 
         {/* Stats bar: TOTAL | PENDING | HIGH/CRIT | APPROVED | BLOCKED */}

@@ -49,7 +49,7 @@ function NavLinks({ role, tenantId, onNavigate }: NavLinksProps) {
 
   const navItems: Array<{ href: string; label: string; icon: typeof LayoutDashboard; roles?: string[] }> = [
     { href: `/dashboard${venueQuery}`, label: "Dashboard", icon: LayoutDashboard },
-    { href: "/underwriter", label: "Reports", icon: FileSearch, roles: ["broker", "admin"] },
+    { href: "/underwriter", label: "Reports", icon: FileSearch },
     ...(tenantId
       ? [{
           href: contextVenueId ? `/terminal/${contextVenueId}` : "/terminal",

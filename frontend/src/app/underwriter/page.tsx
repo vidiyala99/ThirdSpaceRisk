@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AlertTriangle, CheckCircle2, Clock, FileSearch, LockKeyhole, RefreshCw, ShieldAlert } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
 
@@ -43,26 +44,39 @@ const STATUS_CONFIG: Record<PacketStatus, { label: string; icon: React.ReactNode
 
 export default function ReportsPage() {
   const router = useRouter();
+  const { user } = useAuth();
+  const isBroker = user?.role === "broker" || user?.role === "admin";
+  const isOperator = user?.role === "venue_operator";
+
   const [packets, setPackets] = useState<QueueItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<PacketStatus | "all">("all");
 
-  useEffect(() => {
-    async function fetchPackets() {
-      try {
-        const res = await fetch(`${API_URL}/api/packets?limit=50`);
-        if (res.ok) {
-          const data = await res.json();
-          setPackets(Array.isArray(data) ? data : []);
-        }
-      } catch {
-        // stay empty
-      } finally {
-        setLoading(false);
+  const operatorScope = useMemo(() => {
+    if (!isOperator || !user) return null;
+    const ids = new Set<string>();
+    if (user.tenant_id) ids.add(user.tenant_id);
+    (user.extra_venue_ids || []).forEach(v => ids.add(v));
+    return ids;
+  }, [isOperator, user]);
+
+  async function fetchPackets() {
+    setLoading(true);
+    try {
+      const res = await fetch(`${API_URL}/api/packets?limit=50`);
+      if (res.ok) {
+        const data: QueueItem[] = await res.json();
+        const all = Array.isArray(data) ? data : [];
+        setPackets(operatorScope ? all.filter(p => operatorScope.has(p.venue_id)) : all);
       }
+    } catch {
+      // stay empty
+    } finally {
+      setLoading(false);
     }
-    fetchPackets();
-  }, []);
+  }
+
+  useEffect(() => { fetchPackets(); }, [operatorScope]);
 
   const filtered = statusFilter === "all"
     ? packets
@@ -79,13 +93,14 @@ export default function ReportsPage() {
     <div className="page">
       <header className="page-header">
         <div>
-          <h1>Reports</h1>
-          <p className="page-subtitle">Review and action incident reports from your venues</p>
+          <h1>{isOperator ? "My Reports" : "Reports"}</h1>
+          <p className="page-subtitle">
+            {isOperator
+              ? "Underwriting packets for your venues"
+              : "Review and action incident reports from your venues"}
+          </p>
         </div>
-        <button
-          className="btn btn-ghost"
-          onClick={() => { setLoading(true); fetch(`${API_URL}/api/packets?limit=50`).then(r => r.json()).then(d => setPackets(Array.isArray(d) ? d : [])).finally(() => setLoading(false)); }}
-        >
+        <button className="btn btn-ghost" onClick={fetchPackets}>
           <RefreshCw size={16} />
           Refresh
         </button>

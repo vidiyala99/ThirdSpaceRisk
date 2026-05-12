@@ -28,6 +28,7 @@ const VENUE_ICONS: Record<string, { active: string; inactive: string }> = {
   Live:       { active: '◉', inactive: '○' },
   Compliance: { active: '✓', inactive: '○' },
   Claims:     { active: '⊡', inactive: '⊡' },
+  Reports:    { active: '⊞', inactive: '⊟' },
 };
 
 const BROKER_ICONS: Record<string, { active: string; inactive: string }> = {
@@ -88,11 +89,11 @@ function VenueOperatorTabs() {
       tabBarIcon: ({ focused }) => <TabIcon name={route.name} focused={focused} />,
     })}>
       <Tab.Screen name="Dashboard" component={DashboardStack} />
-      <Tab.Screen name="Venues" component={VenuesStack} />
+      <Tab.Screen name="Reports" component={ReportsStack} />
       <Tab.Screen name="Incidents" component={IncidentsStack} />
+      <Tab.Screen name="Claims" component={ClaimsStack} />
       <Tab.Screen name="Live" component={LiveStack} />
       <Tab.Screen name="Compliance" component={OperatorComplianceStack} />
-      <Tab.Screen name="Claims" component={ClaimsStack} />
     </Tab.Navigator>
   );
 }
