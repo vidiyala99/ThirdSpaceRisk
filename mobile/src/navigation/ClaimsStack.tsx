@@ -1,16 +1,14 @@
 import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { BrokerReportsScreen } from '../screens/BrokerReportsScreen';
-import { BrokerReportDetailScreen } from '../screens/BrokerReportDetailScreen';
+import { ClaimsListScreen } from '../screens/ClaimsListScreen';
 import { ClaimDetailScreen } from '../screens/ClaimDetailScreen';
 
 const Stack = createNativeStackNavigator();
 
-export function ReportsStack() {
+export function ClaimsStack() {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="ReportsList" component={BrokerReportsScreen} />
-      <Stack.Screen name="ReportDetail" component={BrokerReportDetailScreen} />
+      <Stack.Screen name="ClaimsList" component={ClaimsListScreen} />
       <Stack.Screen name="ClaimDetail" component={ClaimDetailScreen} />
     </Stack.Navigator>
   );

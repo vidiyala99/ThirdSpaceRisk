@@ -12,6 +12,8 @@ import { api } from '../api/client';
 import { useAuth } from '../contexts/AuthContext';
 import { StatusBadge } from '../components/StatusBadge';
 import { useAlert } from '../components/ThemedAlert';
+import { ClaimProposeBottomSheet } from '../components/ClaimProposeBottomSheet';
+import { STATE_LABEL, STATE_COLOR, type ClaimProposal, type OverrideReason } from '../types/claims';
 
 const SEVERITY_COLOR: Record<string, string> = {
   critical: '#ff4557',
@@ -49,6 +51,9 @@ export function IncidentDetailScreen({ route, navigation }: any) {
   const [visionAnalysis, setVisionAnalysis] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [updatingStatus, setUpdatingStatus] = useState(false);
+  const [proposal, setProposal] = useState<ClaimProposal | null>(null);
+  const [proposeSheetVisible, setProposeSheetVisible] = useState(false);
+  const [submittingProposal, setSubmittingProposal] = useState(false);
 
   useEffect(() => {
     async function load() {
@@ -60,7 +65,9 @@ export function IncidentDetailScreen({ route, navigation }: any) {
           api.request<any>(`/api/incidents/${incidentId}/evidence-analysis`).catch(() => null),
         ]);
         setIncident(inc);
-        setPackets(Array.isArray(pkts) ? pkts : []);
+        const pktList = Array.isArray(pkts) ? pkts : [];
+        setPackets(pktList);
+        if (pktList.length > 0) setProposal(pktList[0].claim_proposal ?? null);
         setEvidence(Array.isArray(evs) ? evs : []);
         setVisionAnalysis(vision);
       } catch {
@@ -71,6 +78,24 @@ export function IncidentDetailScreen({ route, navigation }: any) {
     }
     load();
   }, [incidentId]);
+
+  async function submitProposal(input: { override_recommendation: boolean; override_reason: OverrideReason; override_freetext: string | null }) {
+    if (!packet) return;
+    setSubmittingProposal(true);
+    try {
+      const created = await api.request<ClaimProposal>(`/api/packets/${packet.id}/claim-proposal`, {
+        method: 'POST',
+        body: JSON.stringify({ operator_id: user?.id ?? 'unknown', ...input }),
+      });
+      setProposal(created);
+      setProposeSheetVisible(false);
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch (e: any) {
+      alert.show({ title: 'Error', message: e.message ?? 'Failed to propose claim', variant: 'error' });
+    } finally {
+      setSubmittingProposal(false);
+    }
+  }
 
   async function updateStatus(newStatus: string) {
     setUpdatingStatus(true);
@@ -150,6 +175,57 @@ export function IncidentDetailScreen({ route, navigation }: any) {
           ))}
         </View>
       )}
+
+      {/* Claim Propose — operator only, shown when a packet exists */}
+      {!isBroker && packet && (() => {
+        const rec = packet.claim_recommendation;
+        if (!rec) return null;
+        const stateColor = proposal ? (STATE_COLOR[proposal.state] ?? '#4a4f65') : undefined;
+        return (
+          <View style={styles.card}>
+            <Text style={styles.eyebrow}>CLAIM DECISION</Text>
+            {proposal ? (
+              <>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <Text style={{ color: stateColor, fontFamily: 'DMSans_700Bold', fontSize: 14 }}>
+                    {STATE_LABEL[proposal.state]}
+                  </Text>
+                  {proposal.override_recommendation && (
+                    <Text style={{ color: '#ff9500', fontSize: 9, fontFamily: 'JetBrainsMono_700Bold', letterSpacing: 1 }}>OVERRIDE</Text>
+                  )}
+                </View>
+                {proposal.broker_notes && (
+                  <Text style={[styles.summary, { fontStyle: 'italic', fontSize: 12 }]}>
+                    Broker: "{proposal.broker_notes}"
+                  </Text>
+                )}
+                <Pressable onPress={() => navigation.navigate('ClaimDetail', { packetId: packet.id })}>
+                  <Text style={{ color: '#c8f000', fontSize: 12, fontFamily: 'DMSans_600SemiBold' }}>
+                    View claim detail →
+                  </Text>
+                </Pressable>
+              </>
+            ) : (
+              <>
+                <Text style={styles.summary}>
+                  {rec.should_file
+                    ? `Recommender supports filing (${Math.round(rec.probability * 100)}% probability, net EV $${rec.net_expected_value_usd.toLocaleString()}).`
+                    : `Recommender suggests not filing. Override only with additional context.`}
+                </Text>
+                <Pressable
+                  style={[styles.actionBtn, { borderColor: rec.should_file ? '#c8f000' : '#ff9500', backgroundColor: rec.should_file ? '#c8f00014' : 'transparent' }]}
+                  onPress={() => setProposeSheetVisible(true)}
+                  disabled={submittingProposal}
+                >
+                  <Text style={[styles.actionBtnText, { color: rec.should_file ? '#c8f000' : '#ff9500' }]}>
+                    {rec.should_file ? 'Propose Claim' : 'Override & Propose'}
+                  </Text>
+                </Pressable>
+              </>
+            )}
+          </View>
+        );
+      })()}
 
       {/* Description */}
       <View style={styles.card}>
@@ -291,6 +367,16 @@ export function IncidentDetailScreen({ route, navigation }: any) {
         </View>
       )}
     </ScrollView>
+
+    {packet && (
+      <ClaimProposeBottomSheet
+        visible={proposeSheetVisible}
+        onClose={() => setProposeSheetVisible(false)}
+        recommenderVerdict={packet.claim_recommendation?.should_file ? 'file' : 'do_not_file'}
+        submitting={submittingProposal}
+        onSubmit={submitProposal}
+      />
+    )}
   );
 }
 

@@ -12,6 +12,7 @@ import * as Haptics from 'expo-haptics';
 import { useAuth } from '../contexts/AuthContext';
 import { api } from '../api/client';
 import { useAlert } from '../components/ThemedAlert';
+import { STATE_LABEL, STATE_COLOR, type ClaimProposal } from '../types/claims';
 
 const SEVERITY_COLOR: Record<string, string> = {
   critical: '#ff4557', high: '#ff4557', medium: '#ff9500', low: '#c8f000', unknown: '#4a4f65',
@@ -33,12 +34,16 @@ export function BrokerReportDetailScreen({ route, navigation }: any) {
   const [submitting, setSubmitting] = useState(false);
   const [decisionMade, setDecisionMade] = useState<string | null>(null);
   const [notes, setNotes] = useState('');
+  const [proposal, setProposal] = useState<ClaimProposal | null>(null);
+  const [submittingBrokerDecision, setSubmittingBrokerDecision] = useState(false);
+  const [brokerRejectNotes, setBrokerRejectNotes] = useState('');
 
   useEffect(() => {
     async function load() {
       try {
         const pkt = await api.request<any>(`/api/packets/${packetId}`);
         setPacket(pkt);
+        setProposal(pkt.claim_proposal ?? null);
         const [inc, vision] = await Promise.all([
           api.request<any>(`/api/incidents/${pkt.incident_id}`).catch(() => null),
           api.request<any>(`/api/incidents/${pkt.incident_id}/evidence-analysis`).catch(() => null),
@@ -54,6 +59,28 @@ export function BrokerReportDetailScreen({ route, navigation }: any) {
     }
     load();
   }, [packetId]);
+
+  async function submitBrokerDecision(dec: 'approved' | 'rejected') {
+    if (!proposal) return;
+    setSubmittingBrokerDecision(true);
+    try {
+      const updated = await api.request<ClaimProposal>(`/api/claim-proposals/${proposal.id}/broker-decision`, {
+        method: 'POST',
+        body: JSON.stringify({
+          broker_id: user?.id ?? 'unknown',
+          decision: dec,
+          notes: dec === 'rejected' && brokerRejectNotes.trim() ? brokerRejectNotes.trim() : null,
+        }),
+      });
+      setProposal(updated);
+      setBrokerRejectNotes('');
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch (e: any) {
+      alert.show({ title: 'Error', message: e.message ?? 'Failed to submit decision', variant: 'error' });
+    } finally {
+      setSubmittingBrokerDecision(false);
+    }
+  }
 
   async function submitDecision(dec: string) {
     if (!packet) return;
@@ -100,6 +127,143 @@ export function BrokerReportDetailScreen({ route, navigation }: any) {
           {severity.toUpperCase()} EXPOSURE · {confidence}% CONFIDENCE
         </Text>
       </View>
+
+      {/* AI Claim Recommendation — EV math card (was missing on mobile) */}
+      {packet.claim_recommendation && (() => {
+        const rec = packet.claim_recommendation;
+        const accent = rec.should_file ? '#c8f000' : '#4a4f65';
+        const netEv = rec.net_expected_value_usd;
+        const netLabel = (netEv >= 0 ? '+' : '-') + '$' + Math.abs(netEv).toLocaleString();
+        return (
+          <View style={[styles.card, { borderLeftWidth: 3, borderLeftColor: accent }]}>
+            <View style={styles.rowBetween}>
+              <Text style={styles.eyebrow}>AI CLAIM RECOMMENDATION</Text>
+              <Text style={[styles.eyebrow, { color: accent }]}>{Math.round(rec.confidence * 100)}% CONFIDENT</Text>
+            </View>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+              <Text style={{ fontSize: 28 }}>{rec.should_file ? '↑' : '↓'}</Text>
+              <View>
+                <Text style={{ color: accent, fontSize: 16, fontFamily: 'DMSans_700Bold' }}>
+                  {rec.should_file ? 'File this claim' : "Don't file yet"}
+                </Text>
+                <Text style={styles.bodyText}>
+                  {Math.round(rec.probability * 100)}% paid-out probability · net EV {netLabel}
+                </Text>
+              </View>
+            </View>
+            <View style={{ backgroundColor: '#07080f', borderRadius: 10, padding: 12, gap: 8 }}>
+              <View style={styles.rowBetween}>
+                <Text style={styles.eyebrow}>EXPECTED PAYOUT</Text>
+                <Text style={{ color: '#8b90a8', fontSize: 12, fontFamily: 'JetBrainsMono_400Regular' }}>
+                  ${rec.expected_payout.low_usd.toLocaleString()} – ${rec.expected_payout.high_usd.toLocaleString()}
+                </Text>
+              </View>
+              <View style={styles.rowBetween}>
+                <Text style={styles.eyebrow}>MEDIAN</Text>
+                <Text style={{ color: '#c8f000', fontSize: 13, fontFamily: 'JetBrainsMono_700Bold' }}>
+                  ${rec.expected_payout.median_usd.toLocaleString()}
+                </Text>
+              </View>
+              <View style={styles.rowBetween}>
+                <Text style={styles.eyebrow}>PREMIUM IMPACT</Text>
+                <Text style={{ color: '#ff9500', fontSize: 12, fontFamily: 'JetBrainsMono_400Regular' }}>
+                  +${rec.expected_premium_impact.annual_delta_usd.toLocaleString()}/yr × {rec.expected_premium_impact.duration_years}yr
+                </Text>
+              </View>
+              <View style={[styles.rowBetween, { paddingTop: 8, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: 'rgba(255,255,255,0.07)' }]}>
+                <Text style={styles.eyebrow}>NET EV</Text>
+                <Text style={{ color: netEv >= 0 ? '#c8f000' : '#ff4557', fontSize: 13, fontFamily: 'JetBrainsMono_700Bold' }}>
+                  {netLabel}
+                </Text>
+              </View>
+            </View>
+            {rec.reasons.slice(0, 2).map((r: string, i: number) => (
+              <View key={i} style={{ flexDirection: 'row', gap: 8 }}>
+                <Text style={{ color: accent }}>→</Text>
+                <Text style={[styles.bodyText, { flex: 1, fontSize: 12 }]}>{r}</Text>
+              </View>
+            ))}
+          </View>
+        );
+      })()}
+
+      {/* Claim Decision — broker action row */}
+      {packet.claim_recommendation && (() => {
+        if (!proposal) {
+          return (
+            <View style={styles.card}>
+              <Text style={styles.eyebrow}>CLAIM DECISION</Text>
+              <Text style={[styles.bodyText, { fontStyle: 'italic' }]}>
+                Awaiting an operator proposal. The operator initiates; you decide.
+              </Text>
+            </View>
+          );
+        }
+        const stateColor = STATE_COLOR[proposal.state] ?? '#4a4f65';
+        return (
+          <View style={[styles.card, { borderLeftWidth: 3, borderLeftColor: stateColor }]}>
+            <View style={styles.rowBetween}>
+              <Text style={styles.eyebrow}>CLAIM DECISION</Text>
+              {proposal.override_recommendation && (
+                <Text style={{ color: '#ff9500', fontSize: 9, fontFamily: 'JetBrainsMono_700Bold', letterSpacing: 1 }}>
+                  OVERRIDE
+                </Text>
+              )}
+            </View>
+            <View style={styles.rowBetween}>
+              <Text style={{ color: stateColor, fontFamily: 'DMSans_700Bold', fontSize: 14 }}>
+                {STATE_LABEL[proposal.state]}
+              </Text>
+              <Text style={[styles.eyebrow, { color: '#2e3247' }]}>
+                {new Date(proposal.proposed_at).toLocaleDateString()}
+              </Text>
+            </View>
+            {proposal.override_reason && (
+              <Text style={styles.bodyText}>
+                Override reason: {proposal.override_reason.replace(/_/g, ' ')}
+                {proposal.override_freetext ? ` — "${proposal.override_freetext}"` : ''}
+              </Text>
+            )}
+            {proposal.broker_notes && (
+              <Text style={[styles.bodyText, { fontStyle: 'italic' }]}>Broker: "{proposal.broker_notes}"</Text>
+            )}
+            {proposal.state === 'pending_broker_review' && (
+              <View style={{ gap: 8, marginTop: 4 }}>
+                <TextInput
+                  style={styles.notesInput}
+                  placeholder="Reject notes (optional)..."
+                  placeholderTextColor="#4a4f65"
+                  value={brokerRejectNotes}
+                  onChangeText={setBrokerRejectNotes}
+                  multiline
+                  editable={!submittingBrokerDecision}
+                />
+                <View style={{ flexDirection: 'row', gap: 8 }}>
+                  <Pressable
+                    style={[styles.decBtn, { flex: 1, backgroundColor: '#c8f000' }]}
+                    onPress={() => submitBrokerDecision('approved')}
+                    disabled={submittingBrokerDecision}
+                  >
+                    <Text style={[styles.decBtnText, { color: '#07080f' }]}>Approve & File</Text>
+                  </Pressable>
+                  <Pressable
+                    style={[styles.decBtn, { flex: 1, borderWidth: 1, borderColor: '#ff4557' }]}
+                    onPress={() => submitBrokerDecision('rejected')}
+                    disabled={submittingBrokerDecision}
+                  >
+                    <Text style={[styles.decBtnText, { color: '#ff4557' }]}>Reject</Text>
+                  </Pressable>
+                </View>
+              </View>
+            )}
+            <Pressable onPress={() => navigation.navigate('ClaimDetail', { packetId: packet.id })}>
+              <Text style={{ color: '#c8f000', fontSize: 12, fontFamily: 'DMSans_600SemiBold', marginTop: 4 }}>
+                View claim detail →
+              </Text>
+            </Pressable>
+          </View>
+        );
+      })()}
 
       {/* Review Decision */}
       <View style={styles.card}>

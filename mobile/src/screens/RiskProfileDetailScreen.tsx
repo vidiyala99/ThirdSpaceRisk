@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Pressable,
   ScrollView,
@@ -7,6 +7,8 @@ import {
   View,
 } from 'react-native';
 import { CapacityBar } from '../components/CapacityBar';
+import { api } from '../api/client';
+import { type OverrideStats } from '../types/claims';
 
 const TIER_COLOR: Record<string, string> = {
   A: '#c8f000', B: '#00d97e', C: '#ff9500', D: '#ff4557',
@@ -64,6 +66,16 @@ function getFactorColor(score: number): string {
 
 export function RiskProfileDetailScreen({ route, navigation }: any) {
   const { riskData, quoteData, venueName, isBroker } = route.params;
+  const venueId: string | undefined = riskData?.venue_id;
+
+  const [overrideStats, setOverrideStats] = useState<OverrideStats | null>(null);
+
+  useEffect(() => {
+    if (!venueId) return;
+    api.request<OverrideStats>(`/api/venues/${venueId}/override-stats`)
+      .then(setOverrideStats)
+      .catch(() => {});
+  }, [venueId]);
 
   const tier = riskData?.tier ?? '—';
   const score = riskData?.total_score ?? 0;
@@ -253,6 +265,69 @@ export function RiskProfileDetailScreen({ route, navigation }: any) {
           )}
         </View>
       )}
+
+      {/* Override Calibration */}
+      {overrideStats && overrideStats.override_total > 0 && (() => {
+        const right = overrideStats.override_right_rate;
+        const base = overrideStats.non_override_right_rate;
+        const decided = overrideStats.override_approved + overrideStats.override_rejected;
+        const rateColor = right == null ? '#4a4f65'
+          : base == null ? '#c8f000'
+          : right >= base ? '#c8f000'
+          : right >= base * 0.6 ? '#ff9500'
+          : '#ff4557';
+        const delta = right != null && base != null ? Math.round((right - base) * 100) : null;
+        return (
+          <View style={[styles.card, { borderLeftWidth: 3, borderLeftColor: rateColor }]}>
+            <Text style={styles.eyebrow}>OVERRIDE CALIBRATION</Text>
+            <Text style={{ color: '#8b90a8', fontSize: 12, fontFamily: 'DMSans_400Regular', marginTop: -8 }}>
+              How often operator overrides align with broker decisions
+            </Text>
+            <View style={{ flexDirection: 'row', gap: 10 }}>
+              <View style={{ flex: 1, alignItems: 'center', padding: 12, borderWidth: StyleSheet.hairlineWidth, borderColor: `${rateColor}44`, borderRadius: 10 }}>
+                <Text style={{ color: rateColor, fontSize: 28, fontFamily: 'JetBrainsMono_700Bold', letterSpacing: -1 }}>
+                  {right == null ? '—' : `${Math.round(right * 100)}%`}
+                </Text>
+                <Text style={styles.eyebrow}>OVERRIDES</Text>
+                <Text style={{ color: '#4a4f65', fontSize: 10, fontFamily: 'JetBrainsMono_400Regular', marginTop: 2 }}>
+                  {decided} of {overrideStats.override_total} decided
+                </Text>
+              </View>
+              <View style={{ flex: 1, alignItems: 'center', padding: 12, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.07)', borderRadius: 10 }}>
+                <Text style={{ color: '#8b90a8', fontSize: 28, fontFamily: 'JetBrainsMono_700Bold', letterSpacing: -1 }}>
+                  {base == null ? '—' : `${Math.round(base * 100)}%`}
+                </Text>
+                <Text style={styles.eyebrow}>BASELINE</Text>
+                <Text style={{ color: '#4a4f65', fontSize: 10, fontFamily: 'JetBrainsMono_400Regular', marginTop: 2 }}>
+                  Non-overrides
+                </Text>
+              </View>
+              {delta != null && (
+                <View style={{ flex: 1, alignItems: 'center', padding: 12, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.07)', borderRadius: 10 }}>
+                  <Text style={{ color: delta >= 0 ? '#c8f000' : '#ff4557', fontSize: 24, fontFamily: 'JetBrainsMono_700Bold' }}>
+                    {delta >= 0 ? '+' : ''}{delta}
+                  </Text>
+                  <Text style={styles.eyebrow}>DELTA PP</Text>
+                </View>
+              )}
+            </View>
+            {Object.entries(overrideStats.by_reason).map(([reason, counts]) => {
+              const d = counts.approved + counts.rejected;
+              const rr = d > 0 ? Math.round(counts.approved / d * 100) : null;
+              return (
+                <View key={reason} style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 6, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: 'rgba(255,255,255,0.05)' }}>
+                  <Text style={{ color: '#8b90a8', fontSize: 12, fontFamily: 'DMSans_400Regular', textTransform: 'capitalize' }}>
+                    {reason.replace(/_/g, ' ')}
+                  </Text>
+                  <Text style={{ color: rr == null ? '#4a4f65' : rr >= 70 ? '#c8f000' : rr >= 40 ? '#ff9500' : '#ff4557', fontFamily: 'JetBrainsMono_700Bold', fontSize: 12 }}>
+                    {rr == null ? 'pending' : `${rr}%`}
+                  </Text>
+                </View>
+              );
+            })}
+          </View>
+        );
+      })()}
     </ScrollView>
   );
 }

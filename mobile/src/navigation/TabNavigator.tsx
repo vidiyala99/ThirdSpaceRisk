@@ -16,6 +16,9 @@ import { ReportsStack } from './ReportsStack';
 import { BrokerVenuesStack } from './BrokerVenuesStack';
 import { BrokerComplianceStack } from './BrokerComplianceStack';
 
+// Claims (both roles)
+import { ClaimsStack } from './ClaimsStack';
+
 const Tab = createBottomTabNavigator();
 
 const VENUE_ICONS: Record<string, { active: string; inactive: string }> = {
@@ -24,6 +27,7 @@ const VENUE_ICONS: Record<string, { active: string; inactive: string }> = {
   Incidents:  { active: '!', inactive: '!' },
   Live:       { active: '◉', inactive: '○' },
   Compliance: { active: '✓', inactive: '○' },
+  Claims:     { active: '⊡', inactive: '⊡' },
 };
 
 const BROKER_ICONS: Record<string, { active: string; inactive: string }> = {
@@ -32,6 +36,7 @@ const BROKER_ICONS: Record<string, { active: string; inactive: string }> = {
   Venues:      { active: '⊟', inactive: '⊞' },
   Incidents:   { active: '◉', inactive: '○' },
   Compliance:  { active: '✓', inactive: '○' },
+  Claims:      { active: '⊡', inactive: '⊡' },
 };
 
 function TabIcon({ name, focused }: { name: string; focused: boolean }) {
@@ -87,6 +92,7 @@ function VenueOperatorTabs() {
       <Tab.Screen name="Incidents" component={IncidentsStack} />
       <Tab.Screen name="Live" component={LiveStack} />
       <Tab.Screen name="Compliance" component={OperatorComplianceStack} />
+      <Tab.Screen name="Claims" component={ClaimsStack} />
     </Tab.Navigator>
   );
 }
@@ -108,6 +114,7 @@ function BrokerTabs() {
     })}>
       <Tab.Screen name="Portfolio" component={PortfolioStack} />
       <Tab.Screen name="Reports" component={ReportsStack} />
+      <Tab.Screen name="Claims" component={ClaimsStack} />
       <Tab.Screen name="Venues" component={BrokerVenuesStack} />
       <Tab.Screen name="Incidents" component={IncidentsStack} />
       <Tab.Screen name="Compliance" component={BrokerComplianceStack} />

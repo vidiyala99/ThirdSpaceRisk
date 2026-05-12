@@ -1,0 +1,170 @@
+import React, { useEffect, useMemo, useState } from 'react';
+import {
+  ActivityIndicator,
+  FlatList,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
+import { useAuth } from '../contexts/AuthContext';
+import { api } from '../api/client';
+import {
+  STATE_LABEL,
+  STATE_COLOR,
+  type ClaimProposal,
+  type ClaimState,
+} from '../types/claims';
+
+type Filter = 'all' | ClaimState;
+
+export function ClaimsListScreen({ navigation }: any) {
+  const { user } = useAuth();
+  const isBroker = user?.role === 'broker' || user?.role === 'admin';
+
+  const [proposals, setProposals] = useState<ClaimProposal[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState<Filter>('all');
+
+  useEffect(() => {
+    async function load() {
+      try {
+        const all = await api.request<ClaimProposal[]>('/api/claims');
+        const scope = isBroker ? all : all.filter(p => {
+          const ids = new Set([user?.tenant_id, ...(user?.extra_venue_ids ?? [])].filter(Boolean));
+          return ids.has(p.venue_id);
+        });
+        setProposals(scope);
+      } catch {
+        // non-fatal
+      } finally {
+        setLoading(false);
+      }
+    }
+    load();
+  }, [isBroker, user]);
+
+  const visible = useMemo(() => {
+    const list = filter === 'all' ? proposals : proposals.filter(p => p.state === filter);
+    return [...list].sort((a, b) => new Date(b.proposed_at).getTime() - new Date(a.proposed_at).getTime());
+  }, [proposals, filter]);
+
+  const pendingCount = proposals.filter(p => p.state === 'pending_broker_review').length;
+  const overrideCount = proposals.filter(p => p.override_recommendation).length;
+  const pageTitle = isBroker ? 'Claims Portfolio' : 'My Claims';
+  const subtitle = isBroker
+    ? `${proposals.length} proposals · ${pendingCount} pending · ${overrideCount} overrides`
+    : `${proposals.length} proposals · ${pendingCount} awaiting review`;
+
+  const FILTERS: Filter[] = ['all', 'pending_broker_review', 'approved', 'rejected_by_broker', 'filed_with_carrier'];
+
+  return (
+    <View style={s.root}>
+      {/* Header */}
+      <View style={s.header}>
+        <Text style={s.title}>{pageTitle}</Text>
+        <Text style={s.subtitle}>{subtitle}</Text>
+      </View>
+
+      {/* Filter chips */}
+      <FlatList
+        horizontal
+        data={FILTERS}
+        keyExtractor={f => f}
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={s.filterRow}
+        renderItem={({ item: f }) => (
+          <Pressable
+            style={[s.chip, filter === f && s.chipActive]}
+            onPress={() => setFilter(f)}
+          >
+            <Text style={[s.chipText, filter === f && s.chipTextActive]}>
+              {f === 'all' ? 'All' : f === 'pending_broker_review' ? 'Pending' : STATE_LABEL[f as ClaimState]}
+            </Text>
+          </Pressable>
+        )}
+      />
+
+      {loading ? (
+        <View style={s.centered}><ActivityIndicator color="#c8f000" /></View>
+      ) : visible.length === 0 ? (
+        <View style={s.centered}>
+          <Text style={s.emptyIcon}>📋</Text>
+          <Text style={s.emptyText}>
+            {proposals.length === 0
+              ? isBroker
+                ? 'No claim proposals yet.'
+                : "You haven't proposed any claims yet."
+              : 'No proposals match this filter.'}
+          </Text>
+        </View>
+      ) : (
+        <FlatList
+          data={visible}
+          keyExtractor={p => p.id}
+          contentContainerStyle={s.list}
+          renderItem={({ item: p }) => {
+            const col = STATE_COLOR[p.state] ?? '#4a4f65';
+            return (
+              <Pressable
+                style={[s.row, p.override_recommendation && s.rowOverride]}
+                onPress={() => navigation.navigate('ClaimDetail', { packetId: p.packet_id })}
+              >
+                <View style={s.rowLeft}>
+                  <Text style={s.venueName}>{p.venue_id.replace(/-/g, ' ')}</Text>
+                  <Text style={s.date}>{new Date(p.proposed_at).toLocaleDateString()}</Text>
+                  {p.override_recommendation && p.override_reason && (
+                    <Text style={s.overrideTag}>
+                      ⚠ OVERRIDE · {p.override_reason.replace(/_/g, ' ')}
+                    </Text>
+                  )}
+                </View>
+                <View style={s.rowRight}>
+                  <View style={[s.stateBadge, { borderColor: col }]}>
+                    <Text style={[s.stateText, { color: col }]}>
+                      {STATE_LABEL[p.state]}
+                    </Text>
+                  </View>
+                  <Text style={s.arrow}>›</Text>
+                </View>
+              </Pressable>
+            );
+          }}
+        />
+      )}
+    </View>
+  );
+}
+
+const s = StyleSheet.create({
+  root: { flex: 1, backgroundColor: '#07080f' },
+  header: { paddingHorizontal: 20, paddingTop: 60, paddingBottom: 16 },
+  title: { color: '#eeeef5', fontSize: 26, fontFamily: 'CormorantGaramond_700Bold', letterSpacing: -0.5 },
+  subtitle: { color: '#4a4f65', fontSize: 12, fontFamily: 'JetBrainsMono_400Regular', marginTop: 4 },
+  filterRow: { paddingHorizontal: 20, paddingBottom: 12, gap: 8 },
+  chip: {
+    paddingHorizontal: 14, paddingVertical: 7, borderRadius: 100,
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.07)',
+  },
+  chipActive: { borderColor: '#c8f000', backgroundColor: 'rgba(200,240,0,0.08)' },
+  chipText: { color: '#4a4f65', fontSize: 12, fontFamily: 'DMSans_600SemiBold' },
+  chipTextActive: { color: '#c8f000' },
+  centered: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: 12 },
+  emptyIcon: { fontSize: 36 },
+  emptyText: { color: '#4a4f65', fontSize: 14, fontFamily: 'DMSans_400Regular', textAlign: 'center', paddingHorizontal: 40 },
+  list: { paddingHorizontal: 20, paddingBottom: 40 },
+  row: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    paddingVertical: 14, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: 'rgba(255,255,255,0.05)',
+    gap: 12,
+  },
+  rowOverride: { backgroundColor: 'rgba(255,149,0,0.04)' },
+  rowLeft: { flex: 1, gap: 3 },
+  venueName: { color: '#eeeef5', fontSize: 14, fontFamily: 'DMSans_600SemiBold', textTransform: 'capitalize' },
+  date: { color: '#4a4f65', fontSize: 11, fontFamily: 'JetBrainsMono_400Regular' },
+  overrideTag: { color: '#ff9500', fontSize: 10, fontFamily: 'JetBrainsMono_700Bold', letterSpacing: 0.5 },
+  rowRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  stateBadge: { borderWidth: 1, borderRadius: 4, paddingHorizontal: 8, paddingVertical: 3 },
+  stateText: { fontSize: 9, fontFamily: 'JetBrainsMono_700Bold', letterSpacing: 1, textTransform: 'uppercase' },
+  arrow: { color: '#4a4f65', fontSize: 20 },
+});
