@@ -36,6 +36,52 @@ jobs:
       - name: Install Playwright browsers
         run: ./node_modules/.bin/playwright install --with-deps chromium
 
+      # Push events trigger Vercel + Railway redeploys that race with this job.
+      # Wait until backend + frontend are responsive AND login actually works
+      # before launching Playwright. Without this, Playwright would otherwise
+      # hit a cold backend and report misleading "login flow broken" failures
+      # — exactly what happened on the 247b17e push run.
+      - name: Wait for live deployments to warm up
+        shell: bash
+        run: |
+          set -u
+          BACKEND="https://thirdspacerisk-production.up.railway.app"
+          FRONTEND="https://frontend-mu-ebon-n3x8uw2rpx.vercel.app"
+          DEADLINE=$((SECONDS + 300))
+
+          # Initial grace period — gives Vercel + Railway time to begin rolling
+          # the new build before we start polling.
+          sleep 30
+
+          while [ $SECONDS -lt $DEADLINE ]; do
+            backend_code=$(curl -fsS -o /dev/null -w "%{http_code}" \
+              "$BACKEND/api/venues" 2>/dev/null || echo "000")
+            frontend_code=$(curl -fsS -o /dev/null -w "%{http_code}" \
+              "$FRONTEND/login" 2>/dev/null || echo "000")
+
+            if [ "$backend_code" = "200" ] && [ "$frontend_code" = "200" ]; then
+              # Both surfaces respond — final smoke: the demo login round-trips
+              # cleanly. This catches "backend booted but DB not yet seeded"
+              # and "backend up but auth router not mounted" states.
+              login_code=$(curl -fsS -o /dev/null -w "%{http_code}" \
+                -X POST "$BACKEND/api/auth/login" \
+                -H "content-type: application/json" \
+                -d '{"email":"broker@thirdspace.risk","password":"demo123"}' \
+                2>/dev/null || echo "000")
+              if [ "$login_code" = "200" ]; then
+                echo "::notice::Deployments warm at t=${SECONDS}s — login smoke passed"
+                exit 0
+              fi
+              echo "[t=${SECONDS}s] backend+frontend up, login=$login_code, retrying…"
+            else
+              echo "[t=${SECONDS}s] backend=$backend_code frontend=$frontend_code"
+            fi
+            sleep 10
+          done
+
+          echo "::error::Timed out after 5min waiting for deployments to warm up"
+          exit 1
+
       - name: Run E2E tests
         run: ./node_modules/.bin/playwright test
         env:
