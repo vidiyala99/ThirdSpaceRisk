@@ -674,6 +674,9 @@ export default function ReportDetailPage() {
             </section>
           )}
 
+          {/* Review Decision — broker/admin only. Operators see a read-only
+              result if a decision was already made, but never the action buttons. */}
+          {(isBroker || decision) && (
           <section className="card">
             <h2 className="text-xs uppercase tracking-wide text-secondary mb-lg" style={{ borderBottom: "1px solid var(--border-subtle)", paddingBottom: "var(--space-sm)" }}>Review Decision</h2>
             {decision ? (
@@ -684,7 +687,7 @@ export default function ReportDetailPage() {
                   <p className="text-xs text-secondary">{new Date(decision.decided_at).toLocaleString()}</p>
                 </div>
               </div>
-            ) : (
+            ) : isBroker ? (
               <div className="flex flex-col gap-sm">
                 <div>
                   <label className="text-xs uppercase tracking-wide text-secondary block mb-xs">Notes (optional)</label>
@@ -724,8 +727,9 @@ export default function ReportDetailPage() {
                   Block
                 </button>
               </div>
-            )}
+            ) : null}
           </section>
+          )}
 
           <section className="card">
             <h2 className="text-xs uppercase tracking-wide text-secondary mb-lg" style={{ borderBottom: "1px solid var(--border-subtle)", paddingBottom: "var(--space-sm)" }}>Evidence Summary</h2>
