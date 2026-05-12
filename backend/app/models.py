@@ -129,6 +129,34 @@ class ReviewDecision(SQLModel, table=True):
     decided_at: datetime = Field(default_factory=datetime.utcnow)
 
 
+class ClaimProposal(SQLModel, table=True):
+    """An operator's proposal to file a claim against an underwriting packet.
+
+    Mirrors the audit shape of ReviewDecision (the broker side) but tracks the
+    operator's upstream judgment about the recommender's verdict — including
+    the override path when the operator disagrees with a "don't file" rec.
+
+    State machine:
+        pending_broker_review → approved → filed_with_carrier → paid | denied
+                              → rejected_by_broker
+
+    `filed_with_carrier` and below are reserved for the carrier-integration
+    phase; the demo terminates at approved/rejected_by_broker.
+    """
+    id: str = Field(primary_key=True)
+    packet_id: str = Field(foreign_key="underwritingpacket.id", index=True)
+    venue_id: str = Field(index=True)
+    proposed_by: str
+    proposed_at: datetime = Field(default_factory=datetime.utcnow)
+    override_recommendation: bool = False
+    override_reason: Optional[str] = None
+    override_freetext: Optional[str] = None
+    state: str = Field(default="pending_broker_review", index=True)
+    broker_decided_by: Optional[str] = None
+    broker_decided_at: Optional[datetime] = None
+    broker_notes: Optional[str] = None
+
+
 class EvidenceAnalysis(SQLModel, table=True):
     id: str = Field(primary_key=True)
     evidence_id: str = Field(foreign_key="evidencefile.id", index=True)
@@ -145,6 +173,24 @@ class EvidenceAnalysis(SQLModel, table=True):
 class EvidenceFile(SQLModel, table=True):
     id: str = Field(primary_key=True)
     incident_id: str = Field(foreign_key="incidentrecord.id", index=True)
+    filename: str
+    content_type: str
+    file_path: str
+    file_size: int = 0
+    uploaded_by: str = "operator"
+    uploaded_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+class ComplianceEvidence(SQLModel, table=True):
+    """Files an operator uploads to resolve a compliance item.
+
+    Compliance items themselves live in the in-memory LiveStateManager, so we
+    don't FK on item_id — it's a string identifier we record alongside the file.
+    Once compliance is persisted (a separate refactor), this can become a real FK.
+    """
+    id: str = Field(primary_key=True)
+    venue_id: str = Field(index=True)
+    compliance_item_id: str = Field(index=True)
     filename: str
     content_type: str
     file_path: str

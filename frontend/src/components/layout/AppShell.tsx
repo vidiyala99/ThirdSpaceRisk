@@ -9,6 +9,7 @@ import {
   AlertTriangle,
   CheckSquare,
   FileSearch,
+  FileSpreadsheet,
   LogOut,
   Activity,
   Menu,
@@ -60,6 +61,7 @@ function NavLinks({ role, tenantId, onNavigate }: NavLinksProps) {
     { href: "/venues", label: "Venues", icon: Building2, roles: ["broker", "admin", "venue_operator"] },
     { href: `/incidents${venueQuery}`, label: "Incidents", icon: AlertTriangle },
     { href: `/compliance${venueQuery}`, label: "Compliance", icon: CheckSquare },
+    { href: "/claims", label: "Claims", icon: FileSpreadsheet },
   ];
 
   const filtered = navItems.filter(

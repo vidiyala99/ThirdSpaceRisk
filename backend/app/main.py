@@ -10,15 +10,28 @@ from pydantic import BaseModel
 from sqlmodel import Session, select, text, func
 import time
 
+from app.claim_proposals import (
+    ClaimProposalValidationError,
+    create_proposal as create_claim_proposal,
+    record_broker_decision as record_claim_broker_decision,
+)
+from app.claim_recommendation import recommend_claim_filing, recommendation_to_dict
 from app.incident_flow import create_brawl_incident_flow
 from app.agents.vision_agent import analyze_image, analyze_video_keyframes
 from app.agents.corroboration_agent import corroborate
+from app.knowledge_sources import INGESTED_ORIGIN, load_knowledge_sources_for_venue
+from app.policy_parser import chunk_policy_text
 from app.schemas import Incident, IncidentCreate, IncidentFlowResponse, LiveVenueState, StreamEvent
-from app.seed_data import KNOWLEDGE_SOURCES, SEED_INCIDENTS, STREAM_EVENTS, VENUES
+from app.seed_data import SEED_INCIDENTS, STREAM_EVENTS, VENUES
 from app.database import create_db_and_tables, get_session, engine
 from app.live_state import live_state_manager
-from app.models import AuditEvent, EvidenceAnalysis, EvidenceFile, IncidentRecord, ReviewDecision, SourceRecord, UnderwritingPacket, Venue, UserRecord
-from app.packet_core import create_packet_snapshot, record_review_decision, record_packet_opened
+from app.models import AuditEvent, ClaimProposal, ComplianceEvidence, EvidenceAnalysis, EvidenceFile, IncidentRecord, ReviewDecision, SourceRecord, UnderwritingPacket, Venue, UserRecord
+from app.packet_core import (
+    create_packet_snapshot,
+    record_review_decision,
+    record_packet_opened,
+    regenerate_packet_with_corroboration,
+)
 from app.agents.runtime import execute_underwriting_packet_agents
 from app.underwriting import get_premium_quote, get_risk_score
 
@@ -29,17 +42,53 @@ class ReviewDecisionCreate(BaseModel):
     override_reason: str | None = None
     notes: str | None = None
 
+
+class ClaimProposalCreate(BaseModel):
+    operator_id: str
+    override_recommendation: bool = False
+    override_reason: str | None = None
+    override_freetext: str | None = None
+
+
+class BrokerDecisionCreate(BaseModel):
+    broker_id: str
+    decision: str
+    notes: str | None = None
+
+_BACKFILL_MAX_PER_STARTUP = 25
+_BACKFILL_MAX_CONSECUTIVE_FAILURES = 5
+
+
 def _backfill_incident_packets(session: Session) -> None:
-    """Generate underwriting packets for any incidents that don't have one yet."""
+    """Generate underwriting packets for any incidents that don't have one yet.
+
+    Bounded: at most _BACKFILL_MAX_PER_STARTUP packets per process boot, and aborts
+    after _BACKFILL_MAX_CONSECUTIVE_FAILURES errors in a row to avoid a wedged
+    LLM/network burning the entire startup.
+    """
+    import logging
+    log = logging.getLogger("backfill")
+
     all_incidents = session.exec(select(IncidentRecord)).all()
-    packeted_ids = set(
-        session.exec(select(UnderwritingPacket.incident_id)).all()
-    )
+    packeted_ids = set(session.exec(select(UnderwritingPacket.incident_id)).all())
     pending = [inc for inc in all_incidents if inc.id not in packeted_ids]
     if not pending:
         return
-    print(f"[BACKFILL] Generating packets for {len(pending)} unprocessed incident(s)...")
+
+    total_pending = len(pending)
+    if total_pending > _BACKFILL_MAX_PER_STARTUP:
+        log.warning(
+            "Backfill capped: %d incident(s) pending, processing first %d this startup.",
+            total_pending, _BACKFILL_MAX_PER_STARTUP,
+        )
+        pending = pending[:_BACKFILL_MAX_PER_STARTUP]
+
+    log.info("Backfill starting: %d incident(s).", len(pending))
     fallback_venue = list(VENUES.values())[0]
+    succeeded = 0
+    failed_ids: list[tuple[str, str]] = []
+    consecutive_failures = 0
+
     for record in pending:
         try:
             venue = VENUES.get(record.venue_id, fallback_venue)
@@ -56,7 +105,7 @@ def _backfill_incident_packets(session: Session) -> None:
                 venue_id=record.venue_id,
                 venue=venue,
                 incident=payload,
-                knowledge_sources=KNOWLEDGE_SOURCES,
+                knowledge_sources=load_knowledge_sources_for_venue(session, record.venue_id),
                 stream_events=STREAM_EVENTS,
             )
             create_packet_snapshot(
@@ -72,10 +121,27 @@ def _backfill_incident_packets(session: Session) -> None:
                 rubric_version="demo-rubric-v1",
             )
             session.commit()
-            print(f"[BACKFILL] Packet created for incident {record.id}")
+            succeeded += 1
+            consecutive_failures = 0
         except Exception as exc:
             session.rollback()
-            print(f"[BACKFILL] Skipped {record.id}: {exc}")
+            consecutive_failures += 1
+            failed_ids.append((record.id, f"{exc.__class__.__name__}: {exc}"))
+            log.warning("Backfill skipped %s: %s: %s", record.id, exc.__class__.__name__, exc)
+            if consecutive_failures >= _BACKFILL_MAX_CONSECUTIVE_FAILURES:
+                log.error(
+                    "Backfill aborting after %d consecutive failures — likely an "
+                    "upstream issue (LLM, DB). Remaining %d incident(s) deferred to next boot.",
+                    consecutive_failures, len(pending) - (succeeded + len(failed_ids)),
+                )
+                break
+
+    log.info(
+        "Backfill complete: %d succeeded, %d failed%s. %d still pending after this run.",
+        succeeded, len(failed_ids),
+        "" if not failed_ids else f" ({', '.join(i for i, _ in failed_ids[:5])}{'…' if len(failed_ids) > 5 else ''})",
+        total_pending - succeeded,
+    )
 
 
 @asynccontextmanager
@@ -180,7 +246,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Third Space Risk OS", lifespan=lifespan)
 
-from app.auth import router as auth_router, require_non_broker
+from app.auth import router as auth_router, require_broker, require_non_broker
 app.include_router(auth_router, prefix="/api/auth", tags=["auth"])
 
 from app.api.v1.ingestion import router as ingestion_router
@@ -525,12 +591,9 @@ def _process_evidence_sync(evidence_id: str) -> None:
 
 
 def _run_corroboration_and_update_packet(session, incident_id: str, incident: IncidentRecord, analyses) -> None:
-    """Run corroboration agent and regenerate packet with visual context."""
+    """Run corroboration and emit a v2 packet referencing v1 — never mutates v1."""
     from app.agents.vision_agent import VisionFinding
-    findings = []
-    for a in analyses:
-        f = a.findings
-        findings.append(VisionFinding(**f))
+    findings = [VisionFinding(**a.findings) for a in analyses]
 
     result = corroborate(
         findings=findings,
@@ -540,36 +603,44 @@ def _run_corroboration_and_update_packet(session, incident_id: str, incident: In
         ems_called=incident.ems_called or False,
     )
 
-    # Find the latest packet for this incident and update it
-    packet = session.exec(
+    prior_packet = session.exec(
         select(UnderwritingPacket)
         .where(UnderwritingPacket.incident_id == incident_id)
         .order_by(UnderwritingPacket.generated_at.desc())
     ).first()
 
-    if not packet:
+    if not prior_packet:
         return
 
-    # Update confidence in risk_signals
-    current_confidence = packet.risk_signals.get("confidence", 0.78)
-    new_confidence = min(round(current_confidence + result.confidence_adjustment, 2), 0.99)
-    updated_risk_signals = {**packet.risk_signals, "confidence": new_confidence}
-
-    # Add visual findings to memo
-    visual_section = (
-        f"\n\nVisual Evidence Analysis ({len(analyses)} file(s) processed): "
-        f"{result.summary} "
-        f"Corroboration status: {result.status}. "
-        f"Flags: {'; '.join(result.flags)}."
+    occurred_iso = (
+        incident.occurred_at
+        if isinstance(incident.occurred_at, str)
+        else incident.occurred_at.isoformat()
     )
-    updated_memo = {**packet.memo, "summary": packet.memo.get("summary", "") + visual_section}
+    incident_payload = IncidentCreate(
+        occurred_at=occurred_iso,
+        location=incident.location,
+        summary=incident.summary,
+        reported_by=incident.reported_by,
+        injury_observed=incident.injury_observed or False,
+        police_called=incident.police_called or False,
+        ems_called=incident.ems_called or False,
+    )
 
-    packet.risk_signals = updated_risk_signals
-    packet.memo = updated_memo
-    packet.status = "needs_review"
-    session.add(packet)
-    session.commit()
-    print(f"[VISION] Packet {packet.id} updated — corroboration: {result.status}, new confidence: {new_confidence}")
+    new_packet = regenerate_packet_with_corroboration(
+        session=session,
+        prior_packet=prior_packet,
+        incident=incident_payload,
+        corroboration_summary=result.summary,
+        corroboration_status=result.status,
+        corroboration_flags=result.flags,
+        confidence_adjustment=result.confidence_adjustment,
+        evidence_analysis_ids=[a.id for a in analyses],
+    )
+    print(
+        f"[VISION] Packet v2 {new_packet.id} (parent {prior_packet.id}) — "
+        f"corroboration: {result.status}"
+    )
 
 
 @app.post("/api/incidents/{incident_id}/evidence", status_code=201)
@@ -729,7 +800,7 @@ def list_incident_packets(incident_id: str, session: Session = Depends(get_sessi
         .where(UnderwritingPacket.incident_id == incident_id)
         .order_by(UnderwritingPacket.generated_at.desc())
     ).all()
-    return [_packet_to_dict(packet) for packet in packets]
+    return [_packet_to_dict(packet, session) for packet in packets]
 
 
 @app.get("/api/packets/{packet_id}")
@@ -743,7 +814,64 @@ def get_packet(
         raise HTTPException(status_code=404, detail="Packet not found")
     if reviewer_id:
         record_packet_opened(session=session, packet_id=packet_id, reviewer_id=reviewer_id)
-    return _packet_to_dict(packet)
+    return _packet_to_dict(packet, session)
+
+
+@app.post("/api/venues/{venue_id}/policy-docs", status_code=201)
+def ingest_policy_doc(
+    venue_id: str,
+    payload: dict,
+    session: Session = Depends(get_session),
+    _: None = Depends(require_broker),
+) -> dict:
+    """Ingest a markdown policy document for this venue.
+
+    Splits on ## / ### headings via app.policy_parser.chunk_policy_text and stores
+    each chunk as a SourceRecord (origin_system="policy_ingestion"). Re-ingesting
+    the same content is idempotent — chunk IDs are deterministic content hashes.
+    """
+    import hashlib
+    _resolve_venue(venue_id, session)
+    text = (payload.get("text") or "").strip()
+    if not text:
+        raise HTTPException(status_code=400, detail="`text` (markdown body) is required")
+    source_file = payload.get("source_file", "uploaded_policy.md")
+
+    chunks = chunk_policy_text(text)
+    if not chunks:
+        raise HTTPException(
+            status_code=400,
+            detail="No chunks extracted. Policy must use '## Section' / '### Clause' headings.",
+        )
+
+    inserted_ids: list[str] = []
+    for chunk in chunks:
+        content = chunk["content"]
+        content_hash = hashlib.sha256(content.encode("utf-8")).hexdigest()
+        source_id = f"ingested-{content_hash[:16]}"
+        if session.get(SourceRecord, source_id):
+            continue
+        meta = chunk.get("metadata", {})
+        source_type = "policy_exclusion" if meta.get("is_exclusion") else "policy"
+        session.add(SourceRecord(
+            id=source_id,
+            venue_id=venue_id,
+            source_type=source_type,
+            origin_system=INGESTED_ORIGIN,
+            external_ref=source_file,
+            excerpt=content[:2000],
+            content_hash=content_hash,
+            source_metadata=meta,
+        ))
+        inserted_ids.append(source_id)
+
+    session.commit()
+    return {
+        "venue_id": venue_id,
+        "chunks_extracted": len(chunks),
+        "chunks_inserted": len(inserted_ids),
+        "source_ids": inserted_ids,
+    }
 
 
 @app.get("/api/venues/{venue_id}/sources")
@@ -788,6 +916,90 @@ def create_review_decision(
     return _review_decision_to_dict(decision)
 
 
+@app.post("/api/packets/{packet_id}/claim-proposal", status_code=201)
+def create_claim_proposal_route(
+    packet_id: str,
+    payload: ClaimProposalCreate,
+    session: Session = Depends(get_session),
+) -> dict:
+    """Operator proposes a claim against a packet.
+
+    Mirrors `/review-decisions`: the actor ID rides in the body, no token gate.
+    The UI enforces who-can-do-what; the validation in `claim_proposals` is the
+    only contract-level guarantee (override requires reason, etc.).
+    """
+    try:
+        proposal = create_claim_proposal(
+            session=session,
+            packet_id=packet_id,
+            operator_id=payload.operator_id,
+            override_recommendation=payload.override_recommendation,
+            override_reason=payload.override_reason,
+            override_freetext=payload.override_freetext,
+        )
+    except ClaimProposalValidationError as error:
+        message = str(error)
+        # "Packet not found" is the one shape that maps to 404; the rest are
+        # 400-class input problems.
+        status = 404 if "Packet not found" in message else 400
+        raise HTTPException(status_code=status, detail=message) from error
+    return _claim_proposal_to_dict(proposal)
+
+
+@app.post("/api/claim-proposals/{proposal_id}/broker-decision")
+def broker_decision_on_proposal(
+    proposal_id: str,
+    payload: BrokerDecisionCreate,
+    session: Session = Depends(get_session),
+) -> dict:
+    """Broker approves or rejects a pending operator proposal."""
+    try:
+        proposal = record_claim_broker_decision(
+            session=session,
+            proposal_id=proposal_id,
+            broker_id=payload.broker_id,
+            decision=payload.decision,
+            notes=payload.notes,
+        )
+    except ClaimProposalValidationError as error:
+        message = str(error)
+        status = 404 if "Proposal not found" in message else 400
+        raise HTTPException(status_code=status, detail=message) from error
+    return _claim_proposal_to_dict(proposal)
+
+
+@app.get("/api/claims")
+def list_claim_proposals(
+    venue_id: str | None = None,
+    session: Session = Depends(get_session),
+) -> list[dict]:
+    """Cross-venue claim-proposal list.
+
+    No role gate at the route level — the frontend filters by the logged-in
+    user's tenant for operators, and shows the full list for brokers. The
+    optional `venue_id` query param exists so an operator's portfolio call can
+    scope server-side once an auth layer lands.
+    """
+    statement = select(ClaimProposal).order_by(ClaimProposal.proposed_at.desc())
+    if venue_id:
+        statement = statement.where(ClaimProposal.venue_id == venue_id)
+    proposals = session.exec(statement).all()
+    return [_claim_proposal_to_dict(p) for p in proposals]
+
+
+@app.get("/api/claims/{packet_id}")
+def get_claim_for_packet(packet_id: str, session: Session = Depends(get_session)) -> dict:
+    """Return the latest claim proposal for a packet, or 404 if none exists."""
+    proposal = session.exec(
+        select(ClaimProposal)
+        .where(ClaimProposal.packet_id == packet_id)
+        .order_by(ClaimProposal.proposed_at.desc())
+    ).first()
+    if proposal is None:
+        raise HTTPException(status_code=404, detail="No claim proposal for this packet")
+    return _claim_proposal_to_dict(proposal)
+
+
 @app.get("/api/packets")
 def list_packets(limit: int = 20, session: Session = Depends(get_session)) -> list[dict]:
     """Return the most recent underwriting packets across all incidents."""
@@ -796,7 +1008,7 @@ def list_packets(limit: int = 20, session: Session = Depends(get_session)) -> li
         .order_by(UnderwritingPacket.generated_at.desc())
         .limit(limit)
     ).all()
-    return [_packet_to_dict(packet) for packet in packets]
+    return [_packet_to_dict(packet, session) for packet in packets]
 
 
 @app.get("/api/packets/{packet_id}/audit-events")
@@ -839,7 +1051,33 @@ def inject_event_sync(venue_id: str, events: list[StreamEvent], session: Session
     }
 
 
-def _packet_to_dict(packet: UnderwritingPacket) -> dict:
+def _packet_to_dict(packet: UnderwritingPacket, session: Session | None = None) -> dict:
+    incident_payload: dict = {}
+    venue_prior_claims = 0
+    latest_proposal: ClaimProposal | None = None
+    if session is not None:
+        incident = session.get(IncidentRecord, packet.incident_id)
+        if incident is not None:
+            incident_payload = {
+                "injury_observed": incident.injury_observed or False,
+                "police_called": incident.police_called or False,
+                "ems_called": incident.ems_called or False,
+            }
+        # Per-packet latest proposal — frontend uses this to render the state
+        # badge + action row without a second round-trip. Order by proposed_at
+        # desc so a re-proposal (if we ever allow it) returns the newest.
+        latest_proposal = session.exec(
+            select(ClaimProposal)
+            .where(ClaimProposal.packet_id == packet.id)
+            .order_by(ClaimProposal.proposed_at.desc())
+        ).first()
+        # Placeholder for venue claim history once Claims is built — for now 0.
+        # Wired through so the recommender's signature is stable when real data lands.
+    recommendation = recommend_claim_filing(
+        risk_signal=packet.risk_signals or {},
+        incident=incident_payload,
+        venue_prior_claim_count=venue_prior_claims,
+    )
     return {
         "id": packet.id,
         "venue_id": packet.venue_id,
@@ -854,6 +1092,25 @@ def _packet_to_dict(packet: UnderwritingPacket) -> dict:
         "validation": packet.validation,
         "snapshot_hash": packet.snapshot_hash,
         "generated_at": packet.generated_at.isoformat(),
+        "claim_recommendation": recommendation_to_dict(recommendation),
+        "claim_proposal": _claim_proposal_to_dict(latest_proposal) if latest_proposal else None,
+    }
+
+
+def _claim_proposal_to_dict(proposal: ClaimProposal) -> dict:
+    return {
+        "id": proposal.id,
+        "packet_id": proposal.packet_id,
+        "venue_id": proposal.venue_id,
+        "proposed_by": proposal.proposed_by,
+        "proposed_at": proposal.proposed_at.isoformat(),
+        "override_recommendation": proposal.override_recommendation,
+        "override_reason": proposal.override_reason,
+        "override_freetext": proposal.override_freetext,
+        "state": proposal.state,
+        "broker_decided_by": proposal.broker_decided_by,
+        "broker_decided_at": proposal.broker_decided_at.isoformat() if proposal.broker_decided_at else None,
+        "broker_notes": proposal.broker_notes,
     }
 
 
@@ -900,13 +1157,85 @@ def get_venue_quote(venue_id: str, session: Session = Depends(get_session)) -> d
     return get_premium_quote(venue_id, VENUES)
 
 
+COMPLIANCE_EVIDENCE_MAX_BYTES = 20 * 1024 * 1024  # 20MB
+
+
 @app.post("/api/venues/{venue_id}/compliance/{item_id}/upload")
-async def upload_compliance_evidence(venue_id: str, item_id: str, file: UploadFile = File(...), session: Session = Depends(get_session)) -> dict:
+async def upload_compliance_evidence(
+    venue_id: str,
+    item_id: str,
+    file: UploadFile = File(...),
+    uploaded_by: str = "operator",
+    session: Session = Depends(get_session),
+) -> dict:
+    """Persist the uploaded file and link it to (venue_id, compliance_item_id).
+
+    Previously this endpoint accepted the file and discarded it before resolving
+    the item — operator-friendly UX, but the audit trail was a lie. Now the file
+    lands on disk and a ComplianceEvidence row records the linkage. The
+    auto-resolve behavior is preserved for backwards compatibility; broker
+    validation gating is a separate fix.
+    """
+    from uuid import uuid4
     _resolve_venue(venue_id, session)
 
+    contents = await file.read()
+    if len(contents) > COMPLIANCE_EVIDENCE_MAX_BYTES:
+        raise HTTPException(
+            status_code=413,
+            detail=f"File too large. Maximum size for compliance evidence is "
+                   f"{COMPLIANCE_EVIDENCE_MAX_BYTES // (1024 * 1024)}MB.",
+        )
+
+    evidence_id = f"ce-{uuid4().hex[:12]}"
+    safe_name = f"{evidence_id}_{file.filename or 'upload'}"
+    dest = EVIDENCE_DIR / safe_name
+    dest.write_bytes(contents)
+
+    record = ComplianceEvidence(
+        id=evidence_id,
+        venue_id=venue_id,
+        compliance_item_id=item_id,
+        filename=file.filename or "upload",
+        content_type=file.content_type or "application/octet-stream",
+        file_path=str(dest),
+        file_size=len(contents),
+        uploaded_by=uploaded_by,
+    )
+    session.add(record)
+    session.commit()
+
+    # Preserve existing auto-resolve behavior — broker validation gate is #2 in the queue.
     live_state_manager.resolve_compliance_item(venue_id, item_id)
+
     return {
         "status": "accepted",
+        "evidence_id": evidence_id,
         "item_id": item_id,
-        "filename": file.filename,
+        "filename": record.filename,
+        "file_size": record.file_size,
+        "uploaded_at": record.uploaded_at.isoformat(),
     }
+
+
+@app.get("/api/venues/{venue_id}/compliance/{item_id}/evidence")
+def list_compliance_evidence(venue_id: str, item_id: str, session: Session = Depends(get_session)) -> list[dict]:
+    """Return all persisted evidence files for a compliance item (audit-trail readout)."""
+    _resolve_venue(venue_id, session)
+    rows = session.exec(
+        select(ComplianceEvidence)
+        .where(ComplianceEvidence.venue_id == venue_id)
+        .where(ComplianceEvidence.compliance_item_id == item_id)
+        .order_by(ComplianceEvidence.uploaded_at)
+    ).all()
+    return [
+        {
+            "id": r.id,
+            "filename": r.filename,
+            "content_type": r.content_type,
+            "file_size": r.file_size,
+            "uploaded_by": r.uploaded_by,
+            "uploaded_at": r.uploaded_at.isoformat(),
+        }
+        for r in rows
+    ]

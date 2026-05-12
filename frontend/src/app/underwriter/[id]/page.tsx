@@ -1,11 +1,45 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
-import { AlertTriangle, ArrowLeft, CheckCircle2, ClipboardCheck, LockKeyhole, RefreshCw, ShieldCheck } from "lucide-react";
+import { AlertTriangle, ArrowLeft, CheckCircle2, ClipboardCheck, FileSpreadsheet, LockKeyhole, RefreshCw, ShieldCheck, TrendingUp, TrendingDown, ExternalLink } from "lucide-react";
+import ClaimProposeModal, { type OverrideReason } from "@/components/ClaimProposeModal";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
+
+interface ClaimRecommendation {
+  should_file: boolean;
+  probability: number;
+  expected_payout: { low_usd: number; median_usd: number; high_usd: number };
+  expected_premium_impact: { annual_delta_usd: number; duration_years: number; cumulative_usd: number };
+  net_expected_value_usd: number;
+  reasons: string[];
+  confidence: number;
+  rubric_version: string;
+}
+
+export interface ClaimProposal {
+  id: string;
+  packet_id: string;
+  venue_id: string;
+  proposed_by: string;
+  proposed_at: string;
+  override_recommendation: boolean;
+  override_reason: string | null;
+  override_freetext: string | null;
+  state:
+    | "pending_broker_review"
+    | "approved"
+    | "rejected_by_broker"
+    | "filed_with_carrier"
+    | "paid"
+    | "denied";
+  broker_decided_by: string | null;
+  broker_decided_at: string | null;
+  broker_notes: string | null;
+}
 
 interface Packet {
   id: string;
@@ -18,6 +52,8 @@ interface Packet {
   memo: { summary?: string; open_questions?: string[]; review_status?: string };
   citation_ids: string[];
   generated_at: string;
+  claim_recommendation?: ClaimRecommendation;
+  claim_proposal?: ClaimProposal | null;
 }
 
 interface Incident {
@@ -55,6 +91,15 @@ export default function ReportDetailPage() {
   const [decision, setDecision] = useState<DecisionRecord | null>(null);
   const [notes, setNotes] = useState("");
   const [checkedQuestions, setCheckedQuestions] = useState<Set<number>>(new Set());
+  const [proposal, setProposal] = useState<ClaimProposal | null>(null);
+  const [proposeModalOpen, setProposeModalOpen] = useState(false);
+  const [submittingProposal, setSubmittingProposal] = useState(false);
+  const [submittingBrokerDecision, setSubmittingBrokerDecision] = useState(false);
+  const [brokerRejectNotes, setBrokerRejectNotes] = useState("");
+  const [proposalError, setProposalError] = useState<string | null>(null);
+
+  const isOperator = user?.role === "venue_operator";
+  const isBroker = user?.role === "broker" || user?.role === "admin";
 
   const toggleQuestion = (i: number) => {
     setCheckedQuestions((prev) => {
@@ -71,6 +116,7 @@ export default function ReportDetailPage() {
         if (!pktRes.ok) return;
         const pkt: Packet = await pktRes.json();
         setPacket(pkt);
+        setProposal(pkt.claim_proposal ?? null);
         const [incRes, analysisRes] = await Promise.all([
           fetch(`${API_URL}/api/incidents/${pkt.incident_id}`),
           fetch(`${API_URL}/api/incidents/${pkt.incident_id}/evidence-analysis`),
@@ -83,6 +129,68 @@ export default function ReportDetailPage() {
     }
     if (id) load();
   }, [id]);
+
+  async function postProposal(override: {
+    override_recommendation: boolean;
+    override_reason: OverrideReason | null;
+    override_freetext: string | null;
+  }) {
+    if (!packet) return;
+    setSubmittingProposal(true);
+    setProposalError(null);
+    try {
+      const res = await fetch(`${API_URL}/api/packets/${packet.id}/claim-proposal`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          operator_id: user?.id ?? "unknown",
+          override_recommendation: override.override_recommendation,
+          override_reason: override.override_reason,
+          override_freetext: override.override_freetext,
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        setProposalError(err.detail ?? `Request failed (${res.status})`);
+        return;
+      }
+      const created: ClaimProposal = await res.json();
+      setProposal(created);
+      setProposeModalOpen(false);
+    } finally {
+      setSubmittingProposal(false);
+    }
+  }
+
+  async function submitBrokerDecision(dec: "approved" | "rejected") {
+    if (!proposal) return;
+    setSubmittingBrokerDecision(true);
+    setProposalError(null);
+    try {
+      const res = await fetch(
+        `${API_URL}/api/claim-proposals/${proposal.id}/broker-decision`,
+        {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            broker_id: user?.id ?? "unknown",
+            decision: dec,
+            notes: dec === "rejected" && brokerRejectNotes.trim() ? brokerRejectNotes.trim() : null,
+          }),
+        }
+      );
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        setProposalError(err.detail ?? `Request failed (${res.status})`);
+        return;
+      }
+      const updated: ClaimProposal = await res.json();
+      setProposal(updated);
+      setBrokerRejectNotes("");
+    } finally {
+      setSubmittingBrokerDecision(false);
+    }
+  }
 
   async function submitDecision(dec: string) {
     if (!packet) return;
@@ -292,6 +400,280 @@ export default function ReportDetailPage() {
 
         {/* Right: Decision */}
         <div className="flex flex-col gap-lg">
+
+          {/* AI Claim Recommendation — the single most-impactful surface on this page.
+              Sits above Review Decision so the broker reads it BEFORE choosing approve/reject. */}
+          {packet.claim_recommendation && (() => {
+            const rec = packet.claim_recommendation;
+            const accent = rec.should_file ? "var(--brand-primary)" : "var(--text-tertiary)";
+            const netEvFormatted = (rec.net_expected_value_usd >= 0 ? "+" : "−") +
+              "$" + Math.abs(rec.net_expected_value_usd).toLocaleString();
+            return (
+              <section className="card" style={{ border: `1px solid ${accent}55`, position: "relative" }}>
+                {/* Brand-primary accent stripe — earned only when the recommender says file */}
+                <div style={{
+                  position: "absolute", left: 0, top: 0, bottom: 0, width: 3,
+                  background: accent, borderTopLeftRadius: "var(--radius-md)", borderBottomLeftRadius: "var(--radius-md)",
+                }} aria-hidden="true" />
+
+                <div className="flex items-center justify-between mb-md" style={{ borderBottom: "1px solid var(--border-subtle)", paddingBottom: "var(--space-sm)" }}>
+                  <div className="flex items-center gap-sm">
+                    <FileSpreadsheet size={16} style={{ color: accent }} aria-hidden="true" />
+                    <h2 className="text-xs uppercase tracking-wide text-secondary" style={{ margin: 0 }}>AI Claim Recommendation</h2>
+                  </div>
+                  <span
+                    className="text-xs font-mono"
+                    style={{
+                      color: accent,
+                      textTransform: "uppercase",
+                      letterSpacing: "0.06em",
+                      fontSize: "0.65rem",
+                    }}
+                  >
+                    {Math.round(rec.confidence * 100)}% confident
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-md mb-md">
+                  {rec.should_file ? (
+                    <TrendingUp size={32} style={{ color: accent }} aria-hidden="true" />
+                  ) : (
+                    <TrendingDown size={32} style={{ color: accent }} aria-hidden="true" />
+                  )}
+                  <div>
+                    <p className="text-lg font-bold" style={{ color: accent, margin: 0, lineHeight: 1.1 }}>
+                      {rec.should_file ? "File this claim" : "Don't file yet"}
+                    </p>
+                    <p className="text-xs text-secondary" style={{ margin: 0, marginTop: 2 }}>
+                      {Math.round(rec.probability * 100)}% paid-out probability · net EV {netEvFormatted}
+                    </p>
+                  </div>
+                </div>
+
+                {/* The expected-value math, made visible so the broker can sanity-check the recommendation */}
+                <div className="flex flex-col gap-sm mb-md" style={{ background: "var(--bg-elevated)", padding: "var(--space-md)", borderRadius: "var(--radius-sm)" }}>
+                  <div className="flex justify-between items-baseline">
+                    <span className="text-xs uppercase tracking-wide text-secondary">Expected payout</span>
+                    <span className="text-sm font-mono">
+                      ${rec.expected_payout.low_usd.toLocaleString()}
+                      <span className="text-secondary"> – </span>
+                      ${rec.expected_payout.high_usd.toLocaleString()}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-baseline">
+                    <span className="text-xs uppercase tracking-wide text-secondary">Median payout</span>
+                    <span className="text-sm font-mono font-bold" style={{ color: "var(--brand-primary)" }}>
+                      ${rec.expected_payout.median_usd.toLocaleString()}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-baseline">
+                    <span className="text-xs uppercase tracking-wide text-secondary">Premium impact</span>
+                    <span className="text-sm font-mono" style={{ color: "var(--state-warning)" }}>
+                      +${rec.expected_premium_impact.annual_delta_usd.toLocaleString()}/yr × {rec.expected_premium_impact.duration_years}yr
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-baseline" style={{ borderTop: "1px solid var(--border-subtle)", paddingTop: "var(--space-sm)" }}>
+                    <span className="text-xs uppercase tracking-wide text-secondary">Net expected value</span>
+                    <span className="text-sm font-mono font-bold" style={{ color: rec.net_expected_value_usd >= 0 ? "var(--brand-primary)" : "var(--state-error)" }}>
+                      {netEvFormatted}
+                    </span>
+                  </div>
+                </div>
+
+                <details>
+                  <summary className="text-xs font-mono cursor-pointer text-secondary" style={{ userSelect: "none" }}>
+                    Why this recommendation ({rec.reasons.length} reason{rec.reasons.length === 1 ? "" : "s"})
+                  </summary>
+                  <ul className="mt-sm flex flex-col gap-xs" style={{ listStyle: "none", padding: 0, margin: 0 }}>
+                    {rec.reasons.map((reason, i) => (
+                      <li key={i} className="text-xs text-secondary" style={{ lineHeight: 1.5, paddingLeft: "var(--space-md)", position: "relative" }}>
+                        <span style={{ position: "absolute", left: 0, color: accent }} aria-hidden="true">→</span>
+                        {reason}
+                      </li>
+                    ))}
+                  </ul>
+                </details>
+
+                <p className="text-xs text-tertiary mt-md" style={{ fontStyle: "italic", lineHeight: 1.5 }}>
+                  Carrier makes the final coverage decision. This recommendation surfaces the expected-value math before filing.
+                </p>
+              </section>
+            );
+          })()}
+
+          {/* Claim Decision row — operator proposes, broker decides.
+              Renders one of several states depending on whether a proposal exists
+              and the viewer's role. The actual "should this be a claim?" reasoning
+              lives in the recommender card above; this card is the *action surface*. */}
+          {packet.claim_recommendation && (
+            <section className="card">
+              <h2 className="text-xs uppercase tracking-wide text-secondary mb-lg" style={{ borderBottom: "1px solid var(--border-subtle)", paddingBottom: "var(--space-sm)" }}>
+                Claim Decision
+              </h2>
+
+              {/* CASE 1: No proposal yet */}
+              {!proposal && isOperator && (
+                <div className="flex flex-col gap-sm">
+                  {packet.claim_recommendation.should_file ? (
+                    <button
+                      className="btn btn-primary w-full flex items-center justify-center gap-sm"
+                      onClick={() =>
+                        postProposal({
+                          override_recommendation: false,
+                          override_reason: null,
+                          override_freetext: null,
+                        })
+                      }
+                      disabled={submittingProposal}
+                    >
+                      <CheckCircle2 size={16} />
+                      {submittingProposal ? "Submitting…" : "Propose Claim"}
+                    </button>
+                  ) : (
+                    <button
+                      className="btn w-full flex items-center justify-center gap-sm"
+                      onClick={() => setProposeModalOpen(true)}
+                      disabled={submittingProposal}
+                      style={{ border: "1px solid var(--state-warning)", color: "var(--state-warning)", background: "none" }}
+                    >
+                      <AlertTriangle size={16} />
+                      Override & Propose
+                    </button>
+                  )}
+                  <p className="text-xs text-secondary">
+                    {packet.claim_recommendation.should_file
+                      ? "The recommender supports filing. Your broker will review and decide."
+                      : "The recommender suggested not filing. Override only if you have additional context the broker should weigh."}
+                  </p>
+                </div>
+              )}
+
+              {!proposal && isBroker && (
+                <p className="text-sm text-secondary" style={{ fontStyle: "italic" }}>
+                  Awaiting an operator proposal. The operator initiates; you decide.
+                </p>
+              )}
+
+              {/* CASE 2: Proposal exists */}
+              {proposal && (() => {
+                const stateLabel: Record<ClaimProposal["state"], string> = {
+                  pending_broker_review: "Pending broker review",
+                  approved: "Approved · ready to file",
+                  rejected_by_broker: "Rejected",
+                  filed_with_carrier: "Filed with carrier",
+                  paid: "Paid",
+                  denied: "Denied",
+                };
+                const stateColor: Record<ClaimProposal["state"], string> = {
+                  pending_broker_review: "var(--state-warning)",
+                  approved: "var(--brand-primary)",
+                  rejected_by_broker: "var(--state-error)",
+                  filed_with_carrier: "var(--brand-primary)",
+                  paid: "var(--brand-primary)",
+                  denied: "var(--state-error)",
+                };
+                const accent = stateColor[proposal.state];
+                return (
+                  <div className="flex flex-col gap-md">
+                    <div className="flex items-center justify-between p-md" style={{ border: `1px solid ${accent}`, borderRadius: "var(--radius-sm)", background: `${accent}11` }}>
+                      <div>
+                        <p className="text-sm font-bold" style={{ color: accent, margin: 0 }}>
+                          {stateLabel[proposal.state]}
+                        </p>
+                        <p className="text-xs text-secondary" style={{ margin: 0, marginTop: 2 }}>
+                          Proposed {new Date(proposal.proposed_at).toLocaleString()}
+                        </p>
+                      </div>
+                      {proposal.override_recommendation && (
+                        <span className="text-xs font-mono px-sm py-xs" style={{
+                          background: "rgba(255,153,0,0.12)",
+                          color: "var(--state-warning)",
+                          border: "1px solid var(--state-warning)",
+                          borderRadius: "var(--radius-sm)",
+                        }}>
+                          ⚠ OVERRIDE
+                        </span>
+                      )}
+                    </div>
+
+                    {proposal.override_recommendation && proposal.override_reason && (
+                      <div className="text-xs">
+                        <span className="text-secondary uppercase tracking-wide">Override reason: </span>
+                        <span className="font-mono">{proposal.override_reason.replace(/_/g, " ")}</span>
+                        {proposal.override_freetext && (
+                          <p className="text-secondary mt-xs" style={{ fontStyle: "italic" }}>
+                            “{proposal.override_freetext}”
+                          </p>
+                        )}
+                      </div>
+                    )}
+
+                    {proposal.broker_notes && (
+                      <div className="text-xs">
+                        <span className="text-secondary uppercase tracking-wide">Broker note: </span>
+                        <p className="text-secondary mt-xs" style={{ fontStyle: "italic" }}>
+                          “{proposal.broker_notes}”
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Broker inline approve/reject when pending */}
+                    {proposal.state === "pending_broker_review" && isBroker && (
+                      <div className="flex flex-col gap-sm" style={{ borderTop: "1px solid var(--border-subtle)", paddingTop: "var(--space-md)" }}>
+                        <label className="text-xs uppercase tracking-wide text-secondary block">
+                          Reject notes (optional for approve)
+                        </label>
+                        <textarea
+                          className="w-full text-sm p-sm"
+                          rows={2}
+                          placeholder="Why this should not be filed…"
+                          value={brokerRejectNotes}
+                          onChange={(e) => setBrokerRejectNotes(e.target.value)}
+                          disabled={submittingBrokerDecision}
+                          style={{ background: "var(--bg-surface)", border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-sm)", color: "var(--text-primary)", resize: "none" }}
+                        />
+                        <div className="flex gap-sm">
+                          <button
+                            className="btn btn-primary flex-1 flex items-center justify-center gap-sm"
+                            onClick={() => submitBrokerDecision("approved")}
+                            disabled={submittingBrokerDecision}
+                          >
+                            <ShieldCheck size={16} />
+                            Approve & File
+                          </button>
+                          <button
+                            className="btn flex-1 flex items-center justify-center gap-sm"
+                            onClick={() => submitBrokerDecision("rejected")}
+                            disabled={submittingBrokerDecision}
+                            style={{ border: "1px solid var(--state-error)", color: "var(--state-error)", background: "none" }}
+                          >
+                            <LockKeyhole size={16} />
+                            Reject
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    <Link
+                      href={`/claims/${packet.id}`}
+                      className="text-xs flex items-center gap-xs"
+                      style={{ color: "var(--brand-primary)" }}
+                    >
+                      View claim detail
+                      <ExternalLink size={12} />
+                    </Link>
+                  </div>
+                );
+              })()}
+
+              {proposalError && (
+                <p className="text-xs mt-sm" style={{ color: "var(--state-error)" }}>
+                  {proposalError}
+                </p>
+              )}
+            </section>
+          )}
+
           <section className="card">
             <h2 className="text-xs uppercase tracking-wide text-secondary mb-lg" style={{ borderBottom: "1px solid var(--border-subtle)", paddingBottom: "var(--space-sm)" }}>Review Decision</h2>
             {decision ? (
@@ -361,6 +743,20 @@ export default function ReportDetailPage() {
           </section>
         </div>
       </div>
+
+      <ClaimProposeModal
+        isOpen={proposeModalOpen}
+        onClose={() => setProposeModalOpen(false)}
+        recommenderVerdict={packet.claim_recommendation?.should_file ? "file" : "do_not_file"}
+        submitting={submittingProposal}
+        onSubmit={async (input) => {
+          await postProposal({
+            override_recommendation: input.override_recommendation,
+            override_reason: input.override_reason,
+            override_freetext: input.override_freetext,
+          });
+        }}
+      />
     </div>
   );
 }
