@@ -1,8 +1,8 @@
 # Third Space Risk Engine: Architecture v2
 
 **Date:** 2026-05-07
-**Last Updated:** 2026-05-10 (eval set v2: 15 scenarios, 5 scorers, methodology doc)
-**Version:** v2.7
+**Last Updated:** 2026-05-12 (claims v1 lifecycle + override-accuracy stats)
+**Version:** v2.9
 **Status:** Current system + near-term roadmap
 **Audience:** Engineering, interview review
 
@@ -52,12 +52,15 @@ Venue                                (venue_data JSON col — full config persis
         ├── UnderwritingPacket       (versioned risk packet)
         │     ├── CitationRecord     (source → claim links)
         │     ├── ReviewDecision     (underwriter decision)
+        │     ├── ClaimProposal      (operator-proposes → broker-decides v1 lifecycle)
         │     └── AuditEvent        (immutable event log)
         └── SourceRecord             (normalized evidence registry)
               └── venue_id="*"       (shared policy sources, all venues)
 
 RubricVersion                        (versioned scoring rules)
 ```
+
+`ClaimProposal` tracks: proposed_by, override_recommendation, override_reason (4-tag vocabulary), state machine (pending_broker_review → approved | rejected_by_broker → filed_with_carrier), broker decision attribution, audit events. See ADR-0003 for full schema and the migration path to the ADR-0002 v2 neutral-drafter design.
 
 ### 2.3 API Surface
 
@@ -70,6 +73,8 @@ RubricVersion                        (versioned scoring rules)
 | Packets | GET /api/packets, GET /api/packets/{id}, GET /api/incidents/{id}/packets |
 | Review | POST /api/packets/{id}/review-decisions, GET /api/packets/{id}/audit-events |
 | Live state | GET /api/venues/{id}/live, GET /api/venues/{id}/risk-score, GET /api/venues/{id}/quote |
+| Claims (v1) | POST /api/packets/{id}/claim-proposal, POST /api/claim-proposals/{id}/broker-decision, GET /api/claims, GET /api/claims/{packet_id} |
+| Override stats | GET /api/override-stats (cross-venue), GET /api/venues/{id}/override-stats (per-venue) |
 
 ### 2.4 Agent Pipeline (current)
 
@@ -336,7 +341,9 @@ Provider switching requires changing one function per agent, not the architectur
 - ✅ **Mobile broker Venues tab** — dedicated `BrokerVenuesScreen` and `BrokerVenueDetailScreen` mirroring the web venue terminal layout
 - ✅ **Portfolio venue search** — broker-only search-and-filter on web `/dashboard`, web `/venues`, and mobile broker portfolio + venues tab; filters by name, address, and venue type
 - ✅ **Eval harness for agent outputs** — `backend/app/evals/` runner scores each `gold_standard.json` scenario on structural validity + citation coverage, writes dated markdown report; baseline 3/3 green vs deterministic stub provider
-- ✅ **Eval set v2 — research-grounded gold standard** — 15 scenarios across 7 exposure classes (assault_battery, dram_shop, premises_liability, medical_emergency, property_damage, crowd_management, negligent_security) with provenance citing real policy clauses + industry patterns (e.g. Valentine v. Nayarit). Schema v2 adds `exposure_class`, `difficulty`, `scenario_type`, `provenance`, `expected_review_status`, factor lists. Five deterministic scorers: structural, severity_match (ladder-graded), citation_coverage, review_status_match, factor_recognition. Methodology doc (`docs/evals/README.md`) codifies 8 guardrails (provenance, author separation, diversity quotas, difficulty tagging, no leakage, Goodhart guard, volume cap, versioning) and a findings ledger. Baseline against deterministic stub: 47% severity_match, 87% review_status_match, 0% factor_recognition — making the stub→LLM uplift case quantitative.
+- ✅ **Eval set v2 — research-grounded gold standard** — 15 scenarios across 7 exposure classes
+- ✅ **Claims v1 — operator-proposes, broker-decides lifecycle** — `ClaimProposal` state machine (pending → approved | rejected_by_broker → filed_with_carrier); structured override vocabulary (4 tags + freetext); override badge visible to broker in portfolio queue; `/claims` portfolio dashboard (role-scoped: "My Claims" for operators, "Claims Portfolio" for brokers); `/claims/[packetId]` per-incident detail with full EV breakdown + lifecycle timeline; action row + override modal on `/underwriter/[id]`; audit trail via `claim.proposed` / `claim.approved` / `claim.rejected` events. ADR-0003 documents rationale + v2 migration path.
+- ✅ **Override-accuracy stats — data flywheel for the recommender** — `compute_override_stats()` aggregates decided overrides into: override approval rate, non-override baseline rate, Δ in percentage points, per-reason breakdown (which override vocabulary tags hold up under broker scrutiny). Surfaced on `/risk-profile/[venueId]` (Override Calibration card) and `/claims` broker header. The aggregates are the training signal for v2 rubric calibration — every override is a labeled example. See `backend/app/claim_proposals.py:compute_override_stats`. (assault_battery, dram_shop, premises_liability, medical_emergency, property_damage, crowd_management, negligent_security) with provenance citing real policy clauses + industry patterns (e.g. Valentine v. Nayarit). Schema v2 adds `exposure_class`, `difficulty`, `scenario_type`, `provenance`, `expected_review_status`, factor lists. Five deterministic scorers: structural, severity_match (ladder-graded), citation_coverage, review_status_match, factor_recognition. Methodology doc (`docs/evals/README.md`) codifies 8 guardrails (provenance, author separation, diversity quotas, difficulty tagging, no leakage, Goodhart guard, volume cap, versioning) and a findings ledger. Baseline against deterministic stub: 47% severity_match, 87% review_status_match, 0% factor_recognition — making the stub→LLM uplift case quantitative.
 
 ### Phase 2 — LLM-backed agents
 - Wire real Claude API calls behind existing interfaces
