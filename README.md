@@ -7,6 +7,7 @@ Evidence-first underwriting infrastructure for nightlife venues. Built as a work
 
 **Live demo:** https://frontend-mu-ebon-n3x8uw2rpx.vercel.app  
 **Mobile walkthrough:** https://drive.google.com/file/d/1UaMGv5HxK811FAFx8cNE9l1x2IPFVuuI/view?usp=sharing  
+**Eval dashboard:** [`/evals`](https://frontend-mu-ebon-n3x8uw2rpx.vercel.app/evals) — committed baseline, scorer breakdown, stack signature  
 **Architecture:** [Agent pipeline, LLM integration points, and roadmap](docs/superpowers/specs/2026-05-07-architecture-v2.md)
 
 ---
@@ -69,11 +70,14 @@ Or create a new account via **Sign Up / Create Account** on the login screen (we
 - **Agent pipeline** — retrieval, risk evaluation, claims timeline, memo drafting (~200ms synchronous)
 - **Two-phase packets** — instant text analysis + async vision processing for uploaded evidence
 - **Vision corroboration** — visual findings flagged CONSISTENT / PARTIAL / CONTRADICTED against the written report
-- **Reports queue** — severity-sorted packet list with review decisions and full audit trail
+- **Claims v1 — operator proposes, broker decides** — structured 4-tag override vocabulary, full state machine (pending → approved | rejected → filed), shipped on web and mobile with EV breakdown and lifecycle timeline
+- **Override calibration** — per-venue and cross-portfolio stats on which override reasons hold up under broker scrutiny; the training signal for v2 rubric calibration
+- **Reports queue** — severity-sorted packet list with role-scoped views (broker "Reports Portfolio" / operator "My Reports") and full audit trail
 - **Risk Profile + Compliance pages** — factor breakdowns, premium impact, role-aware compliance views
 - **Self-serve registration + venue management** — sign up on web or mobile, add/edit multiple venues
-- **Mobile app** — full iOS/Android app with role-aware tabs and the same typography system as the web
-- **Eval set** — 15 research-grounded scenarios across 7 exposure classes with provenance, 5 deterministic scorers, methodology doc with 8 guardrails (see [`docs/evals/README.md`](docs/evals/README.md))
+- **Mobile app** — full iOS/Android app with role-aware tabs (now including a Claims tab) and the same typography system as the web
+- **Pluggable provider matrix** — `MemoProvider`, `RiskClassifierProvider`, `TranscriptionProvider`, `EmbeddingProvider` interfaces with deterministic stubs + Anthropic/Gemini/OpenAI implementations; swap providers without touching agent code
+- **Load-bearing eval harness** — 15 research-grounded scenarios across 7 exposure classes + adversarial gold set, 5 scorers (structural, severity_match, citation_coverage, review_status_match, factor_recognition) plus retrieval and safety scorers, signature-keyed `baseline.json` regression gate wired into CI, nightly LLM provider matrix; see [`/evals` dashboard](https://frontend-mu-ebon-n3x8uw2rpx.vercel.app/evals) and [`docs/evals/README.md`](docs/evals/README.md)
 
 ---
 

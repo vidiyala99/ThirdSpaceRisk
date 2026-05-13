@@ -1,8 +1,8 @@
 # Third Space Risk Engine: Architecture v2
 
 **Date:** 2026-05-07
-**Last Updated:** 2026-05-12 (claims v1 lifecycle + override-accuracy stats)
-**Version:** v2.9
+**Last Updated:** 2026-05-13 (provider matrix expansion, mobile claims parity, load-bearing eval harness, operator My Reports)
+**Version:** v2.10
 **Status:** Current system + near-term roadmap
 **Audience:** Engineering, interview review
 
@@ -272,16 +272,30 @@ When a real provider key is available, `vision_agent.analyze()` calls Claude Vis
 
 The system is built to be LLM-ready without requiring LLM calls to function. Each agent interface accepts the same inputs and returns the same output schema whether the implementation is a stub or a real model call.
 
+### 6.1 Agent-level swap surface
+
 | Agent | Stub (current) | LLM version |
 |-------|---------------|-------------|
-| RiskEvaluatorAgent | Keyword + flag heuristics, severity varies by incident type + flags | Claude claude-sonnet-4-6 with policy context |
-| UnderwriterMemoAgent | Risk-type-specific analytical templates with open questions | Claude claude-sonnet-4-6 drafting from citations |
+| RiskEvaluatorAgent | Keyword + flag heuristics, severity varies by incident type + flags | Claude claude-sonnet-4-6 with policy context (via `RiskClassifierProvider`) |
+| UnderwriterMemoAgent | Risk-type-specific analytical templates with open questions | Claude claude-sonnet-4-6 drafting from citations (via `MemoProvider`) |
 | VisionAgent | Realistic stub — varies confidence delta by injury/police/EMS flags | Claude Vision API |
 | VideoAgent | Stub keyframe analysis with timeline reconstruction | ffmpeg → Claude Vision per frame |
-| AudioAgent | Not implemented | Whisper transcription → text agent |
+| AudioAgent | Stub returns empty transcript | `TranscriptionProvider` → OpenAI Whisper / AssemblyAI / Deepgram |
 | CorroborationAgent | Deterministic — compares vision findings vs incident flags, returns CONSISTENT/PARTIAL/CONTRADICTED | Full LLM semantic comparison |
+| SemanticKnowledgeBase | TF-IDF over policy + stream corpus | `EmbeddingProvider` (OpenAI / Gemini / on-device) — Phase 3 |
 
-Provider switching requires changing one function per agent, not the architecture.
+### 6.2 Pluggable provider interfaces (`backend/app/providers/base.py`)
+
+| Interface | Purpose | Stub | LLM implementations shipped |
+|-----------|---------|------|------------------------------|
+| `MemoProvider` | Drafts underwriter memo from structured findings | `DeterministicMemoProvider` | Anthropic, Gemini, OpenAI |
+| `RiskClassifierProvider` | Maps incident → (risk_type, base_severity, base_confidence, rationale) before deterministic hard-signal escalation | `DeterministicRiskClassifier` | Anthropic, Gemini |
+| `TranscriptionProvider` | Audio file → text + language + duration for the audio agent | `DeterministicTranscriber` (no-op) | OpenAI Whisper |
+| `EmbeddingProvider` | Texts → fixed-length vectors for semantic retrieval | `DeterministicEmbedder` (hashed buckets) | OpenAI, Gemini |
+
+Hard-signal escalation (`injury_observed`, `police_called`, `ems_called`) is deterministic and runs **after** the classifier — we don't want a model to be the gate on the things we already know. Every provider output records `provider`, `mode` (deterministic | llm), and `model`, which surfaces in eval snapshots and audit events.
+
+Provider switching is a constructor-injection change in `app/providers/__init__.py`, not an architectural one. The eval harness uses `stack_signature` (e.g. `memo=deterministic-v1;risk=deterministic-classifier-v1`) to key its baseline so swapping providers doesn't pollute the deterministic regression floor — see §8 Phase 1 evals bullets.
 
 ---
 
@@ -344,6 +358,19 @@ Provider switching requires changing one function per agent, not the architectur
 - ✅ **Eval set v2 — research-grounded gold standard** — 15 scenarios across 7 exposure classes
 - ✅ **Claims v1 — operator-proposes, broker-decides lifecycle** — `ClaimProposal` state machine (pending → approved | rejected_by_broker → filed_with_carrier); structured override vocabulary (4 tags + freetext); override badge visible to broker in portfolio queue; `/claims` portfolio dashboard (role-scoped: "My Claims" for operators, "Claims Portfolio" for brokers); `/claims/[packetId]` per-incident detail with full EV breakdown + lifecycle timeline; action row + override modal on `/underwriter/[id]`; audit trail via `claim.proposed` / `claim.approved` / `claim.rejected` events. ADR-0003 documents rationale + v2 migration path.
 - ✅ **Override-accuracy stats — data flywheel for the recommender** — `compute_override_stats()` aggregates decided overrides into: override approval rate, non-override baseline rate, Δ in percentage points, per-reason breakdown (which override vocabulary tags hold up under broker scrutiny). Surfaced on `/risk-profile/[venueId]` (Override Calibration card) and `/claims` broker header. The aggregates are the training signal for v2 rubric calibration — every override is a labeled example. See `backend/app/claim_proposals.py:compute_override_stats`. (assault_battery, dram_shop, premises_liability, medical_emergency, property_damage, crowd_management, negligent_security) with provenance citing real policy clauses + industry patterns (e.g. Valentine v. Nayarit). Schema v2 adds `exposure_class`, `difficulty`, `scenario_type`, `provenance`, `expected_review_status`, factor lists. Five deterministic scorers: structural, severity_match (ladder-graded), citation_coverage, review_status_match, factor_recognition. Methodology doc (`docs/evals/README.md`) codifies 8 guardrails (provenance, author separation, diversity quotas, difficulty tagging, no leakage, Goodhart guard, volume cap, versioning) and a findings ledger. Baseline against deterministic stub: 47% severity_match, 87% review_status_match, 0% factor_recognition — making the stub→LLM uplift case quantitative.
+
+#### Shipped since v2.9
+
+- ✅ **Provider matrix expansion** (`c512162`) — pluggable provider system grown from `MemoProvider` only to four interfaces: `MemoProvider`, `RiskClassifierProvider`, `TranscriptionProvider`, `EmbeddingProvider`. Anthropic + Gemini implementations for memo & risk classifier; OpenAI Whisper for transcription; OpenAI + Gemini for embeddings. Every output carries `(provider, mode, model)` for audit + eval attribution. Hard-signal escalation stays deterministic — the classifier is base-only, escalation runs after. See §6.2 for the full table.
+- ✅ **Mobile claims parity** (`1b0101a`) — full feature match with the web claims feature: new `ClaimsListScreen` (role-scoped: broker sees all; operator sees own venues), new `ClaimDetailScreen` with EV breakdown + lifecycle timeline + broker approve/reject action row, new `ClaimProposeBottomSheet` with the 4-tag override vocabulary, new `ClaimsStack`. `IncidentDetailScreen` gains operator Propose / Override-and-Propose buttons. `BrokerReportDetailScreen` gains the missing EV math card + inline approve/reject. `RiskProfileDetailScreen` gains an Override Calibration card pulling `/api/venues/{id}/override-stats`.
+- ✅ **Operator My Reports** (`d532e22`) — `/underwriter` page no longer broker-only; sidebar Reports entry surfaces to operators with their packets client-scoped to `tenant_id + extra_venue_ids` (same scoping pattern as My Claims). Title flips to "My Reports" for operators, "Reports Portfolio" for brokers.
+- ✅ **Eval harness made load-bearing** (`37dc1ed`) — the harness existed but didn't gate anything; this fixes that.
+  - **Committed baseline + CI gate** — `backend/app/evals/baseline.py` (signature-keyed read/write with tolerant float comparison), `runner.py --compare-baseline` exits 1 on regression and exit 2 on missing-baseline-for-stack, `--update-baseline` writes the current run under its `stack_signature` preserving other stacks. `baseline.json` committed at the real deterministic numbers (47% aggregate / 47% severity_match / 87% review_status_match — not aspirational). New `evals` job in `ci.yml` runs on every PR with artifact upload.
+  - **Provider-matrix evals** — `--risk-provider stub|gemini|anthropic|auto` exercises `RiskClassifierProvider`. `stack_signature` like `memo=deterministic-v1;risk=deterministic-classifier-v1` written into every snapshot; `baseline.json` is now a dict keyed by signature so swapping providers doesn't pollute the deterministic floor. Legacy single-snapshot baselines auto-migrate on load. New nightly `evals-matrix` job (cron 0 7 UTC) runs LLM stacks when keys are set; skips silently on forks.
+  - **Retrieval scorers** — beyond presence-only citation coverage: `score_retrieval_precision_at_k`, `score_retrieval_recall_at_k`, `score_retrieval_mrr` for rank-aware retrieval quality.
+  - **Adversarial gold set** — `docs/evals/adversarial_gold.json` with safety-failure-mode scenarios + `score_safety_*` scorers covering refusal-to-fabricate-citations, refusal-to-escalate-without-hard-signal, etc.
+  - **`factor_recognition` provider-mode gating** — gates at score=1.0 in LLM mode, reports informational on deterministic (the stub can't paraphrase factor names; forcing a gate either fakes LLM behavior or keeps the suite permanently red).
+- ✅ **`/evals` dashboard refresh** (`ccc4810`) — frontend page now reads the PR1-PR4 baseline schema: shows `stack_signature`, per-provider `(name, mode, model)`, per-scenario breakdown by `exposure_class` / `difficulty` / `scenario_type` (standard / mitigating_factor_bait / subtle_catastrophic / adversarial), and per-scorer pass rate. Backward-compatible with legacy snapshots.
 
 ### Phase 2 — LLM-backed agents
 - Wire real Claude API calls behind existing interfaces
