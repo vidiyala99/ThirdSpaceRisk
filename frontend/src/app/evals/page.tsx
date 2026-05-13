@@ -30,6 +30,10 @@ interface ProviderInfo {
 interface Snapshot {
   timestamp: string;
   provider: ProviderInfo | string; // legacy string supported for old snapshots
+  // Added in PR2 — emitted by the runner since the stack-keyed baseline.
+  // Optional so legacy snapshots still render.
+  risk_provider?: ProviderInfo;
+  stack_signature?: string;
   aggregate: { total: number; passed: number; pass_rate: number };
   scorer_averages: { name: string; pass_rate: number; avg_score: number; count: number }[];
   scenarios: ScenarioSnapshot[];
@@ -62,6 +66,7 @@ const TYPE_COLOR: Record<string, string> = {
   standard: "var(--text-tertiary)",
   mitigating_factor_bait: "var(--brand-secondary)",
   subtle_catastrophic: "var(--brand-tertiary)",
+  adversarial: "var(--state-error)",
 };
 
 function scoreColor(score: number): string {
@@ -88,15 +93,29 @@ export default function EvalsPage() {
       .catch((e) => setError(String(e)));
   }, []);
 
-  const grouped = useMemo(() => {
-    if (!data) return [] as { exposure: string; scenarios: ScenarioSnapshot[] }[];
+  // Adversarial scenarios carry an underlying exposure_class for their
+  // simulated incident type (e.g. ADV-002 is assault_battery-shaped) but
+  // they're scored on safety properties, not accuracy. Mixing them into the
+  // standard exposure-class groups would dilute both views. Keep them in
+  // their own bucket so reviewers can read accuracy and safety separately.
+  const { grouped, adversarial } = useMemo(() => {
+    const empty = { grouped: [] as { exposure: string; scenarios: ScenarioSnapshot[] }[], adversarial: [] as ScenarioSnapshot[] };
+    if (!data) return empty;
     const map = new Map<string, ScenarioSnapshot[]>();
+    const adv: ScenarioSnapshot[] = [];
     for (const s of data.scenarios) {
+      if (s.scenario_type === "adversarial") {
+        adv.push(s);
+        continue;
+      }
       const key = s.exposure_class || "unknown";
       if (!map.has(key)) map.set(key, []);
       map.get(key)!.push(s);
     }
-    return Array.from(map.entries()).map(([exposure, scenarios]) => ({ exposure, scenarios }));
+    return {
+      grouped: Array.from(map.entries()).map(([exposure, scenarios]) => ({ exposure, scenarios })),
+      adversarial: adv,
+    };
   }, [data]);
 
   if (error) {
@@ -120,6 +139,8 @@ export default function EvalsPage() {
   const provider = normalizeProvider(data.provider);
   const isLLM = provider.mode === "llm";
   const modeColor = isLLM ? "var(--brand-secondary)" : "var(--text-tertiary)";
+  const standardScenarioCount = data.scenarios.length - adversarial.length;
+  const scorerCount = data.scorer_averages.length;
 
   return (
     <main style={pageStyle}>
@@ -129,18 +150,28 @@ export default function EvalsPage() {
           <span style={{ ...providerBadgeStyle, color: modeColor, borderColor: modeColor }}>
             {isLLM ? "LLM" : "DETERMINISTIC"}
           </span>
-          <span style={providerNameStyle}>{provider.name}</span>
+          <span style={providerNameStyle}>memo: {provider.name}</span>
+          {data.risk_provider && (
+            <span style={providerNameStyle}>risk: {data.risk_provider.name}</span>
+          )}
         </div>
         <h1 style={titleStyle}>
           Underwriting Agent <span style={{ color: "var(--brand-primary)" }}>Scoreboard</span>
         </h1>
         <p style={subtitleStyle}>
-          {data.scenarios.length} research-grounded scenarios across {grouped.length} exposure classes,
-          scored on 5 deterministic dimensions. Each failure points at a specific capability gap —
-          the eval is meant to <em>reveal</em> weaknesses, not gate them.
+          {standardScenarioCount} research-grounded scenarios across {grouped.length} exposure classes
+          {adversarial.length > 0 && <> plus {adversarial.length} adversarial safety scenarios</>},
+          scored on {scorerCount} dimensions. The baseline is a regression target — failures locked
+          in here are known gaps, not surprises; new failures are CI-gated.
         </p>
         <p style={metaStyle}>
           Run timestamp: <span style={{ fontFamily: "var(--font-mono)" }}>{data.timestamp}</span>
+          {data.stack_signature && (
+            <>
+              {" · stack: "}
+              <span style={{ fontFamily: "var(--font-mono)" }}>{data.stack_signature}</span>
+            </>
+          )}
         </p>
       </header>
 
@@ -171,13 +202,16 @@ export default function EvalsPage() {
         <p style={{ marginBottom: "var(--space-md)" }}>
           <strong style={{ color: "var(--text-primary)" }}>How to read this.</strong>{" "}
           The deterministic stub represents what the agent pipeline does today without LLMs.
-          A 100% pass rate would mean the eval is too easy — we want failures, because they tell
-          us where the LLM uplift will land.
+          The committed baseline locks in this state as a regression floor — every PR runs
+          the eval and CI fails if any scorer drops below the numbers shown here. Failures
+          aren&apos;t bugs to chase; they&apos;re documented gaps (see findings ledger) that
+          motivate the next LLM provider uplift.
         </p>
         <p style={{ color: "var(--text-tertiary)", fontSize: "0.875rem" }}>
           See <a href="https://github.com/Aakash-Vidiyala/ThirdSpaceRisk/blob/main/docs/evals/README.md" style={linkStyle} target="_blank" rel="noopener noreferrer">methodology doc</a>{" "}
-          for the 8 guardrails, scorer reference, and findings ledger linking each failure to its
-          root cause classification (agent-gap / gold-error / known-limit).
+          for the 8 guardrails, scorer reference, baseline gating rules, and findings ledger
+          linking each failure to its root cause classification (agent-gap / gold-error /
+          known-limit / safety).
         </p>
       </section>
 
@@ -206,6 +240,29 @@ export default function EvalsPage() {
           );
         })}
       </section>
+
+      {adversarial.length > 0 && (
+        <section style={sectionStyle}>
+          <h2 style={h2Style}>Adversarial Safety Scenarios</h2>
+          <p style={{ color: "var(--text-secondary)", fontSize: "0.9rem", marginBottom: "var(--space-lg)", maxWidth: 720 }}>
+            These probe safety properties orthogonal to accuracy: prompt-injection resistance,
+            graceful handling of degenerate input, and routing of off-topic content to human
+            review rather than auto-approval. Standard accuracy scorers (severity, citations)
+            do not apply.
+          </p>
+          <div style={groupHeaderStyle}>
+            <h3 style={h3Style}>Safety Probes</h3>
+            <span style={groupCountStyle}>
+              {adversarial.filter((s) => s.passed).length}/{adversarial.length} pass
+            </span>
+          </div>
+          <div style={scenarioListStyle}>
+            {adversarial.map((s) => (
+              <ScenarioCard key={s.scenario_id} scenario={s} />
+            ))}
+          </div>
+        </section>
+      )}
 
       <footer style={footerStyle}>
         <Link href="/dashboard" style={linkStyle}>← back to dashboard</Link>
