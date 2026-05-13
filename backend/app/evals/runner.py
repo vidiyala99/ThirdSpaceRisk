@@ -28,24 +28,37 @@ from app.agents.runtime import (
 )
 from app.providers import (
     AnthropicProvider,
+    AnthropicRiskClassifier,
     DeterministicProvider,
+    DeterministicRiskClassifier,
     GeminiProvider,
+    GeminiRiskClassifier,
     MemoProvider,
+    RiskClassifierProvider,
     get_default_provider,
+    get_default_risk_classifier,
 )
 from app.providers.anthropic_provider import ProviderNotConfiguredError
 from app.schemas import IncidentCreate
 
-from app.evals import scorers
+from app.evals import retrieval_scorers, safety_scorers, scorers
+from app.evals.baseline import (
+    BASELINE_PATH,
+    compare_to_baseline,
+    load_baseline_for_stack,
+    write_baseline,
+)
 from app.evals.report import (
     ProviderInfo,
     ScenarioResult,
     ScorerResult,
+    snapshot_payload,
     write_json_snapshot,
     write_markdown_report,
 )
 
 GOLD_STANDARD_PATH = Path(__file__).resolve().parents[3] / "docs" / "evals" / "gold_standard.json"
+ADVERSARIAL_GOLD_PATH = Path(__file__).resolve().parents[3] / "docs" / "evals" / "adversarial_gold.json"
 RESULTS_DIR = Path(__file__).resolve().parent / "results"
 
 EVAL_VENUE_ID = "eval-venue"
@@ -202,11 +215,18 @@ _SCENARIO_OVERRIDES: dict[str, dict[str, Any]] = {
 
 
 def _scenario_to_incident(scenario: dict) -> IncidentCreate:
-    override = _SCENARIO_OVERRIDES.get(scenario["scenario_id"], {})
+    # Adversarial scenarios carry an `incident_override` block inline (the
+    # standard 15 use the module-level _SCENARIO_OVERRIDES table). Inline
+    # wins when present so adversarial scenarios are self-contained.
+    inline = scenario.get("incident_override") or {}
+    table = _SCENARIO_OVERRIDES.get(scenario["scenario_id"], {})
+    override = {**table, **inline}
+
     summary = override.get("summary", scenario.get("description", "incident"))
     location = override.get("location", "venue")
-    occurred_at = scenario.get("input_events", [{}])[0].get(
-        "timestamp", datetime.now(timezone.utc).isoformat()
+    events = scenario.get("input_events", [])
+    occurred_at = (
+        events[0]["timestamp"] if events else datetime.now(timezone.utc).isoformat()
     )
     return IncidentCreate(
         occurred_at=occurred_at,
@@ -262,10 +282,57 @@ def resolve_provider(name: str | None) -> MemoProvider:
     raise ValueError(f"Unhandled provider {name!r}")
 
 
+def resolve_risk_provider(name: str | None) -> RiskClassifierProvider:
+    """Map a CLI/env name to a concrete RiskClassifierProvider.
+
+    Mirrors `resolve_provider`'s aliasing — same vocabulary, different class
+    hierarchy. Kept as a sibling rather than a generic dispatch because the
+    two provider hierarchies don't share a constructor signature and the
+    aliasing logic is small enough that duplication is clearer than abstraction.
+    """
+    raw = (name or "stub").lower()
+    canonical = _PROVIDER_ALIASES.get(raw)
+    if canonical is None:
+        raise ValueError(
+            f"Unknown risk provider {name!r}. Use one of: stub, gemini, anthropic, auto."
+        )
+    if canonical == "stub":
+        return DeterministicRiskClassifier()
+    if canonical == "gemini":
+        return GeminiRiskClassifier()
+    if canonical == "anthropic":
+        return AnthropicRiskClassifier()
+    if canonical == "auto":
+        return get_default_risk_classifier()
+    raise ValueError(f"Unhandled risk provider {name!r}")
+
+
 def _provider_info(provider: MemoProvider) -> ProviderInfo:
     name = provider.provider_name
     model = name.split("/", 1)[1] if "/" in name else None
     return ProviderInfo(name=name, mode=provider.mode.value, model=model)
+
+
+def _risk_info(provider: RiskClassifierProvider) -> ProviderInfo:
+    """Same shape as memo provider info, derived from risk-classifier surface.
+
+    RiskClassifierProvider exposes provider_name and mode just like MemoProvider
+    (deterministic / llm). We reuse ProviderInfo so the snapshot JSON treats
+    both surfaces uniformly.
+    """
+    name = provider.provider_name
+    model = name.split("/", 1)[1] if "/" in name else None
+    return ProviderInfo(name=name, mode=provider.mode.value, model=model)
+
+
+def stack_signature(memo: ProviderInfo, risk: ProviderInfo) -> str:
+    """Canonical key for baseline storage.
+
+    Two stacks with the same (memo_name, risk_name) share a baseline. Format
+    is deliberately short and human-readable so PR diffs of baseline.json are
+    legible: `memo=deterministic-v1;risk=deterministic-v1`.
+    """
+    return f"memo={memo.name};risk={risk.name}"
 
 
 def run_scenario(scenario: dict, runtime: UnderwritingPacketAgentRuntime) -> _RunOutput:
@@ -293,22 +360,90 @@ def run_scenario(scenario: dict, runtime: UnderwritingPacketAgentRuntime) -> _Ru
         )
 
 
+def _load_scenarios(
+    gold_path: Path, adversarial_path: Path | None
+) -> list[dict]:
+    """Load and concatenate standard + adversarial gold scenarios.
+
+    Adversarial file is optional — if missing, only the standard set runs.
+    This preserves backwards compatibility for forks/branches without the
+    adversarial_gold.json file yet.
+    """
+    scenarios = json.loads(gold_path.read_text(encoding="utf-8"))
+    if adversarial_path is not None and adversarial_path.exists():
+        adversarial = json.loads(adversarial_path.read_text(encoding="utf-8"))
+        scenarios.extend(adversarial)
+    return scenarios
+
+
+def _score_standard_scenario(
+    run: _RunOutput, scenario: dict, *, memo_provider_mode: str
+) -> list[ScorerResult]:
+    """Apply the standard scorer suite (severity, citations, retrieval)."""
+    ideal = scenario["ideal_output"]
+    results: list[ScorerResult] = []
+    results.append(scorers.score_structural(run.actual))
+    results.append(scorers.score_severity_match(run.actual, ideal))
+    results.append(scorers.score_citation_coverage(run.actual, ideal))
+    results.append(scorers.score_review_status_match(run.actual, ideal))
+    results.append(
+        scorers.score_factor_recognition(
+            run.actual, ideal, provider_mode=memo_provider_mode
+        )
+    )
+    # Retrieval-quality scorers — measure citation *ranking* alongside
+    # citation presence. NDCG@5 catches the failure mode where the right
+    # evidence is surfaced but buried at position 8 of 10.
+    results.append(retrieval_scorers.score_ndcg_at_k(run.actual, ideal))
+    results.append(retrieval_scorers.score_mrr(run.actual, ideal))
+    return results
+
+
+def _score_adversarial_scenario(
+    run: _RunOutput, scenario: dict
+) -> list[ScorerResult]:
+    """Apply structural + selected safety scorers.
+
+    Each adversarial scenario lists its applicable safety scorers in
+    `safety_scorers`; we run those plus the universally-applicable
+    `structural` check. Severity/citation-coverage scorers don't apply
+    because the adversarial gold doesn't carry a "correct" risk_level —
+    the question is whether the agent stayed safe, not whether it
+    matched a (meaningless) target.
+    """
+    results: list[ScorerResult] = [scorers.score_structural(run.actual)]
+    ideal = scenario.get("safety_expectation") or {}
+    # Wrap the safety expectation so the scorer signature (actual, ideal)
+    # works unchanged — each scorer pulls its own keys out of the dict.
+    ideal_wrapped: dict = {"safety_expectation": ideal}
+    requested = scenario.get("safety_scorers") or list(safety_scorers.ADVERSARIAL_SCORERS.keys())
+    for name in requested:
+        scorer = safety_scorers.ADVERSARIAL_SCORERS.get(name)
+        if scorer is None:
+            continue  # unknown scorer name in gold — skip silently
+        results.append(scorer(run.actual, ideal_wrapped))
+    return results
+
+
 def run_all(
     runtime: UnderwritingPacketAgentRuntime,
     gold_path: Path = GOLD_STANDARD_PATH,
+    *,
+    adversarial_path: Path | None = ADVERSARIAL_GOLD_PATH,
+    memo_provider_mode: str = "deterministic",
 ) -> list[ScenarioResult]:
-    scenarios = json.loads(gold_path.read_text(encoding="utf-8"))
+    scenarios = _load_scenarios(gold_path, adversarial_path)
     results: list[ScenarioResult] = []
     for scenario in scenarios:
         run = run_scenario(scenario, runtime)
         scorer_results: list[ScorerResult] = []
         if run.actual is not None:
-            ideal = scenario["ideal_output"]
-            scorer_results.append(scorers.score_structural(run.actual))
-            scorer_results.append(scorers.score_severity_match(run.actual, ideal))
-            scorer_results.append(scorers.score_citation_coverage(run.actual, ideal))
-            scorer_results.append(scorers.score_review_status_match(run.actual, ideal))
-            scorer_results.append(scorers.score_factor_recognition(run.actual, ideal))
+            if scenario.get("scenario_type") == "adversarial":
+                scorer_results = _score_adversarial_scenario(run, scenario)
+            else:
+                scorer_results = _score_standard_scenario(
+                    run, scenario, memo_provider_mode=memo_provider_mode
+                )
         results.append(
             ScenarioResult(
                 scenario_id=run.scenario_id,
@@ -331,7 +466,32 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument(
         "--provider",
         default=os.getenv("EVAL_PROVIDER", "stub"),
-        help="stub | gemini | anthropic | auto (default: stub; env: EVAL_PROVIDER)",
+        help="memo provider: stub | gemini | anthropic | auto (default: stub; env: EVAL_PROVIDER)",
+    )
+    parser.add_argument(
+        "--risk-provider",
+        default=os.getenv("EVAL_RISK_PROVIDER", "stub"),
+        help=(
+            "risk-classifier provider: stub | gemini | anthropic | auto "
+            "(default: stub; env: EVAL_RISK_PROVIDER). Exercises the "
+            "pluggable risk classifier added in commit c512162."
+        ),
+    )
+    parser.add_argument(
+        "--compare-baseline",
+        action="store_true",
+        help=(
+            "After running, diff results against backend/app/evals/baseline.json. "
+            "Exit 1 on regression (any scorer's pass rate drops below the baseline)."
+        ),
+    )
+    parser.add_argument(
+        "--update-baseline",
+        action="store_true",
+        help=(
+            "Write the run's snapshot back to baseline.json as the new committed "
+            "baseline. Use only when an intentional improvement has landed."
+        ),
     )
     return parser.parse_args(argv)
 
@@ -340,28 +500,76 @@ def main(argv: list[str] | None = None) -> int:
     args = _parse_args(argv)
     try:
         provider = resolve_provider(args.provider)
+        risk_provider = resolve_risk_provider(args.risk_provider)
     except ProviderNotConfiguredError as exc:
         print(f"Provider not configured: {exc}")
         return 2
     except ValueError as exc:
-        print(f"Bad --provider: {exc}")
+        print(f"Bad provider flag: {exc}")
         return 2
 
-    runtime = UnderwritingPacketAgentRuntime(memo_provider=provider)
+    runtime = UnderwritingPacketAgentRuntime(
+        memo_provider=provider, risk_classifier=risk_provider
+    )
     info = _provider_info(provider)
+    risk = _risk_info(risk_provider)
+    signature = stack_signature(info, risk)
 
     RESULTS_DIR.mkdir(exist_ok=True)
-    results = run_all(runtime)
+    results = run_all(runtime, memo_provider_mode=info.mode)
     timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H-%M-%SZ")
     report_path = RESULTS_DIR / f"{timestamp}.md"
     json_path = RESULTS_DIR / f"{timestamp}.json"
     write_markdown_report(results, report_path, timestamp=timestamp, provider=info)
-    write_json_snapshot(results, json_path, timestamp=timestamp, provider=info)
-    print(f"Provider: {info.name} ({info.mode})")
+    write_json_snapshot(
+        results, json_path, timestamp=timestamp, provider=info,
+        risk_provider=risk, stack_signature=signature,
+    )
+    print(f"Memo provider: {info.name} ({info.mode})")
+    print(f"Risk provider: {risk.name} ({risk.mode})")
+    print(f"Stack signature: {signature}")
     print(f"Wrote {report_path}")
     print(f"Wrote {json_path}")
     passed = sum(1 for r in results if r.passed)
     print(f"Aggregate: {passed}/{len(results)} scenarios passed all scorers")
+
+    snapshot = snapshot_payload(
+        results, timestamp=timestamp, provider=info,
+        risk_provider=risk, stack_signature=signature,
+    )
+
+    if args.update_baseline:
+        write_baseline(snapshot, signature=signature)
+        print(f"Updated baseline for stack {signature} at {BASELINE_PATH}")
+
+    regressed = False
+    if args.compare_baseline:
+        baseline_for_stack = load_baseline_for_stack(signature)
+        if baseline_for_stack is None:
+            print(
+                f"No baseline for stack {signature!r} at {BASELINE_PATH}. "
+                f"Run with --update-baseline first to seed it."
+            )
+            return 2
+        diff = compare_to_baseline(snapshot, baseline_for_stack)
+        print(f"Baseline diff (stack: {signature}):")
+        for line in diff.summary_lines():
+            print(f"  {line}")
+        regressed = diff.regressed
+        if regressed:
+            print("REGRESSION: at least one scorer dropped below baseline.")
+
+    # Two failure modes: scenarios didn't all pass, OR baseline regressed.
+    # Either is a CI failure. --compare-baseline being green requires all
+    # baseline scorers to be ≥ committed levels, which is the gate we want.
+    if regressed:
+        return 1
+    if args.compare_baseline:
+        # When gating on baseline, we trust the baseline comparison rather
+        # than the strict "all scenarios pass all scorers" check — the
+        # baseline may already encode known-failing scorers (e.g.
+        # factor_recognition on LLM providers being below 100%).
+        return 0
     return 0 if passed == len(results) else 1
 
 

@@ -114,14 +114,25 @@ def write_markdown_report(
     path.write_text("\n".join(lines), encoding="utf-8")
 
 
-def write_json_snapshot(
+def snapshot_payload(
     results: list[ScenarioResult],
-    path: Path,
     *,
     timestamp: str,
     provider: ProviderInfo | None = None,
-) -> None:
-    """Emit a structured snapshot consumable by the frontend dashboard."""
+    risk_provider: ProviderInfo | None = None,
+    stack_signature: str | None = None,
+) -> dict:
+    """Build the structured snapshot dict — pure function, no I/O.
+
+    Same shape as the JSON file written by `write_json_snapshot`. Exposed so
+    callers (baseline comparison, frontend dashboard build, tests) can work
+    with the snapshot in memory without round-tripping through disk.
+
+    `risk_provider` and `stack_signature` are emitted alongside `provider` so
+    the baseline can be keyed by the (memo, risk) combination. They are
+    optional for backwards compatibility with older callers that only know
+    about the memo provider.
+    """
     total = len(results)
     passed = sum(1 for r in results if r.passed)
 
@@ -148,7 +159,7 @@ def write_json_snapshot(
         else {"name": "deterministic-stub", "mode": "deterministic", "model": None}
     )
 
-    snapshot = {
+    snapshot: dict = {
         "timestamp": timestamp,
         "provider": provider_payload,
         "aggregate": {
@@ -166,4 +177,28 @@ def write_json_snapshot(
             for r in results
         ],
     }
+    if risk_provider is not None:
+        snapshot["risk_provider"] = asdict(risk_provider)
+    if stack_signature is not None:
+        snapshot["stack_signature"] = stack_signature
+    return snapshot
+
+
+def write_json_snapshot(
+    results: list[ScenarioResult],
+    path: Path,
+    *,
+    timestamp: str,
+    provider: ProviderInfo | None = None,
+    risk_provider: ProviderInfo | None = None,
+    stack_signature: str | None = None,
+) -> None:
+    """Emit a structured snapshot consumable by the frontend dashboard."""
+    snapshot = snapshot_payload(
+        results,
+        timestamp=timestamp,
+        provider=provider,
+        risk_provider=risk_provider,
+        stack_signature=stack_signature,
+    )
     path.write_text(json.dumps(snapshot, indent=2), encoding="utf-8")

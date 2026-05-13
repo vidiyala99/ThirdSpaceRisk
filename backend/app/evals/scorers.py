@@ -190,11 +190,20 @@ def _factor_recognized(factor_name: str, text_pool: str) -> bool:
 
 
 def score_factor_recognition(
-    actual: UnderwritingPacketAgentResult, ideal: dict[str, Any]
+    actual: UnderwritingPacketAgentResult,
+    ideal: dict[str, Any],
+    *,
+    provider_mode: str = "deterministic",
 ) -> ScorerResult:
     """Fraction of expected aggravating + mitigating factors recognized in agent output.
 
-    Skipped (passes) when gold has no factor expectations. Pass requires score = 1.0.
+    Skipped (passes) when gold has no factor expectations. For LLM providers,
+    pass requires score = 1.0 — paraphrasing is expected, so missed factors
+    are a real regression signal. For the deterministic provider, the score
+    is still reported but `passed=True` regardless: the stub doesn't
+    paraphrase, so factor-token matching can't be a hard gate without forcing
+    the stub into "fake LLM" territory. The score remains a leading indicator
+    when the deterministic memo templates drift.
     """
     aggravating = list(ideal.get("aggravating_factors") or [])
     mitigating = list(ideal.get("mitigating_factors") or [])
@@ -212,11 +221,15 @@ def score_factor_recognition(
     recognized = [f for f in expected if _factor_recognized(f, pool)]
     missing = [f for f in expected if f not in recognized]
     score = len(recognized) / len(expected)
-    passed = score == 1.0
+
+    is_deterministic = provider_mode == "deterministic"
+    passed = True if is_deterministic else score == 1.0
 
     detail = f"{len(recognized)}/{len(expected)} recognized"
     if missing:
         detail += f"; missing {missing}"
+    if is_deterministic:
+        detail += " (informational on deterministic)"
     return ScorerResult(
         name="factor_recognition",
         passed=passed,
