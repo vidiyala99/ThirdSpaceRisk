@@ -256,6 +256,7 @@ export default function ClaimsPortfolioPage() {
         </section>
       ) : (
         <section className="card">
+          <div style={{ overflowX: "auto" }}>
           <table style={{ width: "100%", fontSize: "0.875rem" }}>
             <thead>
               <tr style={{ borderBottom: "1px solid var(--border-subtle)" }}>
@@ -320,6 +321,7 @@ export default function ClaimsPortfolioPage() {
               })}
             </tbody>
           </table>
+          </div>
         </section>
       )}
     </div>

@@ -322,7 +322,7 @@ export default function VenueTerminalPage() {
               <div className="flex flex-col gap-sm">
                 {Object.entries(riskScore.factors as Record<string, { score: number }>).map(([key, data]) => (
                   <div key={key} className="flex items-center gap-md">
-                    <span className="text-xs uppercase tracking-wide text-secondary" style={{ width: "140px" }}>{key.replace(/_/g, " ")}</span>
+                    <span className="text-xs uppercase tracking-wide text-secondary" style={{ flex: "0 0 auto", minWidth: "5.5rem", maxWidth: "9rem" }}>{key.replace(/_/g, " ")}</span>
                     <div className="flex-1 capacity-bar bg-dark">
                       <div className="capacity-fill" style={{ width: `${data.score}%`, background: TIER_COLOR[riskScore.tier] ?? "var(--brand-primary)" }} />
                     </div>

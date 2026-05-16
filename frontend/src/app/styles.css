@@ -1055,6 +1055,10 @@ a:hover { color: var(--text-primary); }
   gap: var(--space-xl);
 }
 
+@media (max-width: 640px) {
+  .live-grid { grid-template-columns: 1fr; }
+}
+
 .live-item {
   display: flex;
   flex-direction: column;
@@ -1810,7 +1814,7 @@ a:hover { color: var(--text-primary); }
   animation: spin 0.8s linear infinite;
 }
 
-@media (max-width: 1180px) {
+@media (max-width: 900px) {
   .workbench-grid {
     grid-template-columns: 1fr;
   }

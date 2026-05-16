@@ -356,6 +356,7 @@ export default function ClaimDetailPage() {
                   <h2 className="text-xs uppercase tracking-wide text-secondary mb-lg" style={{ borderBottom: "1px solid var(--border-subtle)", paddingBottom: "var(--space-sm)" }}>
                     Premium impact · year-by-year
                   </h2>
+                  <div style={{ overflowX: "auto" }}>
                   <table style={{ width: "100%", fontSize: "0.875rem" }}>
                     <thead>
                       <tr style={{ borderBottom: "1px solid var(--border-subtle)" }}>
@@ -382,6 +383,7 @@ export default function ClaimDetailPage() {
                       </tr>
                     </tbody>
                   </table>
+                  </div>
                 </section>
               </>
             );

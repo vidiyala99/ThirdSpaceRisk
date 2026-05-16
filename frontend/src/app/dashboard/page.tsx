@@ -361,7 +361,7 @@ function DashboardPageInner() {
               <p className="text-secondary">No venues match &ldquo;{searchQuery}&rdquo;</p>
             </div>
           ) : (
-            <div className="stagger-children" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(440px, 100%), 1fr))', gap: 'var(--space-md)' }}>
+            <div className="stagger-children" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(320px, 100%), 1fr))', gap: 'var(--space-md)' }}>
               {filteredPortfolioVenues.map((venue) => (
                 <VenuePortfolioCard key={venue.id} venue={venue} />
               ))}
@@ -408,7 +408,7 @@ function DashboardPageInner() {
               <div className="flex flex-col gap-md">
                 {Object.entries(riskScore.factors).map(([key, data]) => (
                   <div key={key} className="flex items-center gap-md">
-                    <span className="text-xs uppercase tracking-wide" style={{ width: "160px" }}>{key.replace("_", " ")}</span>
+                    <span className="text-xs uppercase tracking-wide" style={{ flex: "0 0 auto", minWidth: "6rem", maxWidth: "10rem" }}>{key.replace("_", " ")}</span>
                     <div className="flex-1 capacity-bar bg-dark">
                       <div className="capacity-fill" style={{ width: `${data.score}%`, background: TIER_COLOR[riskScore.tier] }} />
                     </div>
