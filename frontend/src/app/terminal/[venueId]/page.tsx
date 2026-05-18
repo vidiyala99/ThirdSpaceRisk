@@ -4,7 +4,8 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuth, useRole } from "@/contexts/AuthContext";
-import { Upload, AlertTriangle, ShieldCheck, DollarSign, TrendingUp, Calendar, Zap } from "lucide-react";
+import { Upload, AlertTriangle, ShieldCheck, TrendingUp, Calendar, Zap } from "lucide-react";
+import { toastLoading, toastSuccess, toastError, toastDismiss } from "@/lib/toast";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
 
@@ -127,19 +128,34 @@ export default function VenueTerminalPage() {
 
   const simulateAlert = async () => {
     setSimulatingAlert(true);
+    const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+    const headers: Record<string, string> = { "Content-Type": "application/json" };
+    if (token) headers["Authorization"] = `Bearer ${token}`;
+    const tid = toastLoading("Injecting simulated alert…");
     try {
-      await fetch(`${API_URL}/api/venues/${venueId}/events/inject`, {
+      const res = await fetch(`${API_URL}/api/venues/${venueId}/alerts/simulate`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify([{
-          event_id: `CAM-${Date.now()}`,
-          event_type: "camera_metadata",
-          timestamp: new Date().toISOString(),
-          payload: { camera_id: "camera-rear-bar", anomaly_score: 0.85, clip_duration: 90 },
-        }]),
+        headers,
+        body: JSON.stringify({
+          zone: "dance_floor",
+          event_type: "altercation",
+          severity: "critical",
+          confidence: 0.88,
+          description: "Simulated altercation detected near dance floor.",
+        }),
       });
-      const res = await fetch(`${API_URL}/api/venues/${venueId}/live`);
-      if (res.ok) setLiveState(await res.json());
+      toastDismiss();
+      if (res.ok) {
+        toastSuccess("Alert injected — visible on the Alerts page.");
+      } else {
+        toastError("Simulation failed. Check backend logs.");
+      }
+      // Refresh live state panel
+      const live = await fetch(`${API_URL}/api/venues/${venueId}/live`);
+      if (live.ok) setLiveState(await live.json());
+    } catch {
+      toastDismiss();
+      toastError("Network error — backend may be down.");
     } finally {
       setSimulatingAlert(false);
     }
@@ -202,56 +218,70 @@ export default function VenueTerminalPage() {
         }
       `}</style>
 
-      <div className="theme-venue min-h-screen p-xl">
+      <div className="lc-shell min-h-screen" style={{ padding: "0 clamp(20px, 4vw, 56px) 64px" }}>
+
+        {/* Editorial header */}
+        <section className="lc-hero" style={{ alignItems: "end" }}>
+          <div>
+            <span className="lc-eyebrow">
+              LIVE TERMINAL
+              <span className="lc-eyebrow__sep" />
+              {venueId.toUpperCase()}
+            </span>
+            <h1 className="lc-display" style={{ fontSize: "clamp(2.25rem, 5vw, 3.75rem)" }}>
+              {displayName}
+            </h1>
+            <p className="lc-sub">Real-time floor telemetry — capacity, infra and compliance, scored against your bound coverage.</p>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 14, flexWrap: "wrap" }}>
+            {process.env.NODE_ENV === "development" && (
+              <button
+                onClick={simulateAlert}
+                disabled={simulatingAlert}
+                className="lc-chip"
+                title="Dev only: inject a camera anomaly event"
+                style={{ borderColor: "rgba(245,158,11,0.4)", color: "var(--state-warning)" }}
+              >
+                <Zap size={12} style={{ marginRight: 6, display: "inline" }} />
+                {simulatingAlert ? "Injecting…" : "Simulate Alert"}
+              </button>
+            )}
+            <div className="lc-card" style={{ minWidth: 160 }}>
+              <div className="lc-card__inner" style={{ padding: "14px 18px", textAlign: "left" }}>
+                <span className="lc-stat-label">Coverage</span>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 6 }}>
+                  <span className="live-dot" />
+                  <span style={{ fontFamily: "var(--font-mono)", fontSize: "1rem", fontWeight: 600, letterSpacing: "0.18em", color: "var(--brand-primary)" }}>LIVE</span>
+                </div>
+                <span className="lc-stat-foot" style={{ display: "block", marginTop: 4 }}>{quote?.renewal_date ?? "—"}</span>
+              </div>
+            </div>
+          </div>
+        </section>
 
         {/* Savings hero — operators only */}
         {isOperator && insightLoading ? (
-          <div className="flex items-center gap-lg mb-xl p-lg" style={{ border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-lg)" }}>
-            <div className="flex flex-col gap-sm flex-1">
+          <div className="lc-card" style={{ margin: "var(--space-xl) 0" }}>
+            <div className="lc-card__inner" style={{ display: "flex", flexDirection: "column", gap: 12 }}>
               <SkeletonBlock width="180px" height="0.75rem" />
-              <SkeletonBlock width="260px" height="2.5rem" />
+              <SkeletonBlock width="280px" height="3rem" />
               <SkeletonBlock width="340px" height="0.75rem" />
             </div>
           </div>
         ) : isOperator && quote && quote.savings_annual > 0 ? (
-          <div className="flex items-center gap-lg mb-xl p-lg" style={{ background: "rgba(212,255,0,0.05)", border: "1px solid rgba(212,255,0,0.2)", borderRadius: "var(--radius-lg)" }}>
-            <div>
-              <div className="text-xs uppercase tracking-wide text-secondary mb-xs">Third Space saves you</div>
-              <div className="text-4xl font-bold glow-text">${quote.savings_annual.toLocaleString()}<span className="text-xl text-secondary font-normal">/yr</span></div>
-              <div className="text-xs font-mono text-secondary mt-xs">vs. market rate of ${quote.market_rate_annual.toLocaleString()} — {quote.savings_pct}% discount through evidence-first underwriting</div>
+          <div className="lc-card" style={{ margin: "var(--space-xl) 0" }}>
+            <div className="lc-card__inner">
+              <span className="lc-stat-label">Third Space saves you</span>
+              <div style={{ display: "flex", alignItems: "baseline", gap: 10, marginTop: 6 }}>
+                <span className="lc-numeral lc-numeral--accent">${quote.savings_annual.toLocaleString()}</span>
+                <span className="lc-stat-foot">/ yr</span>
+              </div>
+              <p className="lc-sub" style={{ fontSize: "0.85rem", marginTop: 10 }}>
+                vs. market rate of <strong style={{ color: "var(--text-primary)" }}>${quote.market_rate_annual.toLocaleString()}</strong> — {quote.savings_pct}% discount through evidence-first underwriting.
+              </p>
             </div>
           </div>
         ) : null}
-
-        <header className="page-header mb-xl">
-          <div>
-            <div className="text-xs text-secondary uppercase tracking-wide mb-xs">
-              Live Terminal
-            </div>
-            <h1 className="glow-text">{displayName}</h1>
-          </div>
-          <div className="flex items-center gap-md">
-{process.env.NODE_ENV === "development" && (
-              <button
-                onClick={simulateAlert}
-                disabled={simulatingAlert}
-                className="btn btn-secondary btn-sm flex items-center gap-xs"
-                title="Dev only: inject a camera anomaly event"
-              >
-                <Zap size={14} style={{ color: "var(--state-warning)" }} />
-                {simulatingAlert ? "Injecting..." : "Simulate Alert"}
-              </button>
-            )}
-            <div className="card p-md text-center" style={{ minWidth: "120px" }}>
-              <div className="text-xs uppercase tracking-wide text-secondary mb-xs">Coverage</div>
-              <div className="text-xl font-bold text-accent font-mono flex items-center justify-center gap-xs live-pulse">
-                <span className="live-dot" />
-                LIVE
-              </div>
-              <div className="text-xs text-secondary font-mono">{quote?.renewal_date ?? "—"}</div>
-            </div>
-          </div>
-        </header>
 
         {/* Capacity Bar */}
         <div className="card mb-xl">
@@ -259,9 +289,9 @@ export default function VenueTerminalPage() {
             <span className="text-xs uppercase tracking-wide text-secondary font-mono">
               Live Occupancy
             </span>
-            <span className="text-2xl font-bold font-mono" style={{ color: capacityColor }}>
+            <span className="lc-num-data" style={{ color: capacityColor, fontSize: "1.5rem" }}>
               {liveState.current_capacity}
-              <span className="text-lg font-normal text-secondary"> / {liveState.max_capacity}</span>
+              <span className="text-lg font-normal text-secondary" style={{ fontWeight: 400 }}> / {liveState.max_capacity}</span>
             </span>
           </div>
           <div className="capacity-bar">
@@ -304,7 +334,7 @@ export default function VenueTerminalPage() {
                 <div>
                   <div className="text-xs uppercase tracking-wide text-secondary font-mono mb-xs">Risk Profile</div>
                   <div className="flex items-baseline gap-sm">
-                    <span className="text-5xl font-bold glow-text">{riskScore.total_score}</span>
+                    <span className="lc-num-data lc-num-data--lg lc-num-data--success glow-text">{riskScore.total_score}</span>
                     <span className="text-secondary font-mono">/ 100</span>
                   </div>
                 </div>
@@ -383,8 +413,9 @@ export default function VenueTerminalPage() {
               <div className="card border-accent">
                 <div className="text-xs uppercase tracking-wide text-secondary font-mono mb-md">Premium</div>
                 <div className="flex items-baseline gap-sm mb-xs">
-                  <DollarSign size={22} className="text-accent" />
-                  <span className="text-4xl font-bold text-primary glow-text">{quote.annual_premium?.toLocaleString()}</span>
+                  <span className="lc-numeral lc-numeral--indigo" style={{ fontSize: "clamp(2.4rem, 5vw, 3.6rem)" }}>
+                    ${quote.annual_premium?.toLocaleString()}
+                  </span>
                   <span className="text-secondary text-xs">/ Year</span>
                 </div>
                 <div className="flex items-baseline gap-xs mb-md">

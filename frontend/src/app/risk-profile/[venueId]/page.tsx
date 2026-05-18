@@ -139,6 +139,7 @@ export default function RiskProfilePage() {
   const [riskData, setRiskData] = useState<any>(null);
   const [quoteData, setQuoteData] = useState<any>(null);
   const [venueName, setVenueName] = useState<string>("");
+  const [venueMeta, setVenueMeta] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   // Override-calibration aggregates for this venue. Null until first fetch
   // settles; absent fields rendered as "no signal yet" rather than zero.
@@ -287,7 +288,7 @@ export default function RiskProfilePage() {
         ]);
         if (riskRes.ok) setRiskData(await riskRes.json());
         if (quoteRes.ok) setQuoteData(await quoteRes.json());
-        if (venueRes.ok) { const v = await venueRes.json(); setVenueName(v.name ?? venueId); }
+        if (venueRes.ok) { const v = await venueRes.json(); setVenueName(v.name ?? venueId); setVenueMeta(v); }
         if (statsRes.ok) setOverrideStats(await statsRes.json());
       } catch {
         // non-fatal
@@ -313,6 +314,19 @@ export default function RiskProfilePage() {
   const factors: Record<string, number> = riskData?.factors
     ? Object.fromEntries(Object.entries(riskData.factors).map(([k, v]: [string, any]) => [k, typeof v === "object" ? v.score : v]))
     : {};
+  const factorWeights: Record<string, number> = riskData?.factors
+    ? Object.fromEntries(Object.entries(riskData.factors).map(([k, v]: [string, any]) => [k, typeof v === "object" && typeof v.weight === "number" ? v.weight : 0]))
+    : {};
+  // Projected total score if a single factor were fixed to 100. Weights may sum to 1 or 100; normalize.
+  const weightSum = Object.values(factorWeights).reduce((a, b) => a + b, 0) || 1;
+  function projectedTotalIfFixed(targetKey: string): number {
+    const sum = Object.entries(factors).reduce((acc, [k, s]) => {
+      const w = factorWeights[k] ?? 0;
+      const used = k === targetKey ? 100 : Number(s);
+      return acc + used * w;
+    }, 0);
+    return Math.round(sum / weightSum);
+  }
 
   const goodFactors = Object.entries(factors).filter(([, v]) => getFactorTier(Number(v)) === "good");
   const moderateFactors = Object.entries(factors).filter(([, v]) => getFactorTier(Number(v)) === "moderate");
@@ -577,7 +591,7 @@ export default function RiskProfilePage() {
   ) : null;
 
   return (
-    <div className="theme-venue min-h-screen rp-page">
+    <div className="lc-shell theme-venue min-h-screen rp-page">
       {/* Page-scoped responsive rules: 1024px breakpoint for the two-column grid,
           responsive padding so 375px phones aren't choked by 32px outer padding,
           max-width cap so the page doesn't stretch on ultrawide monitors. */}
@@ -593,8 +607,8 @@ export default function RiskProfilePage() {
                    color: var(--text-secondary); font-size: 0.875rem; border-radius: var(--radius-sm); }
         .rp-back:hover { color: var(--text-primary); }
         .rp-back:focus-visible { outline: 2px solid var(--brand-primary); outline-offset: 2px; }
-        .rp-tier { font-size: clamp(3.5rem, 12vw, 6rem); font-weight: 800; line-height: 1; letter-spacing: -4px; font-family: var(--font-display); }
-        .rp-score { font-size: clamp(2rem, 7vw, 3rem); font-weight: 800; line-height: 1; }
+        .rp-tier { font-size: clamp(4rem, 13vw, 7rem); font-weight: 500; font-style: italic; line-height: 0.85; letter-spacing: -0.06em; font-family: var(--font-display); text-shadow: 0 0 60px currentColor; opacity: 0.92; }
+        .rp-score { font-size: clamp(2.75rem, 8vw, 4.5rem); font-weight: 700; font-style: normal; line-height: 0.9; letter-spacing: -0.03em; font-family: var(--font-body); font-variant-numeric: lining-nums tabular-nums; }
         .rp-input, .rp-textarea { background: var(--bg-elevated); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm);
                                     padding: var(--space-sm); color: var(--text-primary); font-family: var(--font-mono); font-size: 0.75rem; width: 100%; }
         .rp-input:focus-visible, .rp-textarea:focus-visible { outline: 2px solid var(--brand-primary); outline-offset: 2px; border-color: transparent; }
@@ -763,9 +777,21 @@ export default function RiskProfilePage() {
                   const info = FACTOR_EXPLANATIONS[key];
                   const ft = getFactorTier(s);
                   const color = getFactorColor(s);
+                  const w = factorWeights[key] ?? 0;
+                  const weightPct = weightSum > 0 ? Math.round((w / weightSum) * 100) : null;
+                  const projected = projectedTotalIfFixed(key);
+                  const delta = projected - Number(score);
                   return (
                     <div key={key} style={{ borderLeft: `2px solid ${color}`, paddingLeft: "var(--space-md)" }}>
-                      <p className="text-sm font-semibold mb-xs">{info?.label}</p>
+                      <div className="flex items-center justify-between mb-xs" style={{ gap: 8, flexWrap: "wrap" }}>
+                        <p className="text-sm font-semibold" style={{ margin: 0 }}>{info?.label}</p>
+                        <span className="text-xs font-mono" style={{ color: "var(--text-tertiary)", whiteSpace: "nowrap" }}>
+                          <span style={{ color }}>{s}</span>
+                          {" → 100  ·  "}
+                          {delta > 0 ? <span style={{ color: "var(--brand-primary)" }}>+{delta} to total</span> : "no change"}
+                          {weightPct != null && <> · weighted {weightPct}%</>}
+                        </span>
+                      </div>
                       <p className="text-sm text-secondary mb-xs" style={{ lineHeight: 1.6 }}>{info?.[ft]}</p>
                       {!isBroker && info?.action && (
                         <p className="text-xs font-mono" style={{ color }}>→ {info.action}</p>
@@ -787,7 +813,7 @@ export default function RiskProfilePage() {
               <div className="flex flex-col gap-sm">
                 <div className="flex justify-between items-center py-sm" style={{ borderBottom: "1px solid var(--border-subtle)" }}>
                   <span className="text-sm text-secondary">Annual Premium</span>
-                  <span className="text-xl font-bold font-mono" style={{ color: tierColor }}>${(quoteData.annual_premium ?? 0).toLocaleString()}</span>
+                  <span className="lc-numeral" style={{ color: tierColor, fontSize: "1.75rem" }}>${(quoteData.annual_premium ?? 0).toLocaleString()}</span>
                 </div>
                 <div className="flex justify-between items-center py-sm" style={{ borderBottom: "1px solid var(--border-subtle)" }}>
                   <span className="text-sm text-secondary">Monthly</span>
@@ -806,6 +832,45 @@ export default function RiskProfilePage() {
                     </p>
                   </div>
                 )}
+
+                {quoteData?.coverage_breakdown && (
+                  <div style={{ marginTop: 18 }}>
+                    <span className="lc-stat-label" style={{ display: "block", marginBottom: 8 }}>Coverage</span>
+                    {Object.entries(quoteData.coverage_breakdown as Record<string, { included?: boolean; optional?: boolean }>).map(([key, line]) => {
+                      const label = key.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+                      const isIncluded = line.included === true;
+                      return (
+                        <div key={key} className="lc-cov-row">
+                          <span className="lc-cov-row__name">{label}</span>
+                          <span className="lc-cov-row__check" data-included={isIncluded ? "true" : "false"}>
+                            {isIncluded ? "✓ included" : "+ add-on"}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {(venueMeta?.current_carrier || quoteData?.renewal_date || venueMeta?.renewal_date) && (
+                  <div style={{ marginTop: 18, paddingTop: 14, borderTop: "1px solid var(--border-subtle)" }}>
+                    {venueMeta?.current_carrier && (
+                      <div className="lc-cov-row">
+                        <span className="lc-cov-row__name">Carrier</span>
+                        <span className="lc-cov-row__check">{venueMeta.current_carrier}</span>
+                      </div>
+                    )}
+                    {(quoteData?.renewal_date || venueMeta?.renewal_date) && (
+                      <div className="lc-cov-row">
+                        <span className="lc-cov-row__name">Renewal</span>
+                        <span className="lc-cov-row__check">{quoteData?.renewal_date ?? venueMeta?.renewal_date}</span>
+                      </div>
+                    )}
+                    <div className="lc-cov-row">
+                      <span className="lc-cov-row__name">Term</span>
+                      <span className="lc-cov-row__check">12 months</span>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -816,11 +881,8 @@ export default function RiskProfilePage() {
           {/* Populated-state placement: Master Policy lives at the bottom of the right column once a venue has clauses on file */}
           {!isPolicyEmpty && masterPolicyCard}
 
-          {/* Override Calibration — visible to both roles.
-              Shows whether operator overrides of the claim recommender tend
-              to be validated by broker decisions at this venue. Empty state
-              is graceful: no override history means no signal yet. */}
-          {overrideStats && (() => {
+          {/* Override Calibration — broker QA metric, not operator-facing. */}
+          {isBroker && overrideStats && (() => {
             const right = overrideStats.override_right_rate;
             const baseline = overrideStats.non_override_right_rate;
             const decided = overrideStats.override_approved + overrideStats.override_rejected;
