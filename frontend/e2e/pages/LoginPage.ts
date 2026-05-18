@@ -23,8 +23,9 @@ export class LoginPage {
   constructor(page: Page) {
     this.page = page;
 
-    this.signInTab = page.locator(".login-tab", { hasText: "Sign In" });
-    this.createAccountTab = page.locator(".login-tab", { hasText: "Create Account" });
+    // Tabs in the redesigned centered-card login. Text is "01 / Sign in" / "02 / Create account".
+    this.signInTab = page.locator(".lc-login__tab", { hasText: /sign in/i });
+    this.createAccountTab = page.locator(".lc-login__tab", { hasText: /create account/i });
 
     // Email input rendered by the Input component — label text "Email"
     this.emailInput = page.locator('input[type="email"]');
@@ -33,11 +34,11 @@ export class LoginPage {
 
     this.submitButton = page.locator('button[type="submit"]');
 
-    this.venueOwnerRoleButton = page.locator(".role-option", { hasText: "Venue Owner" });
-    this.brokerRoleButton = page.locator(".role-option", { hasText: "Broker" });
+    this.venueOwnerRoleButton = page.locator(".lc-login__role-cell", { hasText: "Venue Owner" });
+    this.brokerRoleButton = page.locator(".lc-login__role-cell", { hasText: "Broker" });
 
-    // The .login-error div rendered when state.error is set
-    this.errorBanner = page.locator(".login-error");
+    // The .lc-login__error div rendered when state.error is set
+    this.errorBanner = page.locator(".lc-login__error");
   }
 
   async goto() {
