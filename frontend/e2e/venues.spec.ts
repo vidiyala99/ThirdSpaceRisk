@@ -57,8 +57,8 @@ test("broker dashboard — multiple venue portfolio cards visible in a grid", as
   await expect(dashboardPage.portfolioGrid).toBeVisible({ timeout: 15000 });
 
   // There should be more than one venue card on the broker dashboard.
-  // Broker portfolio cards are links wrapping .card divs that each contain an h3.
-  const venueCards = page.locator("a[href^='/terminal/'] .card");
+  // Broker portfolio cards are <Link className="lc-vcard"> directly to /terminal/{id}.
+  const venueCards = page.locator("a.lc-vcard[href^='/terminal/']");
   const count = await venueCards.count();
   expect(count).toBeGreaterThan(1);
 });
