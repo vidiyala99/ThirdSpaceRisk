@@ -144,54 +144,72 @@ function CompliancePageInner() {
   }
 
   const showDetailView = !!detailVenueId;
+  const openItemCount = complianceItems.length;
 
   return (
-    <div className="theme-venue page">
-      <header className="page-header">
+    <div className="lc-shell min-h-screen theme-venue" style={{ padding: "0 clamp(20px, 4vw, 56px) 64px" }}>
+      <section className="lc-hero">
         <div>
-          <h1>Compliance</h1>
-          <p className="page-subtitle">
+          <span className="lc-eyebrow">
+            COMPLIANCE
+            <span className="lc-eyebrow__sep" />
             {filterVenueId
-              ? `Compliance queue for ${filterVenueName ?? filterVenueId}`
+              ? (filterVenueName ?? filterVenueId).toUpperCase()
+              : isBroker ? "BROKER · PORTFOLIO" : "OPERATOR · QUEUE"}
+          </span>
+          <h1 className="lc-display">
+            {isBroker ? <>Portfolio <em>compliance</em></> : <>Tonight's <em>checks</em></>}
+          </h1>
+          <p className="lc-sub">
+            {filterVenueId
+              ? `Compliance queue for ${filterVenueName ?? filterVenueId}.`
               : isBroker
-                ? "Pending compliance actions across your nightlife portfolio"
-                : "Complete pending compliance actions to maintain coverage"}
+                ? "Pending compliance actions across your insured venues. Clear them to keep coverage in force."
+                : "Complete the actions below to keep your coverage in good standing tonight."}
           </p>
         </div>
-        {isBroker && (
-          <div style={{ display: "flex", alignItems: "center", gap: "var(--space-sm)" }}>
-            <label htmlFor="compliance-venue-filter" className="text-xs uppercase tracking-wide text-muted font-mono">
-              Venue
-            </label>
-            <select
-              id="compliance-venue-filter"
-              value={filterVenueId ?? ""}
-              onChange={(e) => {
-                const next = e.target.value;
-                router.push(next ? `/compliance?venue=${encodeURIComponent(next)}` : "/compliance");
-              }}
-              style={{
-                background: "var(--bg-surface)",
-                border: "1px solid var(--border-subtle)",
-                borderRadius: "var(--radius-md)",
-                color: "var(--text-primary)",
-                padding: "6px 12px",
-                fontSize: "0.85rem",
-                fontFamily: "inherit",
-                cursor: "pointer",
-                minWidth: "180px",
-              }}
-            >
-              <option value="">All venues ({allVenues.length})</option>
-              {allVenues.map((v) => (
-                <option key={v.id} value={v.id}>
-                  {v.name ?? v.id}
-                </option>
-              ))}
-            </select>
+
+        <div className="lc-hero__meta">
+          <div className="lc-meta-cell">
+            <span className="lc-stat-label">Open</span>
+            <strong style={{ color: openItemCount > 0 ? "var(--state-warning)" : undefined }}>
+              {openItemCount.toString().padStart(2, "0")}
+            </strong>
           </div>
-        )}
-      </header>
+          {isBroker && (
+            <div className="lc-meta-cell" style={{ borderLeft: "none" }}>
+              <span className="lc-stat-label" style={{ display: "block", marginBottom: 6 }}>Venue</span>
+              <select
+                id="compliance-venue-filter"
+                value={filterVenueId ?? ""}
+                onChange={(e) => {
+                  const next = e.target.value;
+                  router.push(next ? `/compliance?venue=${encodeURIComponent(next)}` : "/compliance");
+                }}
+                style={{
+                  background: "var(--bg-surface)",
+                  border: "1px solid var(--border-subtle)",
+                  borderRadius: "var(--radius-md)",
+                  color: "var(--text-primary)",
+                  padding: "6px 12px",
+                  fontSize: "0.85rem",
+                  fontFamily: "inherit",
+                  cursor: "pointer",
+                  width: "100%",
+                  maxWidth: 220,
+                }}
+              >
+                <option value="">All venues ({allVenues.length})</option>
+                {allVenues.map((v) => (
+                  <option key={v.id} value={v.id}>
+                    {v.name ?? v.id}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+        </div>
+      </section>
 
       {filterVenueId && (
         <div className="mb-lg" style={{ display: "flex", alignItems: "center", gap: "var(--space-sm)" }}>

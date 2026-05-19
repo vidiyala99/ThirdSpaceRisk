@@ -186,21 +186,48 @@ export default function VenuesPage() {
     return <div className="page-loading"><div className="loading-spinner" /></div>;
   }
 
+  const venueCount = venues.length;
+  const filteredCount = filteredVenues.length;
+
   return (
-    <div className="page theme-venue">
-      <header className="page-header">
+    <div className="lc-shell min-h-screen theme-venue" style={{ padding: "0 clamp(20px, 4vw, 56px) 64px" }}>
+      <section className="lc-hero">
         <div>
-          <h1>Venues</h1>
-          <p className="page-subtitle">
-            {isBroker ? "Manage your insured venues" : "Your venue properties"}
+          <span className="lc-eyebrow">
+            VENUES
+            <span className="lc-eyebrow__sep" />
+            {isBroker ? "BROKER · PORTFOLIO" : "OPERATOR · PROPERTIES"}
+          </span>
+          <h1 className="lc-display">
+            {isBroker ? <>Portfolio <em>venues</em></> : <>Your <em>venues</em></>}
+          </h1>
+          <p className="lc-sub">
+            {isBroker
+              ? "Every venue you underwrite — capacity, address, renewal date, and live risk posture in one list."
+              : "Add and maintain the venues you operate. Each one drives its own risk profile and premium quote."}
           </p>
         </div>
-        {!isBroker && (
-          <button className="btn btn-primary" onClick={() => setShowForm(true)}>
-            <Plus size={18} /> Add Venue
-          </button>
-        )}
-      </header>
+
+        <div className="lc-hero__meta">
+          <div className="lc-meta-cell">
+            <span className="lc-stat-label">Total</span>
+            <strong>{venueCount.toString().padStart(2, "0")}</strong>
+          </div>
+          {isBroker && searchQuery.trim() && (
+            <div className="lc-meta-cell">
+              <span className="lc-stat-label">Showing</span>
+              <strong>{filteredCount.toString().padStart(2, "0")}</strong>
+            </div>
+          )}
+          {!isBroker && (
+            <div className="lc-meta-cell" style={{ borderLeft: "none" }}>
+              <button className="btn btn-primary" onClick={() => setShowForm(true)}>
+                <Plus size={16} /> Add Venue
+              </button>
+            </div>
+          )}
+        </div>
+      </section>
 
       {/* Add Venue Modal */}
       {showForm && (
@@ -276,17 +303,23 @@ export default function VenuesPage() {
       )}
 
       {isBroker && (
-        <div style={{ position: "relative", marginBottom: "var(--space-lg)" }}>
-          <Search size={15} style={{ position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)", color: "var(--text-tertiary)", pointerEvents: "none" }} />
+        <div className="lc-search" style={{ marginBottom: "var(--space-lg)" }}>
+          <Search size={14} />
           <input
-            className="input-field"
-            placeholder="Search venues..."
+            placeholder="Search venues, types, addresses…"
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
-            style={{ paddingLeft: 38 }}
           />
         </div>
       )}
+
+      <div className="lc-rule">
+        <span className="lc-rule__label">Roster</span>
+        <span className="lc-rule__count">
+          {searchQuery.trim() ? `${filteredCount} / ${venueCount}` : String(venueCount).padStart(2, "0")} venues
+        </span>
+        <div className="lc-rule__line" />
+      </div>
 
       <div className="venues-grid">
         {filteredVenues.map((venue) => (

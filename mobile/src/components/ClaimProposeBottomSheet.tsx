@@ -139,6 +139,9 @@ const s = StyleSheet.create({
     paddingBottom: 36,
     borderTopWidth: 1,
     borderColor: '#ff9500',
+    width: '100%',
+    maxWidth: 560,
+    alignSelf: 'center',
   },
   handle: {
     width: 40,

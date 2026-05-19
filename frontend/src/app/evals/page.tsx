@@ -399,7 +399,7 @@ const explainerStyle: React.CSSProperties = {
 
 const statRowStyle: React.CSSProperties = {
   display: "grid",
-  gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+  gridTemplateColumns: "repeat(auto-fit, minmax(min(180px, 100%), 1fr))",
   gap: "var(--space-md)",
 };
 
@@ -515,7 +515,7 @@ const descriptionStyle: React.CSSProperties = {
 
 const scorersGridStyle: React.CSSProperties = {
   display: "grid",
-  gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
+  gridTemplateColumns: "repeat(auto-fit, minmax(min(200px, 100%), 1fr))",
   gap: "var(--space-sm)",
 };
 

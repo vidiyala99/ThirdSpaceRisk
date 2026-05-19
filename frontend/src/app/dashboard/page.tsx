@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useRole, useTenantId, useAuth } from "@/contexts/AuthContext";
 import { Building2, LogOut, MapPin, ArrowUpRight, WifiOff, Search } from "lucide-react";
 import Link from "next/link";
+import { Grid } from "@/components/layout/Grid";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
 
@@ -352,9 +353,9 @@ function DashboardPageInner() {
               <p className="text-muted">No venues match &ldquo;{searchQuery}&rdquo;</p>
             </div></div>
           ) : (
-            <div className="stagger-children" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(340px, 100%), 1fr))', gap: 20 }}>
+            <Grid min="340px" gap="lg" className="stagger-children">
               {filteredPortfolioVenues.map(v => <VenuePortfolioCard key={v.id} venue={v} />)}
-            </div>
+            </Grid>
           )}
         </>
       )}
@@ -384,7 +385,7 @@ function DashboardPageInner() {
             <div className="lc-rule__line" />
           </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(340px, 100%), 1fr))", gap: 20 }}>
+          <Grid min="340px" gap="lg">
             {riskScore && (
               <Link href={`/risk-profile/${selectedVenueId ?? tenantId}`} style={{ textDecoration: "none" }}>
                 <div className="lc-card"><div className="lc-card__inner">
@@ -398,7 +399,7 @@ function DashboardPageInner() {
                   </div>
                   <div className="flex flex-col gap-md">
                     {Object.entries(riskScore.factors).map(([key, data]) => (
-                      <div key={key} style={{ display: "grid", gridTemplateColumns: "9rem 1fr 2.5rem", alignItems: "center", gap: 14 }}>
+                      <div key={key} style={{ display: "grid", gridTemplateColumns: "minmax(0, 9rem) minmax(0, 1fr) 2.5rem", alignItems: "center", gap: 14 }}>
                         <span className="lc-stat-label" style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{key.replace(/_/g, " ")}</span>
                         <div className="lc-bar"><div className="lc-bar__fill" style={{ width: `${data.score}%`, ['--bar-color' as string]: TIER_COLOR[riskScore.tier] }} /></div>
                         <span style={{ fontFamily: "var(--font-mono)", fontSize: "0.8rem", textAlign: "right", color: "var(--text-secondary)" }}>{data.score}</span>
@@ -513,7 +514,7 @@ function DashboardPageInner() {
                 </div>
               </div></div>
             )}
-          </div>
+          </Grid>
         </>
       )}
     </div>

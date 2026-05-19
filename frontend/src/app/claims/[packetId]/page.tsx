@@ -15,6 +15,7 @@ import {
   TrendingUp,
 } from "lucide-react";
 import type { ClaimProposal } from "@/app/underwriter/[id]/page";
+import { ResponsiveTable } from "@/components/ui/ResponsiveTable";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
 
@@ -356,34 +357,24 @@ export default function ClaimDetailPage() {
                   <h2 className="text-xs uppercase tracking-wide text-secondary mb-lg" style={{ borderBottom: "1px solid var(--border-subtle)", paddingBottom: "var(--space-sm)" }}>
                     Premium impact · year-by-year
                   </h2>
-                  <div style={{ overflowX: "auto" }}>
-                  <table style={{ width: "100%", fontSize: "0.875rem" }}>
-                    <thead>
-                      <tr style={{ borderBottom: "1px solid var(--border-subtle)" }}>
-                        <th className="text-left text-xs uppercase tracking-wide text-secondary" style={{ paddingBottom: 8 }}>Year</th>
-                        <th className="text-right text-xs uppercase tracking-wide text-secondary" style={{ paddingBottom: 8 }}>Premium delta</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {Array.from({ length: rec.expected_premium_impact.duration_years }, (_, i) => (
-                        <tr key={i}>
-                          <td style={{ padding: "8px 0" }}>Y{i + 1}</td>
-                          <td className="text-right font-mono" style={{ color: "var(--state-warning)" }}>
-                            +${rec.expected_premium_impact.annual_delta_usd.toLocaleString()}
-                          </td>
-                        </tr>
-                      ))}
-                      <tr style={{ borderTop: "1px solid var(--border-subtle)" }}>
-                        <td className="text-xs uppercase tracking-wide text-secondary" style={{ padding: "8px 0" }}>
-                          Cumulative
-                        </td>
-                        <td className="text-right font-mono font-bold" style={{ color: "var(--state-warning)" }}>
-                          +${rec.expected_premium_impact.cumulative_usd.toLocaleString()}
+                  <ResponsiveTable headers={["Year", "Premium delta"]}>
+                    {Array.from({ length: rec.expected_premium_impact.duration_years }, (_, i) => (
+                      <tr key={i}>
+                        <td data-label="Year">Y{i + 1}</td>
+                        <td data-label="Premium delta" className="font-mono" style={{ color: "var(--state-warning)" }}>
+                          +${rec.expected_premium_impact.annual_delta_usd.toLocaleString()}
                         </td>
                       </tr>
-                    </tbody>
-                  </table>
-                  </div>
+                    ))}
+                    <tr>
+                      <td data-label="Total" className="text-xs uppercase tracking-wide text-secondary">
+                        Cumulative
+                      </td>
+                      <td data-label="Premium delta" className="font-mono font-bold" style={{ color: "var(--state-warning)" }}>
+                        +${rec.expected_premium_impact.cumulative_usd.toLocaleString()}
+                      </td>
+                    </tr>
+                  </ResponsiveTable>
                 </section>
               </>
             );

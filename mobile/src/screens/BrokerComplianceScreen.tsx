@@ -9,6 +9,7 @@ import {
   View,
 } from 'react-native';
 import { api } from '../api/client';
+import { useResponsive } from '../hooks/useResponsive';
 
 const SEVERITY_COLOR: Record<string, string> = {
   urgent: '#ff4557',
@@ -37,6 +38,10 @@ interface ComplianceItem {
 
 export function BrokerComplianceScreen({ navigation, route }: any) {
   const filterVenueId: string | undefined = route?.params?.venueId;
+  const { isTablet } = useResponsive();
+  const tabletCap = isTablet
+    ? { maxWidth: 720 as const, alignSelf: 'center' as const, width: '100%' as const }
+    : null;
 
   // Portfolio mode (no filter): list of venues with pending counts.
   const [venues, setVenues] = useState<PortfolioVenue[]>([]);
@@ -95,7 +100,7 @@ export function BrokerComplianceScreen({ navigation, route }: any) {
         <FlatList
           data={items}
           keyExtractor={(item, idx) => item.id ?? `idx-${idx}`}
-          contentContainerStyle={styles.list}
+          contentContainerStyle={[styles.list, tabletCap]}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
@@ -146,7 +151,7 @@ export function BrokerComplianceScreen({ navigation, route }: any) {
         <FlatList
           data={venues}
           keyExtractor={item => item.id}
-          contentContainerStyle={styles.list}
+          contentContainerStyle={[styles.list, tabletCap]}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}

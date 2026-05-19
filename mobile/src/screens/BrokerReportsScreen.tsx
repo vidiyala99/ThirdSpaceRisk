@@ -11,6 +11,7 @@ import {
 
 import { api } from '../api/client';
 import { useAuth } from '../contexts/AuthContext';
+import { useResponsive } from '../hooks/useResponsive';
 
 type Filter = 'all' | 'needs_review' | 'approved' | 'blocked';
 
@@ -77,6 +78,10 @@ function EmptyState({ filter, totalPackets }: { filter: Filter; totalPackets: nu
 export function BrokerReportsScreen({ navigation }: any) {
   const { user } = useAuth();
   const isOperator = user?.role === 'venue_operator';
+  const { isTablet } = useResponsive();
+  const tabletCap = isTablet
+    ? { maxWidth: 720 as const, alignSelf: 'center' as const, width: '100%' as const }
+    : null;
 
   const operatorVenues = React.useMemo(() => {
     if (!isOperator || !user) return null;
@@ -188,7 +193,7 @@ export function BrokerReportsScreen({ navigation }: any) {
       <FlatList
         data={filtered}
         keyExtractor={item => item.id}
-        contentContainerStyle={styles.list}
+        contentContainerStyle={[styles.list, tabletCap]}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}

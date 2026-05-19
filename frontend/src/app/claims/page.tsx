@@ -1,11 +1,11 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
-import { AlertTriangle, ArrowLeft, ExternalLink, FileSpreadsheet } from "lucide-react";
+import { AlertTriangle, ArrowLeft, FileSpreadsheet } from "lucide-react";
 import type { ClaimProposal } from "@/app/underwriter/[id]/page";
+import { ResponsiveTable } from "@/components/ui/ResponsiveTable";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
 
@@ -108,25 +108,55 @@ export default function ClaimsPortfolioPage() {
 
   const pendingCount = proposals.filter((p) => p.state === "pending_broker_review").length;
   const overrideCount = proposals.filter((p) => p.override_recommendation).length;
-  const pageTitle = isBroker ? "Claims Portfolio" : "My Claims";
   const pageSubtitle = isBroker
-    ? `${proposals.length} proposals · ${pendingCount} pending · ${overrideCount} overrides`
-    : `${proposals.length} proposals · ${pendingCount} awaiting broker review`;
+    ? "Cross-venue claim proposals awaiting your decision, filed status, and override calibration."
+    : "Your filed and pending claim proposals — track broker decisions and override outcomes.";
+  const roleLabel = isBroker ? "BROKER · PORTFOLIO" : "OPERATOR · MY CLAIMS";
 
   return (
-    <div className="page">
-      <header className="page-header">
-        <div className="flex items-center gap-md">
-          <button className="btn btn-ghost btn-sm" onClick={() => router.push("/dashboard")}>
-            <ArrowLeft size={16} />
+    <div className="lc-shell min-h-screen" style={{ padding: "0 clamp(20px, 4vw, 56px) 64px" }}>
+      <section className="lc-hero">
+        <div>
+          <button
+            className="lc-link"
+            onClick={() => router.push("/dashboard")}
+            style={{ background: "none", border: "none", padding: 0, marginBottom: 12, cursor: "pointer", color: "var(--text-tertiary)" }}
+          >
+            <ArrowLeft size={12} style={{ display: "inline", marginRight: 4 }} />
             Dashboard
           </button>
-          <div>
-            <h1 style={{ fontSize: "1.5rem" }}>{pageTitle}</h1>
-            <p className="page-subtitle">{pageSubtitle}</p>
-          </div>
+          <span className="lc-eyebrow">
+            CLAIMS
+            <span className="lc-eyebrow__sep" />
+            {roleLabel}
+          </span>
+          <h1 className="lc-display">
+            {isBroker ? <>Claims <em>portfolio</em></> : <>My <em>claims</em></>}
+          </h1>
+          <p className="lc-sub">{pageSubtitle}</p>
         </div>
-      </header>
+
+        <div className="lc-hero__meta">
+          <div className="lc-meta-cell">
+            <span className="lc-stat-label">Proposals</span>
+            <strong>{proposals.length.toString().padStart(2, "0")}</strong>
+          </div>
+          <div className="lc-meta-cell">
+            <span className="lc-stat-label">Pending</span>
+            <strong style={{ color: pendingCount > 0 ? "var(--state-warning)" : undefined }}>
+              {pendingCount.toString().padStart(2, "0")}
+            </strong>
+          </div>
+          {isBroker && (
+            <div className="lc-meta-cell">
+              <span className="lc-stat-label">Overrides</span>
+              <strong style={{ color: overrideCount > 0 ? "var(--state-warning)" : undefined }}>
+                {overrideCount.toString().padStart(2, "0")}
+              </strong>
+            </div>
+          )}
+        </div>
+      </section>
 
       {/* Broker-only: cross-venue override calibration summary.
           One-glance signal for "are operator overrides well-calibrated across
@@ -148,8 +178,8 @@ export default function ClaimsPortfolioPage() {
             : "var(--state-error)";
         const delta = right != null && baseline != null ? Math.round((right - baseline) * 100) : null;
         return (
-          <section className="card mb-lg" style={{ borderLeft: `3px solid ${rateColor}` }}>
-            <div className="flex items-center justify-between flex-wrap gap-md">
+          <div className="lc-card mb-lg" style={{ borderLeft: `3px solid ${rateColor}` }}>
+            <div className="lc-card__inner flex items-center justify-between flex-wrap gap-md">
               <div>
                 <p className="text-xs uppercase tracking-wide text-secondary" style={{ margin: 0 }}>
                   Portfolio override calibration
@@ -192,12 +222,12 @@ export default function ClaimsPortfolioPage() {
                 )}
               </div>
             </div>
-          </section>
+          </div>
         );
       })()}
 
-      <section className="card mb-lg">
-        <div className="flex gap-md items-end flex-wrap">
+      <div className="lc-card mb-lg">
+        <div className="lc-card__inner flex gap-md items-end flex-wrap">
           <div>
             <label className="text-xs uppercase tracking-wide text-secondary block mb-xs">State</label>
             <select
@@ -237,13 +267,23 @@ export default function ClaimsPortfolioPage() {
             </label>
           )}
         </div>
-      </section>
+      </div>
+
+      <div className="lc-rule">
+        <span className="lc-rule__label">Proposals</span>
+        <span className="lc-rule__count">
+          {filter !== "all" || overrideOnly
+            ? `${visible.length} / ${proposals.length}`
+            : String(proposals.length).padStart(2, "0")}
+        </span>
+        <div className="lc-rule__line" />
+      </div>
 
       {loading ? (
         <div className="page-loading"><div className="loading-spinner" /></div>
       ) : visible.length === 0 ? (
-        <section className="card">
-          <div className="flex flex-col items-center gap-md text-center p-lg">
+        <div className="lc-card">
+          <div className="lc-card__inner flex flex-col items-center gap-md text-center" style={{ padding: "48px 24px" }}>
             <FileSpreadsheet size={32} className="text-secondary" />
             <p className="text-sm text-secondary">
               {proposals.length === 0
@@ -253,76 +293,60 @@ export default function ClaimsPortfolioPage() {
                 : "No claim proposals match the current filters."}
             </p>
           </div>
-        </section>
+        </div>
       ) : (
-        <section className="card">
-          <div style={{ overflowX: "auto" }}>
-          <table style={{ width: "100%", fontSize: "0.875rem" }}>
-            <thead>
-              <tr style={{ borderBottom: "1px solid var(--border-subtle)" }}>
-                <th className="text-left text-xs uppercase tracking-wide text-secondary" style={{ paddingBottom: 8 }}>Venue</th>
-                <th className="text-left text-xs uppercase tracking-wide text-secondary" style={{ paddingBottom: 8 }}>State</th>
-                <th className="text-left text-xs uppercase tracking-wide text-secondary" style={{ paddingBottom: 8 }}>Flags</th>
-                <th className="text-left text-xs uppercase tracking-wide text-secondary" style={{ paddingBottom: 8 }}>Proposed</th>
-                <th className="text-right text-xs uppercase tracking-wide text-secondary" style={{ paddingBottom: 8 }}></th>
-              </tr>
-            </thead>
-            <tbody>
-              {visible.map((p) => {
-                const overrideTag = p.override_recommendation;
-                return (
-                  <tr
-                    key={p.id}
+        <ResponsiveTable headers={["Venue", "State", "Flags", "Proposed"]}>
+          {visible.map((p) => {
+            const overrideTag = p.override_recommendation;
+            const openPacket = () => router.push(`/claims/${p.packet_id}`);
+            return (
+              <tr
+                key={p.id}
+                role="button"
+                tabIndex={0}
+                onClick={openPacket}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    openPacket();
+                  }
+                }}
+                style={{
+                  cursor: "pointer",
+                  ...(overrideTag ? { background: "rgba(255,153,0,0.04)" } : {}),
+                }}
+              >
+                <td data-label="Venue" className="font-mono text-xs">{p.venue_id}</td>
+                <td data-label="State">
+                  <span
+                    className="text-xs font-mono px-sm py-xs"
                     style={{
-                      borderBottom: "1px solid var(--border-subtle)",
-                      background: overrideTag ? "rgba(255,153,0,0.04)" : undefined,
+                      color: STATE_COLOR[p.state],
+                      border: `1px solid ${STATE_COLOR[p.state]}`,
+                      borderRadius: "var(--radius-sm)",
+                      textTransform: "uppercase",
                     }}
                   >
-                    <td className="font-mono text-xs" style={{ padding: "12px 8px 12px 0" }}>{p.venue_id}</td>
-                    <td style={{ padding: "12px 8px" }}>
-                      <span
-                        className="text-xs font-mono px-sm py-xs"
-                        style={{
-                          color: STATE_COLOR[p.state],
-                          border: `1px solid ${STATE_COLOR[p.state]}`,
-                          borderRadius: "var(--radius-sm)",
-                          textTransform: "uppercase",
-                        }}
-                      >
-                        {STATE_LABEL[p.state]}
-                      </span>
-                    </td>
-                    <td style={{ padding: "12px 8px" }}>
-                      {overrideTag && (
-                        <span
-                          className="text-xs font-mono"
-                          style={{ color: "var(--state-warning)" }}
-                        >
-                          <AlertTriangle size={12} style={{ display: "inline", marginRight: 4 }} />
-                          OVERRIDE · {(p.override_reason ?? "").replace(/_/g, " ")}
-                        </span>
-                      )}
-                    </td>
-                    <td className="text-xs text-secondary" style={{ padding: "12px 8px" }}>
-                      {new Date(p.proposed_at).toLocaleString()}
-                    </td>
-                    <td className="text-right" style={{ padding: "12px 0 12px 8px" }}>
-                      <Link
-                        href={`/claims/${p.packet_id}`}
-                        className="text-xs flex items-center justify-end gap-xs"
-                        style={{ color: "var(--brand-primary)" }}
-                      >
-                        Open
-                        <ExternalLink size={12} />
-                      </Link>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-          </div>
-        </section>
+                    {STATE_LABEL[p.state]}
+                  </span>
+                </td>
+                <td data-label="Flags">
+                  {overrideTag ? (
+                    <span className="text-xs font-mono" style={{ color: "var(--state-warning)" }}>
+                      <AlertTriangle size={12} style={{ display: "inline", marginRight: 4 }} />
+                      OVERRIDE · {(p.override_reason ?? "").replace(/_/g, " ")}
+                    </span>
+                  ) : (
+                    <span className="text-xs text-secondary">—</span>
+                  )}
+                </td>
+                <td data-label="Proposed" className="text-xs text-secondary">
+                  {new Date(p.proposed_at).toLocaleString()}
+                </td>
+              </tr>
+            );
+          })}
+        </ResponsiveTable>
       )}
     </div>
   );

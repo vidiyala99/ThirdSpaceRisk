@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { useAuth } from '../contexts/AuthContext';
 import { api } from '../api/client';
+import { useResponsive } from '../hooks/useResponsive';
 
 const TIER_COLOR: Record<string, string> = {
   A: '#c8f000',
@@ -37,6 +38,7 @@ interface PortfolioVenue {
 
 export function BrokerPortfolioScreen({ navigation }: any) {
   const { user } = useAuth();
+  const { isTablet } = useResponsive();
   const [venues, setVenues] = useState<PortfolioVenue[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -131,7 +133,10 @@ export function BrokerPortfolioScreen({ navigation }: any) {
       <FlatList
         data={filteredVenues}
         keyExtractor={item => item.id}
-        contentContainerStyle={styles.list}
+        contentContainerStyle={[
+          styles.list,
+          isTablet && { maxWidth: 720, alignSelf: 'center', width: '100%' },
+        ]}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}

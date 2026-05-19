@@ -204,25 +204,54 @@ export default function IncidentsPage() {
     return <div className="page-loading"><div className="loading-spinner" /></div>;
   }
 
+  const openCount = incidents.filter((i) => i.status === "open").length;
+  const underReviewCount = incidents.filter((i) => i.status === "under_review").length;
+
   return (
-    <div className="theme-venue page">
-      <header className="page-header">
+    <div className="lc-shell min-h-screen theme-venue" style={{ padding: "0 clamp(20px, 4vw, 56px) 64px" }}>
+      <section className="lc-hero">
         <div>
-          <h1>Incidents</h1>
-          <p className="page-subtitle">
+          <span className="lc-eyebrow">
+            INCIDENTS
+            <span className="lc-eyebrow__sep" />
             {filterVenueId
-              ? `Incidents at ${filterVenueName ?? filterVenueId}`
+              ? (filterVenueName ?? filterVenueId).toUpperCase()
+              : isBroker ? "BROKER · PORTFOLIO" : "OPERATOR · VENUE"}
+          </span>
+          <h1 className="lc-display">
+            {isBroker ? <>Portfolio <em>incidents</em></> : <>Tonight's <em>floor</em></>}
+          </h1>
+          <p className="lc-sub">
+            {filterVenueId
+              ? `Incidents reported at ${filterVenueName ?? filterVenueId}.`
               : isBroker
-                ? "All incidents across your venue portfolio"
-                : "Report and track incidents at your venue"}
+                ? "Every reported incident across your insured venues — review, triage, and respond."
+                : "Report what happened on your floor and track it through resolution."}
           </p>
         </div>
-        {!isBroker && (
-          <button className="btn btn-primary" onClick={() => setShowForm(!showForm)}>
-            <Plus size={18} /> Report Incident
-          </button>
-        )}
-      </header>
+
+        <div className="lc-hero__meta">
+          <div className="lc-meta-cell">
+            <span className="lc-stat-label">Open</span>
+            <strong style={{ color: openCount > 0 ? "var(--state-error)" : undefined }}>
+              {openCount.toString().padStart(2, "0")}
+            </strong>
+          </div>
+          <div className="lc-meta-cell">
+            <span className="lc-stat-label">Under review</span>
+            <strong style={{ color: underReviewCount > 0 ? "var(--state-warning)" : undefined }}>
+              {underReviewCount.toString().padStart(2, "0")}
+            </strong>
+          </div>
+          {!isBroker && (
+            <div className="lc-meta-cell" style={{ borderLeft: "none" }}>
+              <button className="btn btn-primary" onClick={() => setShowForm(!showForm)}>
+                <Plus size={16} /> Report Incident
+              </button>
+            </div>
+          )}
+        </div>
+      </section>
 
       {filterVenueId && (
         <div className="mb-lg" style={{ display: "flex", alignItems: "center", gap: "var(--space-sm)" }}>

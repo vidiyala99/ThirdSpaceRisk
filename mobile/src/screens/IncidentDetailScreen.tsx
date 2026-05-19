@@ -132,6 +132,7 @@ export function IncidentDetailScreen({ route, navigation }: any) {
   const hasVision = visionAnalysis?.total_files > 0;
 
   return (
+    <>
     <ScrollView
       style={styles.root}
       contentContainerStyle={[styles.content, { paddingTop: 12 }]}
@@ -377,6 +378,7 @@ export function IncidentDetailScreen({ route, navigation }: any) {
         onSubmit={submitProposal}
       />
     )}
+    </>
   );
 }
 

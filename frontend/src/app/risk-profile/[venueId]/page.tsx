@@ -601,7 +601,7 @@ export default function RiskProfilePage() {
         @media (min-width: 1024px) { .rp-page { padding: var(--space-xl); } }
         .rp-container { max-width: 1280px; margin: 0 auto; }
         .rp-grid { display: flex; flex-direction: column; gap: var(--space-lg); }
-        @media (min-width: 1024px) { .rp-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-xl); } }
+        @media (min-width: 1180px) { .rp-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-xl); } }
         .rp-back { display: inline-flex; align-items: center; gap: var(--space-xs); background: none; border: none; cursor: pointer;
                    padding: var(--space-sm) var(--space-md) var(--space-sm) 0; margin: 0 0 var(--space-lg); min-height: 44px;
                    color: var(--text-secondary); font-size: 0.875rem; border-radius: var(--radius-sm); }
