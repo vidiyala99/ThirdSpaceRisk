@@ -4042,3 +4042,22 @@ html, body { overflow-x: clip; }
     align-items: flex-start;
   }
 }
+
+/* ============================================
+   TIER BADGE
+   ============================================ */
+.tier-badge {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+  border: 1px solid transparent;
+  line-height: 1.4;
+}
+.tier-badge--a { color: var(--tier-a); background: rgba(34,197,94,0.12); border-color: rgba(34,197,94,0.25); }
+.tier-badge--b { color: var(--tier-b); background: rgba(129,140,248,0.12); border-color: rgba(129,140,248,0.25); }
+.tier-badge--c { color: var(--tier-c); background: rgba(245,158,11,0.12); border-color: rgba(245,158,11,0.25); }
+.tier-badge--d { color: var(--tier-d); background: rgba(244,63,94,0.12); border-color: rgba(244,63,94,0.25); }
