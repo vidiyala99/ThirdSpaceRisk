@@ -2,9 +2,9 @@
 Tests for portfolio, review decisions, audit trail, source registry, and incident status.
 Uses the real SQLite database via TestClient (same pattern as test_brawl_incident_flow.py).
 """
-import pytest
 from fastapi.testclient import TestClient
 from app.main import app
+from app.auth import create_token
 from app.seed_data import VENUES
 
 DEMO_INCIDENT = {
@@ -18,11 +18,21 @@ DEMO_INCIDENT = {
 }
 
 
+def _broker_headers():
+    token = create_token("user-broker-1", "broker@example.com", "broker", "tenant-1")
+    return {"Authorization": f"Bearer {token}"}
+
+
+def _operator_headers():
+    token = create_token("user-op-1", "operator@example.com", "venue_operator", "elsewhere-brooklyn")
+    return {"Authorization": f"Bearer {token}"}
+
+
 # ── Portfolio ─────────────────────────────────────────────────────────────────
 
 def test_portfolio_returns_all_venues():
     with TestClient(app) as client:
-        resp = client.get("/api/portfolio")
+        resp = client.get("/api/portfolio", headers=_broker_headers())
     assert resp.status_code == 200
     data = resp.json()
     assert len(data) == len(VENUES)
@@ -32,7 +42,7 @@ def test_portfolio_returns_all_venues():
 
 def test_portfolio_venue_has_required_fields():
     with TestClient(app) as client:
-        data = client.get("/api/portfolio").json()
+        data = client.get("/api/portfolio", headers=_broker_headers()).json()
     venue = next(v for v in data if v["id"] == "elsewhere-brooklyn")
     required = {
         "id", "name", "tier", "total_score", "capacity", "current_capacity",
@@ -43,17 +53,75 @@ def test_portfolio_venue_has_required_fields():
 
 def test_portfolio_all_tiers_valid():
     with TestClient(app) as client:
-        data = client.get("/api/portfolio").json()
+        data = client.get("/api/portfolio", headers=_broker_headers()).json()
     for venue in data:
         assert venue["tier"] in ("A", "B", "C", "D"), f"{venue['id']} has invalid tier"
 
 
 def test_portfolio_elsewhere_is_tier_a():
     with TestClient(app) as client:
-        data = client.get("/api/portfolio").json()
+        data = client.get("/api/portfolio", headers=_broker_headers()).json()
     elsewhere = next(v for v in data if v["id"] == "elsewhere-brooklyn")
     assert elsewhere["tier"] == "A"
     assert elsewhere["total_score"] >= 80
+
+
+def test_portfolio_anonymous_rejected():
+    with TestClient(app) as client:
+        resp = client.get("/api/portfolio")
+    assert resp.status_code == 401
+
+
+def test_portfolio_operator_rejected():
+    with TestClient(app) as client:
+        resp = client.get("/api/portfolio", headers=_operator_headers())
+    assert resp.status_code == 403
+
+
+# ── Live state role-gating ────────────────────────────────────────────────────
+
+def test_live_state_strips_floor_for_anonymous():
+    with TestClient(app) as client:
+        resp = client.get("/api/venues/elsewhere-brooklyn/live")
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["current_capacity"] == 0
+    assert body["infrastructure"] == []
+    # Compliance summary remains intact for broker-side views.
+    assert "compliance_queue" in body
+
+
+def test_live_state_strips_floor_for_broker():
+    with TestClient(app) as client:
+        resp = client.get("/api/venues/elsewhere-brooklyn/live", headers=_broker_headers())
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["current_capacity"] == 0
+    assert body["infrastructure"] == []
+
+
+def test_live_state_full_for_owning_operator():
+    with TestClient(app) as client:
+        resp = client.get("/api/venues/elsewhere-brooklyn/live", headers=_operator_headers())
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["max_capacity"] > 0
+    # Floor data is present (non-zero capacity or non-empty infrastructure) when
+    # the caller is the venue's own operator.
+    assert body["current_capacity"] > 0 or len(body["infrastructure"]) > 0
+
+
+def test_live_state_strips_floor_for_other_operator():
+    other_token = create_token("user-op-2", "other@example.com", "venue_operator", "market-hotel")
+    with TestClient(app) as client:
+        resp = client.get(
+            "/api/venues/elsewhere-brooklyn/live",
+            headers={"Authorization": f"Bearer {other_token}"},
+        )
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["current_capacity"] == 0
+    assert body["infrastructure"] == []
 
 
 # ── Incident status filter ─────────────────────────────────────────────────────
