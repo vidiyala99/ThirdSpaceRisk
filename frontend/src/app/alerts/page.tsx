@@ -365,91 +365,86 @@ function AlertsPageInner() {
   return (
     <div className="theme-venue min-h-screen p-xl">
       {/* Header */}
-      <header className="page-header border-b border-subtle mb-xl pb-lg">
-        <div className="flex flex-wrap justify-between items-start gap-md">
-          <div>
-            <div className="flex items-center gap-sm mb-xs">
-              <ShieldAlert size={22} style={{ color: "#ef4444" }} />
-              <h1 className="text-4xl font-bold glow-text">
-                Liability <span className="text-accent">Alerts</span>
-              </h1>
-              {criticalCount > 0 && (
-                <span
-                  style={{
-                    background: "#ef4444",
-                    color: "white",
-                    fontSize: "0.7rem",
-                    fontWeight: 700,
-                    padding: "2px 8px",
-                    borderRadius: 99,
-                    animation: "pulse 1.4s ease-in-out infinite",
-                  }}
-                >
-                  {criticalCount} CRITICAL
-                </span>
-              )}
-            </div>
-            <p className="text-secondary mt-xs text-sm">
-              Real-time anomaly detections — confirm or dismiss each alert
-            </p>
-          </div>
-
-          <div className="flex items-center gap-sm flex-wrap">
-            {/* Venue selector */}
-            {venues.length > 1 && (
-              <div style={{ position: "relative", minWidth: 180 }}>
-                <select
-                  value={selectedVenueId}
-                  onChange={(e) => { setSelectedVenueId(e.target.value); setLoading(true); }}
-                  className="input-field"
-                  style={{ paddingRight: 36, appearance: "none", cursor: "pointer" }}
-                >
-                  {venues.map((v) => <option key={v.id} value={v.id}>{v.name}</option>)}
-                </select>
-                <ChevronDown size={14} style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", pointerEvents: "none", color: "var(--text-tertiary)" }} />
-              </div>
+      <section className="lc-hero">
+        <div>
+          <span className="lc-eyebrow">
+            ALERTS
+            <span className="lc-eyebrow__sep" />
+            {selectedVenueName ? selectedVenueName.toUpperCase() : "VENUE"}
+            {criticalCount > 0 && (
+              <span
+                style={{
+                  marginLeft: "var(--space-sm)",
+                  background: "var(--state-error)",
+                  color: "white",
+                  fontSize: "0.65rem",
+                  fontWeight: 700,
+                  padding: "2px 8px",
+                  borderRadius: "var(--radius-sm)",
+                  animation: "pulse 1.4s ease-in-out infinite",
+                  letterSpacing: "0.1em",
+                }}
+              >
+                {criticalCount} CRITICAL
+              </span>
             )}
-            {venues.length === 1 && (
-              <span className="text-xs uppercase tracking-wide text-muted font-mono">{selectedVenueName}</span>
-            )}
-
-            {/* Refresh button */}
-            <button
-              onClick={() => fetchAlerts(true)}
-              disabled={refreshing}
-              aria-label="Refresh alerts"
-              className="btn btn-secondary"
-              style={{ minHeight: 40, padding: "0 12px", gap: 6, fontSize: "0.8rem" }}
-            >
-              <RefreshCw size={14} style={{ animation: refreshing ? "spin 1s linear infinite" : "none" }} />
-              {refreshing ? "Refreshing…" : "Refresh"}
-            </button>
-          </div>
+          </span>
+          <h1 className="lc-display">
+            Liability <em>alerts</em>
+          </h1>
+          <p className="lc-sub">
+            Real-time anomaly detections — confirm or dismiss each alert
+          </p>
         </div>
 
-        {/* Summary bar */}
-        {!loading && alerts.length > 0 && (
-          <div className="flex items-center gap-lg mt-md flex-wrap">
-            {(["critical", "high", "medium", "low"] as Severity[]).map((sev) => {
-              const count = alerts.filter((a) => a.severity === sev).length;
-              if (!count) return null;
-              const cfg = SEVERITY_CONFIG[sev];
-              return (
-                <div key={sev} className="flex items-center gap-xs">
-                  <span style={{ width: 8, height: 8, borderRadius: "50%", background: cfg.border, flexShrink: 0 }} />
-                  <span className="text-xs" style={{ color: "var(--text-secondary)" }}>
-                    {count} {cfg.label}
-                  </span>
-                </div>
-              );
-            })}
-            <Bell size={13} style={{ color: "var(--text-tertiary)", marginLeft: "auto" }} />
-            <span className="text-xs" style={{ color: "var(--text-tertiary)" }}>
-              Auto-refreshes every 30s
+        <div className="lc-hero__meta">
+          {/* Venue selector */}
+          {venues.length > 1 && (
+            <div style={{ position: "relative", minWidth: 180 }}>
+              <select
+                value={selectedVenueId}
+                onChange={(e) => { setSelectedVenueId(e.target.value); setLoading(true); }}
+                className="input-field"
+                style={{ paddingRight: 36, appearance: "none", cursor: "pointer" }}
+              >
+                {venues.map((v) => <option key={v.id} value={v.id}>{v.name}</option>)}
+              </select>
+              <ChevronDown size={14} style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", pointerEvents: "none", color: "var(--text-tertiary)" }} />
+            </div>
+          )}
+          {venues.length === 1 && (
+            <span className="lc-meta-cell">
+              <span className="lc-stat-label">Venue</span>
+              <strong>{selectedVenueName}</strong>
             </span>
-          </div>
-        )}
-      </header>
+          )}
+
+          {/* Severity summary */}
+          {!loading && alerts.length > 0 && (["critical", "high", "medium", "low"] as Severity[]).map((sev) => {
+            const count = alerts.filter((a) => a.severity === sev).length;
+            if (!count) return null;
+            const cfg = SEVERITY_CONFIG[sev];
+            return (
+              <span key={sev} className="lc-meta-cell">
+                <span className="lc-stat-label">{cfg.label}</span>
+                <strong style={{ color: cfg.border }}>{count.toString().padStart(2, "0")}</strong>
+              </span>
+            );
+          })}
+
+          {/* Refresh button */}
+          <button
+            onClick={() => fetchAlerts(true)}
+            disabled={refreshing}
+            aria-label="Refresh alerts"
+            className="btn btn-secondary"
+            style={{ minHeight: 40, padding: "0 12px", gap: 6, fontSize: "0.8rem" }}
+          >
+            <RefreshCw size={14} style={{ animation: refreshing ? "spin 1s linear infinite" : "none" }} />
+            {refreshing ? "Refreshing…" : "Refresh"}
+          </button>
+        </div>
+      </section>
 
       {/* Loading skeletons */}
       {loading && (

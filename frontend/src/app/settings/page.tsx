@@ -34,15 +34,22 @@ export default function SettingsPage() {
 
   return (
     <div className="page">
-      <header className="page-header">
+      <section className="lc-hero">
         <div>
-          <h1>Settings</h1>
-          <p className="page-subtitle">
+          <span className="lc-eyebrow">
+            SETTINGS
+            <span className="lc-eyebrow__sep" />
+            {isBroker ? "BROKERAGE" : "VENUE"}
+          </span>
+          <h1 className="lc-display">Account <em>settings</em></h1>
+          <p className="lc-sub">
             {isBroker ? "Manage your account and brokerage" : "Manage your account and venue"}
           </p>
         </div>
-        <button onClick={handleSignOut} className="btn btn-ghost"><LogOut size={18} /> Sign Out</button>
-      </header>
+        <div className="lc-hero__meta">
+          <button onClick={handleSignOut} className="btn btn-ghost"><LogOut size={18} /> Sign Out</button>
+        </div>
+      </section>
 
       <div className="settings-tabs">
         {tabs.map((tab) => {
@@ -119,8 +126,8 @@ export default function SettingsPage() {
           <div className="team-list mb-lg">
             {[
               { name: user?.name ?? "You", email: user?.email ?? "", role: "Admin", isYou: true },
-              { name: "Dhruv Chopra", email: "dhruv@thirdspace.risk", role: "Co-Founder", isYou: false },
-              { name: "Vinai Rachakonda", email: "vinai@thirdspace.risk", role: "Co-Founder", isYou: false },
+              { name: "Alex Rivera", email: "alex@thirdspace.risk", role: "Underwriter", isYou: false },
+              { name: "Sam Patel", email: "sam@thirdspace.risk", role: "Claims Lead", isYou: false },
             ].map((member) => (
               <div key={member.email} className="team-member">
                 <div className="team-avatar">{member.name[0]}</div>

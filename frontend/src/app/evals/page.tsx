@@ -144,36 +144,52 @@ export default function EvalsPage() {
 
   return (
     <main style={pageStyle}>
-      <header style={{ marginBottom: "var(--space-2xl)" }}>
-        <div style={providerBarStyle}>
-          <span style={eyebrowStyle}>AGENT EVAL SET · v2</span>
-          <span style={{ ...providerBadgeStyle, color: modeColor, borderColor: modeColor }}>
-            {isLLM ? "LLM" : "DETERMINISTIC"}
+      <section className="lc-hero">
+        <div>
+          <span className="lc-eyebrow">
+            AGENT EVAL SET · v2
+            <span className="lc-eyebrow__sep" />
+            <span style={{ ...providerBadgeStyle, color: modeColor, borderColor: modeColor }}>
+              {isLLM ? "LLM" : "DETERMINISTIC"}
+            </span>
+            <span style={providerNameStyle}>memo: {provider.name}</span>
+            {data.risk_provider && (
+              <span style={providerNameStyle}>risk: {data.risk_provider.name}</span>
+            )}
           </span>
-          <span style={providerNameStyle}>memo: {provider.name}</span>
-          {data.risk_provider && (
-            <span style={providerNameStyle}>risk: {data.risk_provider.name}</span>
-          )}
+          <h1 className="lc-display">
+            Underwriting Agent <em>Scoreboard</em>
+          </h1>
+          <p className="lc-sub">
+            {standardScenarioCount} research-grounded scenarios across {grouped.length} exposure classes
+            {adversarial.length > 0 && <> plus {adversarial.length} adversarial safety scenarios</>},
+            scored on {scorerCount} dimensions. The baseline is a regression target — failures locked
+            in here are known gaps, not surprises; new failures are CI-gated.
+          </p>
         </div>
-        <h1 style={titleStyle}>
-          Underwriting Agent <span style={{ color: "var(--brand-primary)" }}>Scoreboard</span>
-        </h1>
-        <p style={subtitleStyle}>
-          {standardScenarioCount} research-grounded scenarios across {grouped.length} exposure classes
-          {adversarial.length > 0 && <> plus {adversarial.length} adversarial safety scenarios</>},
-          scored on {scorerCount} dimensions. The baseline is a regression target — failures locked
-          in here are known gaps, not surprises; new failures are CI-gated.
-        </p>
-        <p style={metaStyle}>
-          Run timestamp: <span style={{ fontFamily: "var(--font-mono)" }}>{data.timestamp}</span>
-          {data.stack_signature && (
-            <>
-              {" · stack: "}
-              <span style={{ fontFamily: "var(--font-mono)" }}>{data.stack_signature}</span>
-            </>
-          )}
-        </p>
-      </header>
+
+        <div className="lc-hero__meta">
+          <span className="lc-meta-cell">
+            <span className="lc-stat-label">Scenarios</span>
+            <strong>{data.aggregate.total}</strong>
+          </span>
+          <span className="lc-meta-cell">
+            <span className="lc-stat-label">Pass rate</span>
+            <strong style={{ color: scoreColor(data.aggregate.pass_rate) }}>
+              {formatPercent(data.aggregate.pass_rate)}
+            </strong>
+          </span>
+          <p style={metaStyle}>
+            Run: <span style={{ fontFamily: "var(--font-mono)" }}>{data.timestamp}</span>
+            {data.stack_signature && (
+              <>
+                {" · stack: "}
+                <span style={{ fontFamily: "var(--font-mono)" }}>{data.stack_signature}</span>
+              </>
+            )}
+          </p>
+        </div>
+      </section>
 
       {/* Aggregate stats */}
       <section style={sectionStyle}>
