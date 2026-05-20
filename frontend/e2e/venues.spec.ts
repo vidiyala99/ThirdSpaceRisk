@@ -53,12 +53,13 @@ test("broker dashboard — multiple venue portfolio cards visible in a grid", as
   await expect(page).toHaveURL(/\/dashboard/, { timeout: 20000 });
   await dashboardPage.waitForLoad();
 
-  // The broker portfolio section label ("Portfolio — N Venues") should be visible
+  // The broker triage console header ("The Book") should be visible
   await expect(dashboardPage.portfolioGrid).toBeVisible({ timeout: 15000 });
 
-  // There should be more than one venue card on the broker dashboard.
-  // Broker portfolio cards are <Link className="lc-vcard"> directly to /terminal/{id}.
-  const venueCards = page.locator("a.lc-vcard[href^='/terminal/']");
-  const count = await venueCards.count();
+  // There should be more than one venue row in the triage list. Rows are
+  // div.lc-triage__row (each row is selectable; clicking opens the preview
+  // pane, not a hard nav to /terminal anymore — that link was role-gated).
+  const venueRows = page.locator(".lc-triage__row");
+  const count = await venueRows.count();
   expect(count).toBeGreaterThan(1);
 });

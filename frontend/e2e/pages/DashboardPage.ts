@@ -29,8 +29,9 @@ export class DashboardPage {
     // The empty-state card links to /venues and contains "Set up your venue"
     this.setupVenueCta = page.locator("h2", { hasText: /set up.*your venue/i });
 
-    // Broker portfolio section label (em-dash was removed in redesign)
-    this.portfolioGrid = page.locator(".lc-rule__label", { hasText: /^Portfolio$/ });
+    // Broker dashboard is now a triage console — "The Book" header in
+    // .lc-triage__title replaced the card-grid "Portfolio" .lc-rule__label.
+    this.portfolioGrid = page.locator(".lc-triage__title", { hasText: /^The Book$/ });
 
     // Sidebar navigation links — use role=link with exact name
     this.dashboardNavItem = page.locator(".sidebar-nav-item", { hasText: "Dashboard" });
