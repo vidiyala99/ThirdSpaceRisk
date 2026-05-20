@@ -89,9 +89,9 @@ export default function LoginPage() {
             >02 / Create account</button>
           </div>
 
-          <h2 className="lc-login__heading">
+          <h1 className="lc-login__heading">
             {isSignUp ? <>Open a <em>new line</em>.</> : <>Welcome <em>back</em>.</>}
-          </h2>
+          </h1>
 
           <form onSubmit={handleSubmit} className="lc-login__form">
             {error && <div className="lc-login__error">{error}</div>}
@@ -182,6 +182,11 @@ export default function LoginPage() {
           <p className="lc-login__back">
             <Link href="/">← Back home</Link>
           </p>
+        </div>
+
+        <div className="lc-login__quote">
+          <p>&ldquo;Keep cultural businesses alive.&rdquo;</p>
+          <span>Third Space · Backed by a16z SpeedRun &amp; Dorm Room Fund</span>
         </div>
       </div>
     </div>
