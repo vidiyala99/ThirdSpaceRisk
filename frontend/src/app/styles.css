@@ -3933,3 +3933,47 @@ html, body { overflow-x: clip; }
 .mobile-bottom-nav__label {
   line-height: 1;
 }
+
+/* ============================================
+   STAT TILE
+   ============================================ */
+.stat-tile {
+  position: relative;
+  padding: 10px 14px;
+  background: var(--bg-base);
+  border-radius: var(--radius-md);
+}
+.stat-tile::before {
+  content: "";
+  position: absolute;
+  left: 0; top: 8px; bottom: 8px;
+  width: 2px;
+  background: var(--tile-accent, var(--border-strong));
+  border-radius: 1px;
+}
+.stat-tile__label {
+  color: var(--text-secondary);
+  font-size: 9px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  margin-bottom: 4px;
+  font-weight: 500;
+}
+.stat-tile__value {
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 1.35rem;
+  font-weight: 600;
+  line-height: 1;
+}
+.stat-tile__unit {
+  color: var(--text-tertiary);
+  font-size: 0.75rem;
+  font-weight: 400;
+  margin-left: 4px;
+}
+.stat-tile__delta {
+  font-size: 10px;
+  margin-top: 5px;
+  font-weight: 500;
+}
