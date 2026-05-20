@@ -53,10 +53,10 @@ function chunkPolicyText(text: string): PreviewChunk[] {
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
 
 const TIER_COLOR: Record<string, string> = {
-  A: "var(--brand-primary)",
-  B: "var(--brand-secondary)",
-  C: "var(--state-warning)",
-  D: "var(--brand-tertiary)",
+  A: "var(--tier-a)",
+  B: "var(--tier-b)",
+  C: "var(--tier-c)",
+  D: "var(--tier-d)",
 };
 
 const FACTOR_EXPLANATIONS: Record<string, {
@@ -103,7 +103,7 @@ function getFactorTier(score: number): "good" | "moderate" | "poor" {
 }
 
 function getFactorColor(score: number): string {
-  if (score >= 85) return "var(--brand-primary)";
+  if (score >= 85) return "var(--tier-a)";
   if (score >= 65) return "var(--state-warning)";
   return "var(--state-error)";
 }

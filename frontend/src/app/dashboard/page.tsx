@@ -58,10 +58,10 @@ interface PremiumQuote {
 interface Stats { venues: number; incidents: number; compliance: number; }
 
 const TIER_COLOR: Record<string, string> = {
-  A: "#c8f000",
-  B: "#818cf8",
-  C: "#f59e0b",
-  D: "#f43f5e",
+  A: "var(--tier-a)",
+  B: "var(--tier-b)",
+  C: "var(--tier-c)",
+  D: "var(--tier-d)",
 };
 
 interface VenueSummary { id: string; name: string; }
@@ -285,7 +285,7 @@ function DashboardPageInner() {
           </div>
           <div className="lc-meta-cell">
             <span className="lc-stat-label">Open Incidents</span>
-            <strong style={{ color: stats.incidents > 0 ? "#f43f5e" : undefined }}>{stats.incidents.toString().padStart(2, "0")}</strong>
+            <strong style={{ color: stats.incidents > 0 ? "var(--state-error)" : undefined }}>{stats.incidents.toString().padStart(2, "0")}</strong>
           </div>
           <div className="lc-meta-cell">
             <span className="lc-stat-label">Compliance</span>
@@ -391,7 +391,7 @@ function OperatorFloor({ riskScore, quote, liveState, venueId, portfolioVenues, 
   const capPct = liveState && liveState.max_capacity > 0
     ? (liveState.current_capacity / liveState.max_capacity) * 100
     : 0;
-  const capColor = capPct >= 95 ? "#f43f5e" : capPct >= 80 ? "#f59e0b" : "#c8f000";
+  const capColor = capPct >= 95 ? "var(--state-error)" : capPct >= 80 ? "var(--state-warning)" : "var(--tier-a)";
   const capMood = capPct >= 95 ? "At capacity"
     : capPct >= 80 ? "Filling fast"
     : capPct >= 50 ? "Healthy flow"
@@ -834,7 +834,7 @@ function TriageRow({
 function TriagePreview({ venue }: { venue: PortfolioVenue & { _bucket: Bucket; _daysToRenew: number | null } }) {
   const tierColor = TIER_COLOR[venue.tier] || "#8b8fa8";
   const capPct = venue.capacity > 0 ? (venue.current_capacity / venue.capacity) * 100 : 0;
-  const capColor = capPct >= 95 ? "#f43f5e" : capPct >= 80 ? "#f59e0b" : "#c8f000";
+  const capColor = capPct >= 95 ? "var(--state-error)" : capPct >= 80 ? "var(--state-warning)" : "var(--tier-a)";
 
   return (
     <>
