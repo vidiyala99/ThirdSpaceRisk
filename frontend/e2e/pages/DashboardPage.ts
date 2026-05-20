@@ -33,8 +33,9 @@ export class DashboardPage {
     // .lc-triage__title replaced the card-grid "Portfolio" .lc-rule__label.
     this.portfolioGrid = page.locator(".lc-triage__title", { hasText: /^The Book$/ });
 
-    // Sidebar navigation links — use role=link with exact name
-    this.dashboardNavItem = page.locator(".sidebar-nav-item", { hasText: "Dashboard" });
+    // Sidebar navigation links — labels are editorial ("The Book" for dashboard
+    // in the v3 sidebar redesign); accept legacy "Dashboard" too for safety.
+    this.dashboardNavItem = page.locator(".sidebar-nav-item", { hasText: /The Book|Dashboard/ });
     this.venuesNavItem = page.locator(".sidebar-nav-item", { hasText: "Venues" });
 
     // Broker-only "Reports" nav item
