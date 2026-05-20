@@ -3495,6 +3495,17 @@ a:hover { color: var(--text-primary); }
   border-left: 1px solid var(--border-subtle);
   padding-left: 14px;
   min-width: 0;
+  position: relative;
+}
+.lc-meta-cell::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 10px;
+  bottom: 10px;
+  width: 2px;
+  background: var(--border-strong);
+  border-radius: 1px;
 }
 .lc-meta-cell .lc-stat-label { display: block; margin-bottom: 6px; }
 .lc-meta-cell strong {
