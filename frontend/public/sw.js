@@ -1,0 +1,20 @@
+self.addEventListener('push', function(event) {
+  const data = event.data ? event.data.json() : {};
+  const title = data.title || '⚠️ Liability Alert';
+  const options = {
+    body: data.body || 'A potential liability event was detected.',
+    icon: '/favicon.ico',
+    badge: '/favicon.ico',
+    data: { url: '/alerts', alert_id: data.alert_id },
+    tag: data.alert_id || 'alert',
+    renotify: true,
+  };
+  event.waitUntil(self.registration.showNotification(title, options));
+});
+
+self.addEventListener('notificationclick', function(event) {
+  event.notification.close();
+  event.waitUntil(
+    clients.openWindow(event.notification.data.url || '/alerts')
+  );
+});
