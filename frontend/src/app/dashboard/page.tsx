@@ -303,20 +303,23 @@ function DashboardPageInner() {
             />
           </StatStrip>
         ) : (
-          <div className="lc-hero__meta" style={{ gridTemplateColumns: "repeat(3, minmax(0, 1fr))" }}>
-            <div className="lc-meta-cell">
-              <span className="lc-stat-label">Your Venues</span>
-              <strong>{stats.venues.toString().padStart(2, "0")}</strong>
-            </div>
-            <div className="lc-meta-cell">
-              <span className="lc-stat-label">Open Incidents</span>
-              <strong style={{ color: stats.incidents > 0 ? "var(--state-error)" : undefined }}>{stats.incidents.toString().padStart(2, "0")}</strong>
-            </div>
-            <div className="lc-meta-cell">
-              <span className="lc-stat-label">Compliance</span>
-              <strong style={{ color: stats.compliance > 0 ? "#818cf8" : undefined }}>{stats.compliance.toString().padStart(2, "0")}</strong>
-            </div>
-          </div>
+          <StatStrip className="lc-hero__meta">
+            <StatTile
+              label="Your Venues"
+              value={stats.venues.toString().padStart(2, "0")}
+              tier="neutral"
+            />
+            <StatTile
+              label="Open Incidents"
+              value={stats.incidents.toString().padStart(2, "0")}
+              tier={stats.incidents > 0 ? "d" : "neutral"}
+            />
+            <StatTile
+              label="Compliance"
+              value={stats.compliance.toString().padStart(2, "0")}
+              tier={stats.compliance > 0 ? "b" : "neutral"}
+            />
+          </StatStrip>
         )}
       </section>
 
