@@ -375,11 +375,12 @@ export default function VenueTerminalPage() {
 
             {/* Compliance Queue — bottom of left column */}
             <section>
-              <div className="flex justify-between items-center border-b border-subtle pb-md mb-md" style={{ borderColor: (liveState.compliance_queue?.length ?? 0) > 0 ? "rgba(255,60,60,0.3)" : undefined }}>
-                <h3 className="text-lg font-semibold uppercase font-display">Compliance Queue</h3>
+              <div className="lc-rule" style={(liveState.compliance_queue?.length ?? 0) > 0 ? { borderColor: "rgba(255,60,60,0.3)" } : undefined}>
+                <span className="lc-rule__label">Compliance Queue</span>
                 {(liveState.compliance_queue?.length ?? 0) > 0 && (
                   <span className="badge badge-error">URGENT</span>
                 )}
+                <div className="lc-rule__line" style={(liveState.compliance_queue?.length ?? 0) > 0 ? { background: "linear-gradient(90deg, rgba(255,60,60,0.4), transparent)" } : undefined} />
               </div>
               <div className="flex flex-col gap-lg">
                 {(liveState.compliance_queue?.length ?? 0) === 0 ? (
@@ -470,8 +471,9 @@ export default function VenueTerminalPage() {
               </div>
 
               <section>
-                <div className="border-b border-subtle pb-md mb-lg">
-                  <h3 className="text-lg font-semibold uppercase font-display">Infrastructure Sync</h3>
+                <div className="lc-rule">
+                  <span className="lc-rule__label">Infrastructure Sync</span>
+                  <div className="lc-rule__line" />
                 </div>
                 {liveState.infrastructure?.some((i: any) => i.is_degraded) && (
                   <div className="mb-md p-sm text-xs font-mono" style={{ background: "rgba(255,153,0,0.08)", border: "1px solid rgba(255,153,0,0.3)", borderRadius: "var(--radius-sm)", color: "var(--state-warning)" }}>
