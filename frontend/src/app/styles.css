@@ -4061,3 +4061,25 @@ html, body { overflow-x: clip; }
 .tier-badge--b { color: var(--tier-b); background: rgba(129,140,248,0.12); border-color: rgba(129,140,248,0.25); }
 .tier-badge--c { color: var(--tier-c); background: rgba(245,158,11,0.12); border-color: rgba(245,158,11,0.25); }
 .tier-badge--d { color: var(--tier-d); background: rgba(244,63,94,0.12); border-color: rgba(244,63,94,0.25); }
+
+/* ============================================
+   STATUS PILL
+   ============================================ */
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  border: 1px solid transparent;
+  line-height: 1.4;
+  text-transform: uppercase;
+}
+.status-pill--neutral { color: var(--text-secondary); background: var(--bg-surface); border-color: var(--border-default); }
+.status-pill--success { color: var(--tier-a); background: rgba(34,197,94,0.10); border-color: rgba(34,197,94,0.22); }
+.status-pill--warning { color: var(--tier-c); background: rgba(245,158,11,0.10); border-color: rgba(245,158,11,0.22); }
+.status-pill--danger  { color: var(--tier-d); background: rgba(244,63,94,0.10); border-color: rgba(244,63,94,0.22); }
+.status-pill--info    { color: var(--tier-b); background: rgba(129,140,248,0.10); border-color: rgba(129,140,248,0.22); }
