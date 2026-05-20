@@ -904,9 +904,9 @@ export default function RiskProfilePage() {
                   style={{ borderBottom: "1px solid var(--border-subtle)", paddingBottom: "var(--space-sm)" }}
                 >
                   <div>
-                    <h2 className="text-xs uppercase tracking-wide text-secondary" style={{ margin: 0 }}>
+                    <h3 className="rp-section-title text-xs uppercase tracking-wide text-secondary">
                       Override Calibration
-                    </h2>
+                    </h3>
                     <p className="text-xs text-secondary" style={{ margin: "4px 0 0" }}>
                       How often this venue's operator overrides of the claim recommender are validated by broker decisions
                     </p>
