@@ -3977,3 +3977,25 @@ html, body { overflow-x: clip; }
   margin-top: 5px;
   font-weight: 500;
 }
+
+/* ============================================
+   STAT STRIP — fused row of StatTiles
+   ============================================ */
+.stat-strip {
+  display: grid;
+  grid-auto-columns: 1fr;
+  grid-auto-flow: column;
+  gap: 1px;
+  background: var(--border-subtle);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+.stat-strip .stat-tile {
+  border-radius: 0;
+}
+@media (max-width: 640px) {
+  .stat-strip {
+    grid-auto-flow: row;
+    grid-auto-columns: auto;
+  }
+}
