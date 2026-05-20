@@ -7,6 +7,9 @@ import { Building2, LogOut, MapPin, ArrowUpRight, WifiOff, Search, AlertTriangle
 import Link from "next/link";
 import { Grid } from "@/components/layout/Grid";
 import { authHeaders } from "@/lib/authFetch";
+import { StatStrip } from "@/components/ui/StatStrip";
+import { StatTile } from "@/components/ui/StatTile";
+import { TierBadge, Tier as UiTier } from "@/components/ui/TierBadge";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
 
@@ -275,29 +278,46 @@ function DashboardPageInner() {
           </p>
         </div>
 
-        <div
-          className="lc-hero__meta"
-          style={!isBroker ? { gridTemplateColumns: "repeat(3, minmax(0, 1fr))" } : undefined}
-        >
-          <div className="lc-meta-cell">
-            <span className="lc-stat-label">{isBroker ? "Venues" : "Your Venues"}</span>
-            <strong>{stats.venues.toString().padStart(2, "0")}</strong>
-          </div>
-          <div className="lc-meta-cell">
-            <span className="lc-stat-label">Open Incidents</span>
-            <strong style={{ color: stats.incidents > 0 ? "var(--state-error)" : undefined }}>{stats.incidents.toString().padStart(2, "0")}</strong>
-          </div>
-          <div className="lc-meta-cell">
-            <span className="lc-stat-label">Compliance</span>
-            <strong style={{ color: stats.compliance > 0 ? "#818cf8" : undefined }}>{stats.compliance.toString().padStart(2, "0")}</strong>
-          </div>
-          {isBroker && (
+        {isBroker ? (
+          <StatStrip className="lc-hero__meta">
+            <StatTile
+              label="Venues"
+              value={stats.venues.toString().padStart(2, "0")}
+              tier="neutral"
+            />
+            <StatTile
+              label="Open Incidents"
+              value={stats.incidents.toString().padStart(2, "0")}
+              tier={stats.incidents > 0 ? "c" : "neutral"}
+            />
+            <StatTile
+              label="Compliance"
+              value={stats.compliance.toString().padStart(2, "0")}
+              tier={stats.compliance > 0 ? "b" : "neutral"}
+            />
+            <StatTile
+              label="Avg Risk"
+              value={avgScore ?? "—"}
+              unit="/100"
+              tier={avgScore != null && avgScore >= 80 ? "a" : avgScore != null && avgScore >= 60 ? "c" : avgScore != null ? "d" : "neutral"}
+            />
+          </StatStrip>
+        ) : (
+          <div className="lc-hero__meta" style={{ gridTemplateColumns: "repeat(3, minmax(0, 1fr))" }}>
             <div className="lc-meta-cell">
-              <span className="lc-stat-label">Avg Risk</span>
-              <strong>{avgScore ?? "—"}</strong>
+              <span className="lc-stat-label">Your Venues</span>
+              <strong>{stats.venues.toString().padStart(2, "0")}</strong>
             </div>
-          )}
-        </div>
+            <div className="lc-meta-cell">
+              <span className="lc-stat-label">Open Incidents</span>
+              <strong style={{ color: stats.incidents > 0 ? "var(--state-error)" : undefined }}>{stats.incidents.toString().padStart(2, "0")}</strong>
+            </div>
+            <div className="lc-meta-cell">
+              <span className="lc-stat-label">Compliance</span>
+              <strong style={{ color: stats.compliance > 0 ? "#818cf8" : undefined }}>{stats.compliance.toString().padStart(2, "0")}</strong>
+            </div>
+          </div>
+        )}
       </section>
 
       {/* TICKER — portfolio-wide signal; hidden for operator (single venue) */}
@@ -824,7 +844,7 @@ function TriageRow({
         <div className="date" style={{ color: renewalSoon ? "var(--state-warning)" : undefined }}>
           {venue._daysToRenew != null
             ? venue._daysToRenew < 0 ? `${Math.abs(venue._daysToRenew)}d past` : `${venue._daysToRenew}d`
-            : venue.tier}
+            : <TierBadge tier={venue.tier as UiTier} />}
         </div>
       </div>
     </div>
